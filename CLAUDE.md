@@ -12,3 +12,7 @@ AI-assisted reader app. Simple, fast, convenient. Designed to work well on iPad.
 - User provides their own OpenRouter API key via settings UI, stored in localStorage.
 - Books stored in IndexedDB (browser-local, persists across sessions).
 - `ai-docs/` holds project documentation and design notes.
+
+## Deployment
+
+- When changing JS/CSS files, bump `CACHE_NAME` in `docs/sw.js` (e.g. `v1` -> `v2`) so the service worker invalidates its cache.
