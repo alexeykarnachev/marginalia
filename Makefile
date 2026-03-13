@@ -1,20 +1,16 @@
-.PHONY: format mypy pyright quality serve
-
-format:
-	@echo +ruff check --fix
-	@uv run ruff check --fix -q
-	@echo +ruff format
-	@uv run ruff format
-
-mypy:
-	@echo +mypy
-	@uv run mypy marginalia scripts
-
-pyright:
-	@echo +pyright
-	@uv run pyright
-
-quality: format mypy pyright
+run:
+	xdg-open docs/index.html
 
 serve:
-	uv run python scripts/server.py start
+	@if lsof -ti:8228 > /dev/null 2>&1; then \
+		echo "Port 8228 is already in use."; \
+		read -p "Kill existing server? [y/N] " ans; \
+		if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
+			kill $$(lsof -ti:8228); \
+			echo "Killed."; \
+		else \
+			echo "Aborted."; \
+			exit 1; \
+		fi; \
+	fi
+	python3 -m http.server 8228 -d docs 2>/dev/null & sleep 0.5 && xdg-open http://localhost:8228

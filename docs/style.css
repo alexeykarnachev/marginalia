@@ -1,0 +1,145 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.view { display: none; height: 100vh; flex-direction: column; }
+.view.active { display: flex; }
+
+/* Library */
+#library { padding: 20px; overflow-y: auto; }
+
+#library-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#library-header h1 { font-size: 24px; }
+
+#btn-settings {
+    background: none;
+    border: 1px solid #555;
+    color: #e0e0e0;
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#book-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.book-item {
+    background: #2a2a2a;
+    padding: 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.book-item:hover { background: #333; }
+.book-title { font-weight: 500; }
+.book-item-right { display: flex; align-items: center; gap: 10px; }
+.book-size { color: #888; font-size: 13px; }
+.book-delete {
+    background: none;
+    border: 1px solid #555;
+    color: #888;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+}
+.book-delete:hover { border-color: #e05555; color: #e05555; }
+
+.upload-btn {
+    display: inline-block;
+    background: #4a9eff;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    text-align: center;
+}
+
+/* Settings modal */
+.overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+.overlay.hidden { display: none; }
+
+.modal {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 400px;
+}
+
+.modal h2 { margin-bottom: 16px; font-size: 18px; }
+
+.modal label {
+    display: block;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #aaa;
+}
+
+.modal input {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px;
+    background: #333;
+    color: #e0e0e0;
+    border: 1px solid #555;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.modal-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#btn-settings-save { background: #4a9eff; color: white; }
+#btn-settings-cancel { background: #444; color: #e0e0e0; }

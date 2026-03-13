@@ -1,9 +1,0 @@
-repos:
-  - repo: local
-    hooks:
-      - id: quality
-        name: Code quality (format, mypy, pyright)
-        language: system
-        pass_filenames: false
-        always_run: true
-        entry: make quality
