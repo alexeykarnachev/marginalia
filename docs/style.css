@@ -26,40 +26,69 @@ body {
 }
 
 #library-header h1 { font-size: 24px; }
+#library-header-right { display: flex; gap: 8px; }
 
-#btn-settings {
+#btn-settings, #btn-new-folder {
     background: none;
     border: 1px solid #555;
     color: #e0e0e0;
-    font-size: 20px;
+    font-size: 18px;
     width: 40px;
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
 }
+#btn-settings:hover, #btn-new-folder:hover { border-color: #4a9eff; }
 
 #book-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     margin-bottom: 20px;
 }
 
-.book-item {
+/* Breadcrumb */
+.library-breadcrumb {
+    padding: 8px 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #888;
+}
+.breadcrumb-item.clickable { color: #4a9eff; cursor: pointer; }
+.breadcrumb-item.clickable:hover { text-decoration: underline; }
+.breadcrumb-item.current { color: #e0e0e0; }
+.breadcrumb-sep { color: #555; }
+
+/* Library items (folders + books) */
+.library-item {
     background: #2a2a2a;
-    padding: 14px;
+    padding: 12px 14px;
     border-radius: 8px;
     cursor: pointer;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 10px;
+}
+.library-item:hover { background: #333; }
+
+.item-icon { font-size: 18px; flex-shrink: 0; }
+.item-title { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-meta { color: #888; font-size: 13px; flex-shrink: 0; }
+
+.item-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.library-item:hover .item-actions { opacity: 1; }
+/* Touch devices: always show actions since there's no hover */
+@media (hover: none) {
+    .item-actions { opacity: 0.7; }
 }
 
-.book-item:hover { background: #333; }
-.book-title { font-weight: 500; }
-.book-item-right { display: flex; align-items: center; gap: 10px; }
-.book-size { color: #888; font-size: 13px; }
-.book-delete {
+.item-btn {
     background: none;
     border: 1px solid #555;
     color: #888;
@@ -67,9 +96,22 @@ body {
     height: 28px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.book-delete:hover { border-color: #e05555; color: #e05555; }
+.item-btn:hover { border-color: #4a9eff; color: #4a9eff; }
+.item-btn-danger:hover { border-color: #e05555; color: #e05555; }
+
+.folder-item { border-left: 3px solid #4a9eff; }
+
+.library-empty {
+    color: #666;
+    font-size: 14px;
+    padding: 20px 0;
+    text-align: center;
+}
 
 .upload-btn {
     display: inline-block;
@@ -113,7 +155,9 @@ body {
     color: #aaa;
 }
 
-.modal input {
+.modal input[type="text"],
+.modal input[type="password"],
+.modal input[type="number"] {
     display: block;
     width: 100%;
     margin-top: 6px;
@@ -124,6 +168,25 @@ body {
     border-radius: 6px;
     font-size: 14px;
     font-family: inherit;
+}
+
+.modal-divider {
+    border: none;
+    border-top: 1px solid #444;
+    margin: 16px 0;
+}
+
+.checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #4a9eff;
 }
 
 .modal-buttons {

@@ -21,7 +21,7 @@ Open **https://alexeykarnachev.github.io/marginalia/** in your browser.
 
 1. Get an API key from [OpenRouter](https://openrouter.ai/)
 2. Open the app and tap the gear icon
-3. Paste your API key and choose a model (default: `anthropic/claude-sonnet-4`)
+3. Paste your API key and choose a model (default: `x-ai/grok-4.1-fast`)
 
 ## Usage
 

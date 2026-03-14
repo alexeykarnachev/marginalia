@@ -18,7 +18,10 @@
         <div id="library" class="view active">
             <div id="library-header">
                 <h1>Marginalia</h1>
-                <button id="btn-settings" title="Settings">&#9881;</button>
+                <div id="library-header-right">
+                    <button id="btn-new-folder" title="New folder">📁+</button>
+                    <button id="btn-settings" title="Settings">&#9881;</button>
+                </div>
             </div>
             <div id="book-list"></div>
             <label class="upload-btn">
@@ -37,7 +40,16 @@
                 </label>
                 <label>
                     Model
-                    <input type="text" id="settings-model" placeholder="anthropic/claude-sonnet-4">
+                    <input type="text" id="settings-model" placeholder="x-ai/grok-4.1-fast">
+                </label>
+                <hr class="modal-divider">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="settings-auto-compact" checked>
+                    Auto-compact conversation
+                </label>
+                <label>
+                    Compact threshold (tokens)
+                    <input type="number" id="settings-compact-threshold" value="50000" min="10000" step="5000">
                 </label>
                 <div class="modal-buttons">
                     <button id="btn-settings-save">Save</button>
@@ -47,7 +59,9 @@
         </div>
     </div>
 
-    <script type="module" src="app.js"></script>
+    <script src="pdfjs/build/pdf.mjs" type="module"></script>
+    <script src="db.js" defer></script>
+    <script src="app.js" defer></script>
     <script>
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("sw.js");
