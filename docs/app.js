@@ -59,7 +59,7 @@ uploadInput.addEventListener("change", async (e) => {
         console.error("Upload failed:", err);
     }
     uploadBtn.textContent = origText;
-}
+});
 
 // --- Settings ---
 
