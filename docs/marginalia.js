@@ -432,8 +432,13 @@ function injectUI() {
     backBtn.id = "marginalia-page-back";
     backBtn.className = "marginalia-page-back hidden";
     backBtn.addEventListener("click", () => {
-        if (_pageBeforeJump && window.PDFViewerApplication) {
-            window.PDFViewerApplication.page = _pageBeforeJump;
+        const app = window.PDFViewerApplication;
+        if (_pageBeforeJump && app) {
+            if (app.eventBus) {
+                app.eventBus.dispatch("pagenumberchanged", { source: null, value: String(_pageBeforeJump) });
+            } else {
+                app.page = _pageBeforeJump;
+            }
             _pageBeforeJump = null;
             backBtn.classList.add("hidden");
         }
@@ -445,10 +450,15 @@ function injectUI() {
         if (link) {
             e.preventDefault();
             const page = parseInt(link.dataset.page);
-            if (page && window.PDFViewerApplication) {
-                _pageBeforeJump = window.PDFViewerApplication.page;
-                window.PDFViewerApplication.page = page;
-                backBtn.textContent = `← Back to p.${_pageBeforeJump}`;
+            const app = window.PDFViewerApplication;
+            if (page && app) {
+                _pageBeforeJump = app.page;
+                if (app.eventBus) {
+                    app.eventBus.dispatch("pagenumberchanged", { source: null, value: String(page) });
+                } else {
+                    app.page = page;
+                }
+                backBtn.textContent = `\u2190 Back to p.${_pageBeforeJump}`;
                 backBtn.classList.remove("hidden");
             }
         }
@@ -1072,13 +1082,22 @@ let contextInterval = null;
 
 function _updateViewerMargin() {
     const panel = document.getElementById("marginalia-chat");
-    const outer = document.getElementById("outerContainer");
-    if (!outer || !panel) return;
+    if (!panel) return;
+    // Inject/update a style rule that constrains the entire viewer
+    let rule = document.getElementById("marginalia-viewer-margin");
+    if (!rule) {
+        rule = document.createElement("style");
+        rule.id = "marginalia-viewer-margin";
+        document.head.appendChild(rule);
+    }
     if (panel.classList.contains("open")) {
         const w = panel.offsetWidth;
-        outer.style.width = `calc(100% - ${w}px)`;
+        rule.textContent = `
+            #outerContainer { width: calc(100% - ${w}px) !important; }
+            body { overflow-x: hidden; }
+        `;
     } else {
-        outer.style.width = "";
+        rule.textContent = "";
     }
 }
 
@@ -1310,9 +1329,12 @@ function renderMarkdown(text) {
     result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
 
     // Make page citations clickable: p.42, page 42, pp.10-15
+    // Clickable page links — English and Russian patterns
     result = result.replace(/\bp\.(\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
     result = result.replace(/\bpage\s+(\d+)\b/gi, '<a class="marginalia-page-link" data-page="$1" href="#">page $1</a>');
     result = result.replace(/\bpp\.(\d+)[-–](\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">pp.$1-$2</a>');
+    result = result.replace(/\bстр\.\s*(\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">стр. $1</a>');
+    result = result.replace(/\bстраниц[аеуы]\s+(\d+)\b/gi, '<a class="marginalia-page-link" data-page="$1" href="#">страница $1</a>');
 
     return result;
 }
