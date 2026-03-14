@@ -1,4 +1,4 @@
-const CACHE_NAME = "marginalia-v29";
+const CACHE_NAME = "marginalia-v30";
 
 // Shell files to precache (app skeleton)
 const SHELL = [

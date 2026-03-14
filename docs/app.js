@@ -290,4 +290,7 @@ function escapeHtml(text) {
 
 // --- Init ---
 
+const versionEl = document.getElementById("version-label");
+if (versionEl) versionEl.textContent = "v" + MARGINALIA_VERSION;
+
 renderLibrary().catch((e) => console.error("Failed to load library:", e));
