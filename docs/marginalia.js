@@ -337,14 +337,30 @@ function injectUI() {
     document.getElementById("marginalia-mono-btn").addEventListener("click", toggleMono);
     document.getElementById("marginalia-raw-btn").addEventListener("click", toggleRaw);
 
-    // Clickable page citations in chat
+    // Clickable page citations in chat + back button
+    let _pageBeforeJump = null;
+    const backBtn = document.createElement("button");
+    backBtn.id = "marginalia-page-back";
+    backBtn.className = "marginalia-page-back hidden";
+    backBtn.addEventListener("click", () => {
+        if (_pageBeforeJump && window.PDFViewerApplication) {
+            window.PDFViewerApplication.page = _pageBeforeJump;
+            _pageBeforeJump = null;
+            backBtn.classList.add("hidden");
+        }
+    });
+    document.body.appendChild(backBtn);
+
     document.getElementById("marginalia-chat-messages").addEventListener("click", (e) => {
         const link = e.target.closest(".marginalia-page-link");
         if (link) {
             e.preventDefault();
             const page = parseInt(link.dataset.page);
             if (page && window.PDFViewerApplication) {
+                _pageBeforeJump = window.PDFViewerApplication.page;
                 window.PDFViewerApplication.page = page;
+                backBtn.textContent = `← Back to p.${_pageBeforeJump}`;
+                backBtn.classList.remove("hidden");
             }
         }
     });
@@ -606,6 +622,16 @@ function injectStyles() {
             font-style: italic;
             padding: 4px 12px;
         }
+        .tool-activity {
+            background: #1a1a2e;
+            color: #7799bb;
+            font-size: 0.8em;
+            padding: 6px 12px;
+            border-radius: 8px;
+            white-space: pre-line;
+            line-height: 1.6;
+            border-left: 2px solid #4a9eff;
+        }
         .marginalia-copy-btn {
             position: absolute;
             top: 6px;
@@ -628,6 +654,23 @@ function injectStyles() {
             cursor: pointer;
         }
         .marginalia-page-link:hover { text-decoration-style: solid; }
+        .marginalia-page-back {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            z-index: 99999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: opacity 0.2s;
+        }
+        .marginalia-page-back:hover { background: #3a8eef; }
+        .marginalia-page-back.hidden { display: none; }
 
         .thinking-dots span {
             animation: blink 1.4s infinite both;
@@ -701,6 +744,10 @@ function injectStyles() {
             opacity: 0.5;
             cursor: default;
         }
+        #marginalia-chat-send.done {
+            background: #4caf50;
+            transition: background 0.3s;
+        }
 
         /* Light theme overrides */
         .marginalia-light #marginalia-chat { background: #f9f9f9; color: #333; }
@@ -723,6 +770,7 @@ function injectStyles() {
         .marginalia-light .marginalia-msg.assistant { background: #e0e0e0; }
         .marginalia-light .marginalia-msg.system { background: #e0f0e0; color: #585; }
         .marginalia-light .marginalia-msg.tool-status { background: #e0e0f0; color: #558; }
+        .marginalia-light .tool-activity { background: #e8e8f4; color: #446688; border-left-color: #2070cc; }
         .marginalia-light .marginalia-msg.assistant code { background: #d0d0d0; }
         .marginalia-light .marginalia-msg.assistant pre { background: #d0d0d0; }
         .marginalia-light .marginalia-msg.assistant strong { color: #111; }
@@ -1151,6 +1199,11 @@ function renderMarkdown(text) {
         });
     }
 
+    // Strip UUIDs from display — user doesn't need them
+    result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, "");
+    result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, "");
+    result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
+
     // Make page citations clickable: p.42, page 42, pp.10-15
     result = result.replace(/\bp\.(\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
     result = result.replace(/\bpage\s+(\d+)\b/gi, '<a class="marginalia-page-link" data-page="$1" href="#">page $1</a>');
@@ -1198,15 +1251,50 @@ function createMsgEl(msg) {
 }
 
 async function getContext() {
-    return buildLibraryContext();
+    try {
+        return await buildLibraryContext();
+    } catch (err) {
+        console.error("getContext failed:", err);
+        // Fallback minimal context
+        const app = window.PDFViewerApplication;
+        return {
+            page: app?.page || 1,
+            totalPages: app?.pagesCount || 1,
+            title: document.title.replace(" - Marginalia", ""),
+            selection: "",
+            time: new Date().toLocaleString(),
+            pageText: "",
+            pageHistory: "",
+            libraryTree: "(error loading library)",
+            focusContext: `Page: ${app?.page || 1}`,
+            currentBookId: getBookId(),
+            currentBookTitle: "",
+            bookCount: 0,
+            folderCount: 0,
+            totalSize: 0,
+            totalPageCount: 0,
+        };
+    }
 }
 
 function setSending(val) {
     isSending = val;
     const btn = document.getElementById("marginalia-chat-send");
     const input = document.getElementById("marginalia-chat-input");
-    if (btn) btn.disabled = val;
-    if (input) input.disabled = val;
+    if (btn) {
+        btn.disabled = val;
+        if (!val && btn._wasSending) {
+            // Flash a done indicator
+            btn.textContent = "✓";
+            btn.classList.add("done");
+            setTimeout(() => { btn.textContent = "Send"; btn.classList.remove("done"); }, 1500);
+        }
+        btn._wasSending = val;
+    }
+    if (input) {
+        input.disabled = val;
+        if (!val) input.focus();
+    }
 }
 
 function showThinking() {
@@ -1222,15 +1310,65 @@ function hideThinking() {
     document.querySelectorAll(".marginalia-thinking").forEach(el => el.remove());
 }
 
-function addToolStatusMsg(name, args, result) {
-    const argsStr = Object.entries(args).map(([k, v]) => `${k}=${v}`).join(", ");
-    let content = `tool: ${name}(${argsStr})`;
-    if (result) {
-        const preview = result.length > 150 ? result.slice(0, 150) + "..." : result;
-        content += `\n→ ${preview}`;
+function _humanizeToolAction(name, args) {
+    // Friendly descriptions — never show UUIDs
+    switch (name) {
+        case "read_page": return `Reading page ${args.page}...`;
+        case "read_pages": return `Reading pages ${args.from}-${args.to}...`;
+        case "search_book": return `Searching for "${args.query}"...`;
+        case "search_all_books": return `Searching all books for "${args.query}"...`;
+        case "go_to_page": return `Going to page ${args.page}...`;
+        case "go_back": return "Going back...";
+        case "open_book": return "Opening book...";
+        case "get_table_of_contents": return "Getting table of contents...";
+        case "rename_book": return `Renaming to "${args.new_title}"...`;
+        case "move_book": return "Moving book...";
+        case "delete_book": return "Deleting book...";
+        case "create_folder": return `Creating folder "${args.name}"...`;
+        case "rename_folder": return `Renaming folder to "${args.new_name}"...`;
+        case "delete_folder": return "Deleting folder...";
+        case "move_folder": return "Moving folder...";
+        case "batch_move_books": return `Moving ${args.book_ids?.length || "?"} books...`;
+        case "batch_rename_books": return `Renaming ${args.renames?.length || "?"} books...`;
+        default: return `${name}...`;
     }
-    chatMessages.push({ role: "system", content });
-    renderChat();
+}
+
+// Tool activity is shown as ephemeral UI, not stored in chatMessages.
+// After the turn, a compact summary replaces the individual tool lines.
+let _toolActivity = []; // accumulates during a turn
+
+function _showToolActivity(name, args) {
+    _toolActivity.push(_humanizeToolAction(name, args));
+
+    // Update or create the tool activity element
+    const messagesEl = document.getElementById("marginalia-chat-messages");
+    let actEl = document.getElementById("marginalia-tool-activity");
+    if (!actEl) {
+        actEl = document.createElement("div");
+        actEl.id = "marginalia-tool-activity";
+        actEl.className = "marginalia-msg tool-activity";
+        messagesEl.appendChild(actEl);
+    }
+    actEl.textContent = _toolActivity.join("\n");
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function _clearToolActivity() {
+    const actEl = document.getElementById("marginalia-tool-activity");
+    if (actEl) actEl.remove();
+}
+
+function _finalizeToolActivity() {
+    _clearToolActivity();
+    if (_toolActivity.length > 0) {
+        // Store a compact one-line summary in chat history
+        const summary = _toolActivity.length <= 2
+            ? _toolActivity.join(" → ")
+            : `${_toolActivity[0]} → ... → ${_toolActivity[_toolActivity.length - 1]} (${_toolActivity.length} steps)`;
+        chatMessages.push({ role: "system", content: summary });
+    }
+    _toolActivity = [];
 }
 
 async function sendMessage() {
@@ -1243,12 +1381,14 @@ async function sendMessage() {
 
     const context = await getContext();
     updateContextBar(context);
+    _cachedSelection = ""; // consumed — clear for next turn
 
     chatMessages.push({ role: "user", content: text });
     input.value = "";
     renderChat();
     setSending(true);
     showThinking();
+    _toolActivity = [];
 
     // Build system prompt
     let system = renderPrompt(SYSTEM_PROMPT, context);
@@ -1273,9 +1413,11 @@ async function sendMessage() {
                 }
             },
             onDelta: (delta, fullContent) => {
-                // First delta — create the streaming message element
+                // First delta — finalize tool activity and start streaming
                 if (!streamingMsgEl) {
                     hideThinking();
+                    _finalizeToolActivity();
+                    renderChat(); // re-render to show tool summary
                     streamingContent = "";
                     chatMessages.push({ role: "assistant", content: "" });
                     streamingMsgEl = createMsgEl(chatMessages[chatMessages.length - 1]);
@@ -1294,10 +1436,10 @@ async function sendMessage() {
             },
             onToolCall: (name, args) => {
                 hideThinking();
-                // Don't add to chat yet — wait for result
+                _showToolActivity(name, args);
             },
             onToolResult: (name, args, toolResult) => {
-                addToolStatusMsg(name, args, toolResult);
+                // Activity already shown by onToolCall
             },
             onUsage: (usage, model) => {
                 chatStats.inputTokens += usage.prompt_tokens || 0;
@@ -1332,8 +1474,10 @@ async function sendMessage() {
         renderStats();
     } catch (err) {
         hideThinking();
+        _finalizeToolActivity();
         chatMessages.push({ role: "assistant", content: `Error: ${err.message}` });
     }
+    _clearToolActivity();
     setSending(false);
     saveChatState();
     if (!streamingMsgEl) renderChat();
@@ -1359,10 +1503,12 @@ function updateContextBar(context) {
         : 100;
     fill.style.width = pct + "%";
 
-    let info = `p.${context.page}/${context.totalPages}`;
+    const title = context.title || document.title.replace(" - Marginalia", "");
+    const shortTitle = title.length > 30 ? title.slice(0, 28) + "..." : title;
+    let info = `${shortTitle} — p.${context.page}/${context.totalPages}`;
     if (context.selection) {
-        const preview = context.selection.length > 60
-            ? context.selection.slice(0, 60) + "..."
+        const preview = context.selection.length > 40
+            ? context.selection.slice(0, 38) + "..."
             : context.selection;
         info += ` | "${preview}"`;
     }
@@ -1389,6 +1535,14 @@ var _onBookChange = function(bookId) {
     initPageTracking();
 };
 
+// Cache text selection — captured before focus moves to chat input
+var _cachedSelection = "";
+
+function _captureSelection() {
+    const sel = window.getSelection()?.toString().trim() || "";
+    if (sel) _cachedSelection = sel;
+}
+
 function init() {
     loadChatState();
     fetchContextLimit(chatStats.model || getChatModel());
@@ -1396,6 +1550,10 @@ function init() {
     applyTheme();
     loadPdfFromDB();
     initPageTracking();
+
+    // Capture selection on any mouseup/touchend in the viewer
+    document.addEventListener("mouseup", _captureSelection);
+    document.addEventListener("touchend", _captureSelection);
     // Restore chat open state
     if (localStorage.getItem("marginalia_chat_open") === "1") {
         const panel = document.getElementById("marginalia-chat");

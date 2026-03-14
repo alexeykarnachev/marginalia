@@ -201,10 +201,8 @@ async function buildLibraryContext() {
         pageText = await getBookPageText(currentBookId, currentPage);
     }
 
-    // Selection (browser only)
-    const selection = (typeof window !== "undefined" && window.getSelection)
-        ? (window.getSelection()?.toString().trim() || "")
-        : "";
+    // Selection: use cached selection (captured before focus moves to chat input)
+    const selection = (typeof _cachedSelection !== "undefined" && _cachedSelection) || "";
 
     // Page history
     const history = typeof getPageHistory === "function" ? getPageHistory() : [];

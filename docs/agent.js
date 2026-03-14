@@ -107,7 +107,12 @@ async function llmCall(apiKey, model, messages, tools, onDelta) {
     let finishReason = "";
 
     while (true) {
-        const { done, value } = await reader.read();
+        let done, value;
+        try {
+            ({ done, value } = await reader.read());
+        } catch (e) {
+            throw new Error("Connection lost: " + (e.message || "network error"));
+        }
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
@@ -120,6 +125,12 @@ async function llmCall(apiKey, model, messages, tools, onDelta) {
             if (payload === "[DONE]") continue;
             try {
                 const chunk = JSON.parse(payload);
+
+                // Handle error events in the stream
+                if (chunk.error) {
+                    throw new Error(chunk.error.message || chunk.error || "Stream error");
+                }
+
                 const choice = chunk.choices?.[0];
 
                 const delta = choice?.delta?.content;
@@ -145,7 +156,13 @@ async function llmCall(apiKey, model, messages, tools, onDelta) {
                 if (choice?.finish_reason) finishReason = choice.finish_reason;
                 if (chunk.usage) usage = chunk.usage;
                 if (chunk.model) resultModel = chunk.model;
-            } catch {}
+            } catch (e) {
+                if (e.message && e.message !== "Stream error") {
+                    // JSON parse error — skip this chunk
+                } else {
+                    throw e; // Re-throw stream errors
+                }
+            }
         }
     }
 
