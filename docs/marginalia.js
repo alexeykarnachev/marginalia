@@ -104,6 +104,14 @@ function setChatModel(model) {
 
 // --- Theme ---
 
+const THEMES = [
+    { id: "light",  label: "☀",  ui: "light", filter: "none" },
+    { id: "sepia",  label: "🌅", ui: "dark",  filter: "sepia(0.4) brightness(0.75) contrast(0.9)" },
+    { id: "dim",    label: "🌙", ui: "dark",  filter: "invert(0.8) hue-rotate(180deg) contrast(0.8) brightness(0.85)" },
+    { id: "dark",   label: "🌑", ui: "dark",  filter: "invert(0.92) hue-rotate(180deg) contrast(0.8) brightness(0.8)" },
+    { id: "black",  label: "⬛", ui: "dark",  filter: "invert(1) hue-rotate(180deg) brightness(0.75)" },
+];
+
 function getTheme() {
     return localStorage.getItem("marginalia_theme") || "dark";
 }
@@ -113,14 +121,23 @@ function setTheme(t) {
     applyTheme();
 }
 
+function cycleTheme() {
+    const current = getTheme();
+    const idx = THEMES.findIndex(t => t.id === current);
+    const next = THEMES[(idx + 1) % THEMES.length];
+    setTheme(next.id);
+}
+
 function applyTheme() {
     const html = document.documentElement;
+    const theme = THEMES.find(t => t.id === getTheme()) || THEMES[3];
     const lightEls = [
         document.getElementById("marginalia-chat"),
         document.getElementById("marginalia-prompt-overlay"),
         document.getElementById("marginalia-tools-overlay"),
     ];
-    if (getTheme() === "light") {
+
+    if (theme.ui === "light") {
         html.classList.remove("is-dark");
         html.classList.add("is-light");
         lightEls.forEach(el => el?.classList.add("marginalia-light"));
@@ -128,6 +145,17 @@ function applyTheme() {
         html.classList.remove("is-light");
         html.classList.add("is-dark");
         lightEls.forEach(el => el?.classList.remove("marginalia-light"));
+    }
+
+    // Apply page filter
+    const pages = document.querySelector(".pdfViewer");
+    if (pages) pages.style.filter = theme.filter;
+
+    // Update theme button label
+    const btn = document.getElementById("marginaliaTheme");
+    if (btn) {
+        btn.textContent = theme.label;
+        btn.title = `Theme: ${theme.id}`;
     }
 }
 
@@ -231,7 +259,7 @@ function injectUI() {
         themeBtn.title = "Toggle theme";
         themeBtn.textContent = "☀";
         themeBtn.style.cssText = "font-size:16px;cursor:pointer;background:none;border:none;color:inherit;";
-        themeBtn.addEventListener("click", () => setTheme(getTheme() === "dark" ? "light" : "dark"));
+        themeBtn.addEventListener("click", cycleTheme);
         toolbarRight.insertBefore(themeBtn, toolbarRight.firstChild);
     }
 
@@ -381,19 +409,20 @@ function initResize(panel) {
     function onMove(x) {
         if (startX == null) return;
         panel.style.width = Math.max(280, startW - (x - startX)) + "px";
+        _updateViewerMargin();
     }
 
     handle.addEventListener("mousedown", (e) => { startX = e.clientX; startW = panel.offsetWidth; });
     document.addEventListener("mousemove", (e) => onMove(e.clientX));
     document.addEventListener("mouseup", () => {
-        if (startX != null) localStorage.setItem("marginalia_chat_width", panel.offsetWidth);
+        if (startX != null) { localStorage.setItem("marginalia_chat_width", panel.offsetWidth); _updateViewerMargin(); }
         startX = null;
     });
 
     handle.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; startW = panel.offsetWidth; });
     document.addEventListener("touchmove", (e) => { if (startX != null) onMove(e.touches[0].clientX); });
     document.addEventListener("touchend", () => {
-        if (startX != null) localStorage.setItem("marginalia_chat_width", panel.offsetWidth);
+        if (startX != null) { localStorage.setItem("marginalia_chat_width", panel.offsetWidth); _updateViewerMargin(); }
         startX = null;
     });
 
@@ -404,6 +433,8 @@ function initResize(panel) {
 function injectStyles() {
     const style = document.createElement("style");
     style.textContent = `
+        /* Page filter is applied inline by applyTheme() */
+
         #marginalia-chat {
             position: fixed;
             top: 0;
@@ -978,6 +1009,18 @@ function fmtTokens(n) {
 
 let contextInterval = null;
 
+function _updateViewerMargin() {
+    const panel = document.getElementById("marginalia-chat");
+    const outer = document.getElementById("outerContainer");
+    if (!outer || !panel) return;
+    if (panel.classList.contains("open")) {
+        const w = panel.offsetWidth;
+        outer.style.width = `calc(100% - ${w}px)`;
+    } else {
+        outer.style.width = "";
+    }
+}
+
 async function toggleChat() {
     const s = getSettings();
     const panel = document.getElementById("marginalia-chat");
@@ -987,6 +1030,7 @@ async function toggleChat() {
     }
     panel.classList.toggle("open");
     localStorage.setItem("marginalia_chat_open", panel.classList.contains("open") ? "1" : "0");
+    _updateViewerMargin();
     if (panel.classList.contains("open")) {
         refreshContextBar();
         contextInterval = setInterval(refreshContextBar, 1000);
@@ -1559,6 +1603,7 @@ function init() {
         const panel = document.getElementById("marginalia-chat");
         if (panel && getSettings().apiKey) {
             panel.classList.add("open");
+            _updateViewerMargin();
             refreshContextBar();
             contextInterval = setInterval(refreshContextBar, 1000);
         }
