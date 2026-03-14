@@ -239,23 +239,44 @@ async function loadPdfFromDB() {
     }
 }
 
+function _showIndexingStatus(text) {
+    let el = document.getElementById("marginalia-indexing-status");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "marginalia-indexing-status";
+        el.style.cssText = "position:fixed;bottom:12px;left:12px;background:#2a2a2a;color:#4a9eff;border:1px solid #4a9eff;border-radius:8px;padding:6px 14px;font-size:12px;z-index:99999;font-family:-apple-system,sans-serif;transition:opacity 0.3s;";
+        document.body.appendChild(el);
+    }
+    if (text) {
+        el.textContent = text;
+        el.style.opacity = "1";
+        el.style.display = "";
+    } else {
+        el.style.opacity = "0";
+        setTimeout(() => { el.style.display = "none"; }, 300);
+    }
+}
+
 async function indexBookInBackground(bookId) {
     const app = window.PDFViewerApplication;
     if (!app?.pdfDocument) {
-        // Wait for PDF to finish loading
+        _showIndexingStatus("Waiting for PDF...");
         await new Promise(resolve => {
-            const check = setInterval(async () => {
+            const check = setInterval(() => {
                 if (app?.pdfDocument) { clearInterval(check); resolve(); }
             }, 500);
-            setTimeout(() => { clearInterval(check); resolve(); }, 30000); // 30s timeout
+            setTimeout(() => { clearInterval(check); resolve(); }, 30000);
         });
     }
-    if (!app?.pdfDocument) return;
+    if (!app?.pdfDocument) { _showIndexingStatus(null); return; }
 
     try {
         const total = app.pagesCount;
         const pages = [];
         for (let i = 1; i <= total; i++) {
+            if (i === 1 || i % 10 === 0) {
+                _showIndexingStatus(`Indexing ${i}/${total}...`);
+            }
             const page = await app.pdfDocument.getPage(i);
             const content = await page.getTextContent();
             pages.push(content.items.map(item => item.str).join(" "));
@@ -265,8 +286,12 @@ async function indexBookInBackground(bookId) {
             book.pages = pages;
             await saveBook(book);
         }
+        _showIndexingStatus(`Indexed ${total} pages`);
+        setTimeout(() => _showIndexingStatus(null), 2000);
     } catch (err) {
         console.warn("Indexing failed:", err);
+        _showIndexingStatus("Indexing failed");
+        setTimeout(() => _showIndexingStatus(null), 3000);
     }
 }
 
