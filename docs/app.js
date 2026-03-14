@@ -38,44 +38,71 @@ uploadInput.addEventListener("change", async (e) => {
 
     const uploadBtn = document.querySelector(".upload-btn");
     const origText = uploadBtn.textContent;
+    uploadBtn.textContent = "Uploading...";
 
     try {
         const data = await file.arrayBuffer();
         const id = crypto.randomUUID();
 
-        // Extract page texts with progress
-        const pdfData = new Uint8Array(data);
-        let pages = [];
-        try {
-            const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-            for (let i = 1; i <= pdf.numPages; i++) {
-                if (i % 5 === 0 || i === 1) {
-                    uploadBtn.textContent = `Extracting ${i}/${pdf.numPages}...`;
-                }
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                pages.push(content.items.map(item => item.str).join(" "));
-            }
-        } catch (err) {
-            console.warn("Text extraction failed:", err);
-            pages = [];
-        }
-
-        await saveBook({
+        // Save book immediately (pages extracted in background)
+        const book = {
             id,
             title: file.name.replace(/\.pdf$/i, ""),
             filename: file.name,
             data,
             size: data.byteLength,
-            pages,
-            folder_id: currentFolderId, // put in current folder
-        });
+            pages: null,
+            folder_id: currentFolderId,
+        };
+        await saveBook(book);
         uploadInput.value = "";
         renderLibrary();
-    } finally {
+
+        // Extract page texts in background (pdfjsLib may not be ready yet)
+        extractPagesInBackground(id, new Uint8Array(data), uploadBtn);
+    } catch (err) {
+        console.error("Upload failed:", err);
         uploadBtn.textContent = origText;
     }
 });
+
+async function extractPagesInBackground(bookId, pdfData, statusEl) {
+    // Wait for pdfjsLib to be available (module script loads after defer scripts)
+    let attempts = 0;
+    while (typeof globalThis.pdfjsLib === "undefined" && attempts < 50) {
+        await new Promise(r => setTimeout(r, 200));
+        attempts++;
+    }
+    if (typeof globalThis.pdfjsLib === "undefined") {
+        console.warn("pdfjsLib not available, skipping indexing");
+        if (statusEl) statusEl.textContent = "Upload PDF";
+        return;
+    }
+
+    try {
+        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+        const pages = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+            if (i % 5 === 0 || i === 1) {
+                if (statusEl) statusEl.textContent = `Indexing ${i}/${pdf.numPages}...`;
+            }
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            pages.push(content.items.map(item => item.str).join(" "));
+        }
+
+        // Update book with extracted pages
+        const book = await getBook(bookId);
+        if (book) {
+            book.pages = pages;
+            await saveBook(book);
+            renderLibrary(); // refresh to show page count
+        }
+    } catch (err) {
+        console.warn("Indexing failed:", err);
+    }
+    if (statusEl) statusEl.textContent = "Upload PDF";
+}
 
 // --- Settings ---
 
@@ -181,7 +208,7 @@ async function renderLibrary() {
         el.className = "library-item book-item";
 
         const sizeMB = (book.size / 1048576).toFixed(1);
-        const pageCount = book.pages ? book.pages.length + "p" : "";
+        const pageCount = book.pages ? book.pages.length + "p" : (book.pages === null ? "indexing..." : "");
         const meta = [sizeMB + " MB", pageCount].filter(Boolean).join(", ");
 
         el.innerHTML = `<span class="item-icon">📄</span><span class="item-title">${escapeHtml(book.title)}</span><span class="item-meta">${meta}</span>`;
