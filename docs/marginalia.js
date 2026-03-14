@@ -232,6 +232,42 @@ async function loadPdfFromDB() {
     await app.initializedPromise;
     app.open({ url });
     document.title = book.title + " - Marginalia";
+
+    // Index book on first open (extract page texts for search)
+    if (!book.pages) {
+        indexBookInBackground(bookId);
+    }
+}
+
+async function indexBookInBackground(bookId) {
+    const app = window.PDFViewerApplication;
+    if (!app?.pdfDocument) {
+        // Wait for PDF to finish loading
+        await new Promise(resolve => {
+            const check = setInterval(async () => {
+                if (app?.pdfDocument) { clearInterval(check); resolve(); }
+            }, 500);
+            setTimeout(() => { clearInterval(check); resolve(); }, 30000); // 30s timeout
+        });
+    }
+    if (!app?.pdfDocument) return;
+
+    try {
+        const total = app.pagesCount;
+        const pages = [];
+        for (let i = 1; i <= total; i++) {
+            const page = await app.pdfDocument.getPage(i);
+            const content = await page.getTextContent();
+            pages.push(content.items.map(item => item.str).join(" "));
+        }
+        const book = await getBook(bookId);
+        if (book) {
+            book.pages = pages;
+            await saveBook(book);
+        }
+    } catch (err) {
+        console.warn("Indexing failed:", err);
+    }
 }
 
 // --- Inject UI ---

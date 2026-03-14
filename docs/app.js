@@ -44,64 +44,21 @@ uploadInput.addEventListener("change", async (e) => {
         const data = await file.arrayBuffer();
         const id = crypto.randomUUID();
 
-        // Save book immediately (pages extracted in background)
-        const book = {
+        await saveBook({
             id,
             title: file.name.replace(/\.pdf$/i, ""),
             filename: file.name,
             data,
             size: data.byteLength,
-            pages: null,
+            pages: null, // indexed on first open in the viewer
             folder_id: currentFolderId,
-        };
-        await saveBook(book);
+        });
         uploadInput.value = "";
         renderLibrary();
-
-        // Extract page texts in background (pdfjsLib may not be ready yet)
-        extractPagesInBackground(id, new Uint8Array(data), uploadBtn);
     } catch (err) {
         console.error("Upload failed:", err);
-        uploadBtn.textContent = origText;
     }
-});
-
-async function extractPagesInBackground(bookId, pdfData, statusEl) {
-    // Wait for pdfjsLib to be available (module script loads after defer scripts)
-    let attempts = 0;
-    while (typeof globalThis.pdfjsLib === "undefined" && attempts < 50) {
-        await new Promise(r => setTimeout(r, 200));
-        attempts++;
-    }
-    if (typeof globalThis.pdfjsLib === "undefined") {
-        console.warn("pdfjsLib not available, skipping indexing");
-        if (statusEl) statusEl.textContent = "Upload PDF";
-        return;
-    }
-
-    try {
-        const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-        const pages = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
-            if (i % 5 === 0 || i === 1) {
-                if (statusEl) statusEl.textContent = `Indexing ${i}/${pdf.numPages}...`;
-            }
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            pages.push(content.items.map(item => item.str).join(" "));
-        }
-
-        // Update book with extracted pages
-        const book = await getBook(bookId);
-        if (book) {
-            book.pages = pages;
-            await saveBook(book);
-            renderLibrary(); // refresh to show page count
-        }
-    } catch (err) {
-        console.warn("Indexing failed:", err);
-    }
-    if (statusEl) statusEl.textContent = "Upload PDF";
+    uploadBtn.textContent = origText;
 }
 
 // --- Settings ---
