@@ -531,18 +531,33 @@ function injectStyles() {
             z-index: 100000;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 14px;
+            right: 0;
             transform: translateX(100%);
             transition: transform 0.2s ease;
         }
         #marginalia-chat.open { transform: translateX(0); }
         #marginalia-chat-resize {
             position: absolute;
-            left: -4px;
+            left: -12px;
             top: 0;
             bottom: 0;
-            width: 8px;
+            width: 16px;
             cursor: col-resize;
             z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #marginalia-chat-resize::after {
+            content: "";
+            width: 4px;
+            height: 40px;
+            border-radius: 2px;
+            background: #555;
+            transition: background 0.15s;
+        }
+        #marginalia-chat-resize:hover::after {
+            background: #4a9eff;
         }
         #marginalia-chat-header {
             display: flex;
@@ -1120,7 +1135,6 @@ let contextInterval = null;
 function _updateViewerMargin() {
     const panel = document.getElementById("marginalia-chat");
     if (!panel) return;
-    // Inject/update a style rule that constrains the entire viewer
     let rule = document.getElementById("marginalia-viewer-margin");
     if (!rule) {
         rule = document.createElement("style");
@@ -1128,9 +1142,12 @@ function _updateViewerMargin() {
         document.head.appendChild(rule);
     }
     if (panel.classList.contains("open")) {
-        const w = panel.offsetWidth;
+        const w = parseInt(panel.style.width) || 380;
         rule.textContent = `
-            #outerContainer { width: calc(100% - ${w}px) !important; }
+            #outerContainer, .toolbar, #toolbarContainer, #mainContainer {
+                width: calc(100% - ${w}px) !important;
+                max-width: calc(100% - ${w}px) !important;
+            }
             body { overflow-x: hidden; }
         `;
     } else {
@@ -1148,6 +1165,8 @@ async function toggleChat() {
     panel.classList.toggle("open");
     localStorage.setItem("marginalia_chat_open", panel.classList.contains("open") ? "1" : "0");
     _updateViewerMargin();
+    // Update again after slide transition completes
+    panel.addEventListener("transitionend", () => _updateViewerMargin(), { once: true });
     if (panel.classList.contains("open")) {
         refreshContextBar();
         contextInterval = setInterval(refreshContextBar, 1000);
