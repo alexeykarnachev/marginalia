@@ -1146,39 +1146,17 @@ function fmtTokens(n) {
 
 let contextInterval = null;
 
-let _viewerMarginObserver = null;
-
 function _updateViewerMargin() {
     const panel = document.getElementById("marginalia-chat");
     if (!panel) return;
-    const outer = document.getElementById("outerContainer");
-    if (!outer) return;
-
+    const body = document.body;
     if (panel.classList.contains("open")) {
         const w = parseInt(panel.style.width) || 380;
-        const target = (window.innerWidth - w) + "px";
-        outer.style.setProperty("width", target, "important");
-
-        // Watch for pdf.js resetting the width and re-apply
-        if (!_viewerMarginObserver) {
-            _viewerMarginObserver = new MutationObserver(() => {
-                const p = document.getElementById("marginalia-chat");
-                if (p && p.classList.contains("open")) {
-                    const pw = parseInt(p.style.width) || 380;
-                    const t = (window.innerWidth - pw) + "px";
-                    if (outer.style.width !== t) {
-                        outer.style.setProperty("width", t, "important");
-                    }
-                }
-            });
-            _viewerMarginObserver.observe(outer, { attributes: true, attributeFilter: ["style"] });
-        }
+        body.style.setProperty("margin-right", w + "px", "important");
+        body.style.setProperty("overflow-x", "hidden", "important");
     } else {
-        if (_viewerMarginObserver) {
-            _viewerMarginObserver.disconnect();
-            _viewerMarginObserver = null;
-        }
-        outer.style.width = "";
+        body.style.removeProperty("margin-right");
+        body.style.removeProperty("overflow-x");
     }
 }
 
