@@ -44,7 +44,7 @@
 
   function openBook(book: Book) {
     sessionStorage.setItem(SS_BOOK_ID, book.id);
-    window.location.href = '/viewer.html';
+    window.location.href = './viewer.html';
   }
 
   async function handleRenameBook(book: Book) {
@@ -190,14 +190,14 @@ ${context.libraryTree}`,
   // Handle open_book from chat agent
   setOnBookChangeFn((bookId: string) => {
     sessionStorage.setItem(SS_BOOK_ID, bookId);
-    window.location.href = '/viewer.html';
+    window.location.href = './viewer.html';
   });
 
   async function loadDefaultBook() {
     const existing = await getAllBooks();
     if (existing.length > 0) return;
     try {
-      const res = await fetch('/default-book.pdf');
+      const res = await fetch('./default-book.pdf');
       if (!res.ok) return;
       const data = await res.arrayBuffer();
       await saveBook({
@@ -285,7 +285,7 @@ ${context.libraryTree}`,
         books={books.map(b => ({ id: b.id, title: b.title }))}
         onBookClick={(id) => {
           sessionStorage.setItem(SS_BOOK_ID, id);
-          window.location.href = '/viewer.html';
+          window.location.href = './viewer.html';
         }}
         onResizeStart={() => {}}
         onResizeEnd={(w) => {

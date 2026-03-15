@@ -141,7 +141,7 @@
   }
 
   function goBack() {
-    window.location.href = '/';
+    window.location.href = './';
   }
 
   function toggleChat() {
@@ -286,7 +286,7 @@
     const bid = getBookId();
     const book = await getBook(bid);
     if (!book) {
-      window.location.href = '/';
+      window.location.href = './';
       return;
     }
 
@@ -377,7 +377,7 @@
     // Load PDF
     bookId = getBookId();
     if (!bookId) {
-      window.location.href = '/';
+      window.location.href = './';
       return;
     }
 
@@ -469,7 +469,7 @@
   <div class="viewer-body">
     <iframe
       bind:this={pdfIframe}
-      src="/pdfjs/web/viewer.html?file="
+      src="./pdfjs/web/viewer.html?file="
       class="pdf-iframe"
       title="PDF Viewer"
       style:pointer-events={chatResizing ? 'none' : 'auto'}

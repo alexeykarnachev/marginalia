@@ -13,14 +13,14 @@
     if ((globalThis as any).pdfjsLib) return (globalThis as any).pdfjsLib;
     return new Promise((resolve) => {
       const script = document.createElement('script');
-      script.src = '/pdfjs/build/pdf.mjs';
+      script.src = './pdfjs/build/pdf.mjs';
       script.type = 'module';
       script.onload = () => {
         // pdf.mjs sets globalThis.pdfjsLib
         const check = setInterval(() => {
           if ((globalThis as any).pdfjsLib) {
             clearInterval(check);
-            (globalThis as any).pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
+            (globalThis as any).pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/build/pdf.worker.mjs';
             resolve((globalThis as any).pdfjsLib);
           }
         }, PDFJS_LIB_POLL_MS);
