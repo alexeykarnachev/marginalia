@@ -3680,10 +3680,12 @@ body.wait::before{
 }
 
 #outerContainer{
-  width:100%;
+  flex:1;
+  min-width:0;
   height:100%;
   position:relative;
   margin:0;
+  overflow:hidden;
 }
 
 #sidebarContainer{
