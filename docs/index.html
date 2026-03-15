@@ -32,16 +32,18 @@
             <div id="book-list"></div>
         </div>
 
-        <!-- Chat panel (right side, same as viewer) -->
+        <!-- Chat panel (right side, same structure as viewer chat) -->
         <div id="library-chat" class="library-chat">
-            <div id="library-chat-header">
+            <div class="m-chat-header">
                 <span>Chat</span>
-                <button id="library-chat-close" title="Close">✕</button>
+                <div class="m-chat-header-right">
+                    <button class="m-chat-header-btn" id="library-chat-close" title="Close">✕</button>
+                </div>
             </div>
-            <div id="library-chat-messages"></div>
-            <div id="library-chat-input-area">
-                <textarea id="library-chat-input" placeholder="Ask about your library..."></textarea>
-                <button id="library-chat-send">Send</button>
+            <div class="m-chat-messages" id="library-chat-messages"></div>
+            <div class="m-chat-input-area">
+                <textarea class="m-chat-input" id="library-chat-input" placeholder="Ask about your library..."></textarea>
+                <button class="m-chat-send" id="library-chat-send">Send</button>
             </div>
         </div>
 

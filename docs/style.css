@@ -114,17 +114,19 @@ body {
 }
 
 .book-info {
-    padding: 8px 10px;
+    padding: 6px 8px;
     display: flex;
     flex-direction: column;
     gap: 2px;
 }
 .book-title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.3;
 }
 .book-meta {
     font-size: 11px;
@@ -289,69 +291,7 @@ body {
 }
 .library-chat.open { display: flex; }
 
-#library-chat-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
-    background: var(--m-bg-1);
-    border-bottom: 1px solid var(--m-border);
-    font-weight: 500;
-    flex-shrink: 0;
-}
-#library-chat-close {
-    background: none;
-    border: none;
-    color: var(--m-fg-muted);
-    font-size: 18px;
-    cursor: pointer;
-}
-#library-chat-close:hover { color: var(--m-fg); }
-
-#library-chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-#library-chat-input-area {
-    display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    border-top: 1px solid var(--m-border);
-    background: var(--m-bg-1);
-    flex-shrink: 0;
-}
-#library-chat-input {
-    flex: 1;
-    background: var(--m-input-bg);
-    color: var(--m-fg);
-    border: 1px solid var(--m-border-light);
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 13px;
-    font-family: inherit;
-    resize: none;
-    min-height: 36px;
-    max-height: 100px;
-}
-#library-chat-send {
-    background: var(--m-accent);
-    color: var(--m-bg-0);
-    border: none;
-    border-radius: 6px;
-    padding: 0 16px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-}
-#library-chat-send:disabled { opacity: 0.5; cursor: default; }
-
-/* Chat messages */
+/* Library chat messages use shared .m-chat-* and .lib-msg classes from chat.css */
 .lib-msg {
     padding: 8px 12px;
     border-radius: 8px;

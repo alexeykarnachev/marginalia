@@ -309,15 +309,15 @@ function injectUI() {
                 <span id="m-book-title"></span>
             </div>
             <div id="marginalia-toolbar-center">
-                <button class="m-toolbar-btn" id="m-prev">‹</button>
+                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-prev" title="Previous page">‹</button>
                 <input type="number" id="m-page-input" value="1" min="1">
                 <span id="m-page-total">/ ?</span>
-                <button class="m-toolbar-btn" id="m-next">›</button>
+                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-next" title="Next page">›</button>
             </div>
             <div id="marginalia-toolbar-right">
-                <button class="m-toolbar-btn" id="m-zoom-out" title="Zoom out">−</button>
-                <button class="m-toolbar-btn" id="m-zoom-in" title="Zoom in">+</button>
-                <button class="m-toolbar-btn" id="marginaliaTheme" title="Theme">🌑</button>
+                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-zoom-out" title="Zoom out">−</button>
+                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-zoom-in" title="Zoom in">+</button>
+                <button class="m-toolbar-btn m-toolbar-btn-icon" id="marginaliaTheme" title="Theme">🌑</button>
                 <button class="m-toolbar-btn" id="marginaliaChatToggle" title="Chat">Chat</button>
             </div>
         `;
@@ -369,12 +369,12 @@ function injectUI() {
     chatPanel.id = "marginalia-chat";
     chatPanel.innerHTML = `
         <div id="marginalia-chat-resize"></div>
-        <div id="marginalia-chat-header">
+        <div class="m-chat-header">
             <span>Chat</span>
-            <div id="marginalia-chat-header-right">
-                <button class="marginalia-header-btn" id="marginalia-gear-btn" title="Settings">⚙</button>
-                <button class="marginalia-header-btn" id="marginalia-menu-btn" title="More">⋯</button>
-                <button class="marginalia-header-btn" id="marginalia-chat-close" title="Close">✕</button>
+            <div class="m-chat-header-right">
+                <button class="m-chat-header-btn" id="marginalia-gear-btn" title="Settings">⚙</button>
+                <button class="m-chat-header-btn" id="marginalia-menu-btn" title="More">⋯</button>
+                <button class="m-chat-header-btn" id="marginalia-chat-close" title="Close">✕</button>
             </div>
         </div>
         <div id="marginalia-gear-popover" class="marginalia-popover hidden">
@@ -404,10 +404,10 @@ function injectUI() {
             <div id="marginalia-context-progress"><div id="marginalia-context-fill"></div></div>
             <span id="marginalia-context-text"></span>
         </div>
-        <div id="marginalia-chat-messages"></div>
-        <div id="marginalia-chat-input-area">
-            <textarea id="marginalia-chat-input" placeholder="Ask about this page..."></textarea>
-            <button id="marginalia-chat-send">Send</button>
+        <div class="m-chat-messages" id="marginalia-chat-messages"></div>
+        <div class="m-chat-input-area">
+            <textarea class="m-chat-input" id="marginalia-chat-input" placeholder="Ask about this page..."></textarea>
+            <button class="m-chat-send" id="marginalia-chat-send">Send</button>
         </div>
     `;
     (document.getElementById("outerContainer") || document.body).appendChild(chatPanel);

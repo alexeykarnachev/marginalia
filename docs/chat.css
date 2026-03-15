@@ -33,7 +33,7 @@
 #marginalia-chat-resize:active::after {
     background: var(--m-accent);
 }
-#marginalia-chat-header {
+.m-chat-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -42,13 +42,13 @@
     border-bottom: 1px solid var(--m-border);
     flex-shrink: 0;
 }
-#marginalia-chat-header-right {
+.m-chat-header-right {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 /* Header buttons */
-.marginalia-header-btn {
+.m-chat-header-btn {
     background: none;
     border: none;
     color: var(--m-fg-muted);
@@ -57,7 +57,7 @@
     padding: 4px 6px;
     border-radius: 4px;
 }
-.marginalia-header-btn:hover { color: var(--m-fg); background: var(--m-bg-2); }
+.m-chat-header-btn:hover { color: var(--m-fg); background: var(--m-bg-2); }
 
 /* Popovers (gear + overflow menu) */
 .marginalia-popover {
@@ -158,7 +158,7 @@
     border-radius: 2px;
     transition: width 0.3s ease;
 }
-#marginalia-chat-messages {
+.m-chat-messages {
     flex: 1;
     overflow-y: auto;
     padding: 12px;
@@ -166,7 +166,7 @@
     flex-direction: column;
     gap: 8px;
 }
-#marginalia-chat-messages.mono {
+.m-chat-messages.mono {
     font-family: "Consolas", "Monaco", "Courier New", monospace;
 }
 .marginalia-msg {
@@ -334,14 +334,14 @@
     text-decoration-style: dotted;
 }
 
-#marginalia-chat-input-area {
+.m-chat-input-area {
     display: flex;
     gap: 8px;
     padding: 10px 12px;
     background: var(--m-bg-1);
     flex-shrink: 0;
 }
-#marginalia-chat-input {
+.m-chat-input {
     flex: 1;
     background: var(--m-input-bg);
     color: var(--m-fg);
@@ -354,7 +354,7 @@
     max-height: 120px;
     font-family: inherit;
 }
-#marginalia-chat-send {
+.m-chat-send {
     background: var(--m-accent);
     color: var(--m-fg);
     border: none;
@@ -364,11 +364,11 @@
     font-size: 13px;
     align-self: flex-end;
 }
-#marginalia-chat-send:disabled {
+.m-chat-send:disabled {
     opacity: 0.5;
     cursor: default;
 }
-#marginalia-chat-send.done {
+.m-chat-send.done {
     background: var(--m-success);
     transition: background 0.3s;
 }
