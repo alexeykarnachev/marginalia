@@ -858,7 +858,15 @@ function renderMarkdown(text) {
     const blocks = [];
     const inlines = [];
 
-    let result = text.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (_, a, b) => {
+    // Protect [p.N] page links from markdown parser
+    const pageLinks = [];
+    let result = text.replace(/\[p\.(\d+(?:[-–]\d+)?)\]/g, (m) => {
+        const id = `%%PAGE${pageLinks.length}%%`;
+        pageLinks.push(m);
+        return id;
+    });
+
+    result = result.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (_, a, b) => {
         const id = `%%BLOCK${blocks.length}%%`;
         blocks.push(a || b);
         return id;
@@ -893,6 +901,9 @@ function renderMarkdown(text) {
     result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, "");
     result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, "");
     result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
+
+    // Restore [p.N] page links
+    pageLinks.forEach((pl, i) => { result = result.replace(`%%PAGE${i}%%`, pl); });
 
     // Clickable page links — preferred [p.N] format
     result = result.replace(/\[p\.(\d+)[-–](\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1-$2</a>');
