@@ -222,6 +222,8 @@ async function loadPdfFromDB() {
     await app.initializedPromise;
     app.open({ url });
     document.title = book.title + " - Marginalia";
+    const titleEl = document.getElementById("m-book-title");
+    if (titleEl) titleEl.textContent = book.title;
 
     // Index book on first open (extract page texts for search)
     if (!book.pages) {
@@ -296,42 +298,70 @@ function _goToPage(app, page) {
 }
 
 function injectUI() {
-    // --- Back button in pdf.js toolbar ---
-    const toolbar = document.getElementById("toolbarViewerLeft");
-    if (toolbar) {
-        const backBtn = document.createElement("button");
-        backBtn.className = "toolbarButton";
-        backBtn.id = "marginaliaBack";
-        backBtn.title = "Back to Library";
-        backBtn.textContent = "← Library";
-        backBtn.style.cssText = "font-size:13px;padding:4px 8px;cursor:pointer;color:inherit;background:none;border:none;";
-        backBtn.addEventListener("click", () => { window.location.href = "../../"; });
-        toolbar.insertBefore(backBtn, toolbar.firstChild);
-    }
+    // --- Custom toolbar (replaces pdf.js default) ---
+    const mainContainer = document.getElementById("mainContainer");
+    if (mainContainer) {
+        const toolbar = document.createElement("div");
+        toolbar.id = "marginalia-toolbar";
+        toolbar.innerHTML = `
+            <div id="marginalia-toolbar-left">
+                <button class="m-toolbar-btn" id="m-back" title="Library">← Library</button>
+                <span id="m-book-title"></span>
+            </div>
+            <div id="marginalia-toolbar-center">
+                <button class="m-toolbar-btn" id="m-prev">‹</button>
+                <input type="number" id="m-page-input" value="1" min="1">
+                <span id="m-page-total">/ ?</span>
+                <button class="m-toolbar-btn" id="m-next">›</button>
+            </div>
+            <div id="marginalia-toolbar-right">
+                <button class="m-toolbar-btn" id="m-zoom-out" title="Zoom out">−</button>
+                <button class="m-toolbar-btn" id="m-zoom-in" title="Zoom in">+</button>
+                <button class="m-toolbar-btn" id="marginaliaTheme" title="Theme">🌑</button>
+                <button class="m-toolbar-btn" id="marginaliaChatToggle" title="Chat">Chat</button>
+            </div>
+        `;
+        mainContainer.insertBefore(toolbar, mainContainer.firstChild);
 
-    // --- Theme toggle ---
-    const toolbarRight = document.getElementById("toolbarViewerRight");
-    if (toolbarRight) {
-        const themeBtn = document.createElement("button");
-        themeBtn.className = "toolbarButton";
-        themeBtn.id = "marginaliaTheme";
-        themeBtn.title = "Toggle theme";
-        themeBtn.textContent = "☀";
-        themeBtn.style.cssText = "font-size:16px;cursor:pointer;background:none;border:none;color:inherit;";
-        themeBtn.addEventListener("click", cycleTheme);
-        toolbarRight.insertBefore(themeBtn, toolbarRight.firstChild);
-    }
+        // Wire toolbar
+        document.getElementById("m-back").addEventListener("click", () => { window.location.href = "../../"; });
+        document.getElementById("marginaliaTheme").addEventListener("click", cycleTheme);
+        document.getElementById("marginaliaChatToggle").addEventListener("click", toggleChat);
 
-    // --- Chat toggle button ---
-    if (toolbarRight) {
-        const chatBtn = document.createElement("button");
-        chatBtn.className = "toolbarButton";
-        chatBtn.id = "marginaliaChatToggle";
-        chatBtn.title = "Toggle AI Chat";
-        chatBtn.textContent = "Chat";
-        chatBtn.style.cssText = "font-size:13px;padding:4px 8px;cursor:pointer;color:inherit;background:none;border:none;";
-        chatBtn.addEventListener("click", toggleChat);
-        toolbarRight.insertBefore(chatBtn, toolbarRight.firstChild);
+        document.getElementById("m-prev").addEventListener("click", () => {
+            const app = window.PDFViewerApplication;
+            if (app && app.page > 1) app.page--;
+        });
+        document.getElementById("m-next").addEventListener("click", () => {
+            const app = window.PDFViewerApplication;
+            if (app && app.page < app.pagesCount) app.page++;
+        });
+        document.getElementById("m-zoom-out").addEventListener("click", () => {
+            window.PDFViewerApplication?.zoomOut();
+        });
+        document.getElementById("m-zoom-in").addEventListener("click", () => {
+            window.PDFViewerApplication?.zoomIn();
+        });
+
+        const pageInput = document.getElementById("m-page-input");
+        pageInput.addEventListener("change", () => {
+            const app = window.PDFViewerApplication;
+            const p = parseInt(pageInput.value);
+            if (app && p >= 1 && p <= app.pagesCount) {
+                _goToPage(app, p);
+            } else {
+                pageInput.value = app?.page || 1;
+            }
+        });
+
+        // Sync page number display with pdf.js
+        const syncPage = () => {
+            const app = window.PDFViewerApplication;
+            if (!app) return;
+            pageInput.value = app.page;
+            document.getElementById("m-page-total").textContent = "/ " + (app.pagesCount || "?");
+        };
+        setInterval(syncPage, 500);
     }
 
     // --- Chat panel ---

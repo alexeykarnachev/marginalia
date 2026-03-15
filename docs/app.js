@@ -74,30 +74,32 @@ async function renderLibrary() {
     const folders = await getAllFolders();
     libraryEl.innerHTML = "";
 
-    // Breadcrumb
-    const breadcrumb = document.createElement("div");
-    breadcrumb.className = "library-breadcrumb";
-    const crumbs = buildBreadcrumbs(currentFolderId, folders);
-    for (let i = 0; i < crumbs.length; i++) {
-        const crumb = crumbs[i];
-        const span = document.createElement("span");
-        span.textContent = crumb.name;
-        span.className = "breadcrumb-item";
-        if (i < crumbs.length - 1) {
-            span.addEventListener("click", () => { currentFolderId = crumb.id; renderLibrary(); });
-            span.classList.add("clickable");
-        } else {
-            span.classList.add("current");
+    // Breadcrumb — only show when inside a folder
+    if (currentFolderId) {
+        const breadcrumb = document.createElement("div");
+        breadcrumb.className = "library-breadcrumb";
+        const crumbs = buildBreadcrumbs(currentFolderId, folders);
+        for (let i = 0; i < crumbs.length; i++) {
+            const crumb = crumbs[i];
+            const span = document.createElement("span");
+            span.textContent = crumb.name;
+            span.className = "breadcrumb-item";
+            if (i < crumbs.length - 1) {
+                span.addEventListener("click", () => { currentFolderId = crumb.id; renderLibrary(); });
+                span.classList.add("clickable");
+            } else {
+                span.classList.add("current");
+            }
+            breadcrumb.appendChild(span);
+            if (i < crumbs.length - 1) {
+                const sep = document.createElement("span");
+                sep.textContent = " / ";
+                sep.className = "breadcrumb-sep";
+                breadcrumb.appendChild(sep);
+            }
         }
-        breadcrumb.appendChild(span);
-        if (i < crumbs.length - 1) {
-            const sep = document.createElement("span");
-            sep.textContent = " / ";
-            sep.className = "breadcrumb-sep";
-            breadcrumb.appendChild(sep);
-        }
+        libraryEl.appendChild(breadcrumb);
     }
-    libraryEl.appendChild(breadcrumb);
 
     // Child folders
     const childFolders = folders.filter(f => (f.parent_id || null) === currentFolderId);
@@ -339,6 +341,126 @@ async function renderBookCover(book, coverEl) {
         console.warn("Cover render failed for", book.title, err);
     }
 }
+
+// --- Library Chat ---
+
+const libChatMessages = [];
+let libChatSending = false;
+
+function toggleLibChat() {
+    const panel = document.getElementById("library-chat");
+    const toggle = document.getElementById("library-chat-toggle");
+    panel.classList.toggle("hidden");
+    toggle.style.display = panel.classList.contains("hidden") ? "" : "none";
+    if (!panel.classList.contains("hidden")) {
+        document.getElementById("library-chat-input").focus();
+    }
+}
+
+function renderLibChat() {
+    const el = document.getElementById("library-chat-messages");
+    el.innerHTML = "";
+    for (const msg of libChatMessages) {
+        if (msg.role === "tool") continue;
+        const div = document.createElement("div");
+        div.className = "lib-msg " + msg.role;
+        div.textContent = msg.content;
+        el.appendChild(div);
+    }
+    el.scrollTop = el.scrollHeight;
+}
+
+async function sendLibChat() {
+    const input = document.getElementById("library-chat-input");
+    const text = input.value.trim();
+    if (!text || libChatSending) return;
+
+    const s = getSettings();
+    if (!s.apiKey) {
+        alert("Set your OpenRouter API key in Settings first.");
+        return;
+    }
+
+    libChatMessages.push({ role: "user", content: text });
+    input.value = "";
+    renderLibChat();
+
+    const sendBtn = document.getElementById("library-chat-send");
+    libChatSending = true;
+    sendBtn.disabled = true;
+    sendBtn.textContent = "...";
+
+    try {
+        const context = await buildLibraryContext();
+        const system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
+You have access to tools for searching, organizing, and reading books.
+Respond in the user's language. Be concise.
+
+## Library
+${context.libraryTree}`;
+
+        const apiMessages = [
+            { role: "system", content: system },
+            ...libChatMessages.filter(m => m.role !== "system"),
+        ];
+
+        // Show thinking
+        libChatMessages.push({ role: "system", content: "Thinking..." });
+        renderLibChat();
+
+        const result = await agentLoop(s.apiKey, s.model, apiMessages, {
+            onDelta: (delta, full) => {
+                // Update last assistant message in place
+                const last = libChatMessages[libChatMessages.length - 1];
+                if (last.role === "system" && last.content === "Thinking...") {
+                    libChatMessages.pop();
+                    libChatMessages.push({ role: "assistant", content: full });
+                } else if (last.role === "assistant") {
+                    last.content = full;
+                }
+                renderLibChat();
+            },
+            onToolCall: (name, args) => {
+                const last = libChatMessages[libChatMessages.length - 1];
+                if (last.role === "system" && last.content === "Thinking...") {
+                    libChatMessages.pop();
+                }
+            },
+            onToolResult: () => {},
+            onThinking: () => {},
+            onUsage: () => {},
+        });
+
+        // Ensure final content is stored
+        const hasAssistant = libChatMessages.some(m => m.role === "assistant" && m.content === result.content);
+        if (!hasAssistant && result.content) {
+            // Remove thinking msg if still there
+            if (libChatMessages.length && libChatMessages[libChatMessages.length - 1].role === "system") {
+                libChatMessages.pop();
+            }
+            libChatMessages.push({ role: "assistant", content: result.content });
+        }
+
+        // Refresh library in case tools changed it
+        renderLibrary();
+    } catch (err) {
+        libChatMessages.push({ role: "system", content: "Error: " + err.message });
+    }
+
+    libChatSending = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = "Send";
+    renderLibChat();
+    input.focus();
+}
+
+// Wire up library chat
+document.getElementById("library-chat-toggle").addEventListener("click", toggleLibChat);
+document.getElementById("library-chat-close").addEventListener("click", toggleLibChat);
+document.getElementById("library-chat-send").addEventListener("click", sendLibChat);
+document.getElementById("library-chat-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendLibChat(); }
+});
 
 // --- Init ---
 
