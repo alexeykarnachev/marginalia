@@ -95,7 +95,7 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="folder-item" onclick={(e) => handleFolderClick(folder, e)}>
         <div class="folder-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
         <div class="folder-info">
           <span class="folder-name" title={folder.name}>{folder.name}</span>
@@ -160,23 +160,24 @@
     border-radius: 8px;
     cursor: pointer;
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
     flex-shrink: 0;
+    align-self: start;
     transition: box-shadow 0.15s;
   }
   .folder-item:hover { box-shadow: 0 2px 12px var(--m-shadow); }
 
   .folder-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 0 12px;
     color: var(--m-accent);
+    flex-shrink: 0;
+    display: flex;
   }
 
   .folder-info {
-    padding: 0 10px 10px;
+    min-width: 0;
+    flex: 1;
   }
 
   .folder-name {
