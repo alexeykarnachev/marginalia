@@ -9,6 +9,10 @@ const SYSTEM_PROMPT = `You are Marginalia, an AI reading assistant.
 You are embedded in a static web application (Marginalia) that runs entirely in the browser.
 The user has a personal library of books (PDFs) organized in folders.
 Your responses are rendered with **Markdown** and **LaTeX** support (KaTeX).
+When referencing page numbers, ALWAYS use the format [p.N] (e.g. [p.42]). These become clickable links. For ranges: [p.10-15].
+Examples:
+- CORRECT: "See the proof on [p.42]" / "Exercises on [p.22-25]" / "Перешёл на [p.10]"
+- WRONG: "See the proof on page 42" / "стр. 22" / "p.42" / "(page 10)"
 
 ## Library
 {{libraryTree}}
@@ -1328,13 +1332,9 @@ function renderMarkdown(text) {
     result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, "");
     result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
 
-    // Make page citations clickable: p.42, page 42, pp.10-15
-    // Clickable page links — English and Russian patterns
-    result = result.replace(/\bp\.(\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
-    result = result.replace(/\bpage\s+(\d+)\b/gi, '<a class="marginalia-page-link" data-page="$1" href="#">page $1</a>');
-    result = result.replace(/\bpp\.(\d+)[-–](\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">pp.$1-$2</a>');
-    result = result.replace(/\bстр\.\s*(\d+)\b/g, '<a class="marginalia-page-link" data-page="$1" href="#">стр. $1</a>');
-    result = result.replace(/\bстраниц[аеуы]\s+(\d+)\b/gi, '<a class="marginalia-page-link" data-page="$1" href="#">страница $1</a>');
+    // Clickable page links — model outputs [p.N] or [p.N-M] format
+    result = result.replace(/\[p\.(\d+)[-–](\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1-$2</a>');
+    result = result.replace(/\[p\.(\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
 
     return result;
 }

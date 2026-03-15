@@ -1,4 +1,6 @@
-const CACHE_NAME = "marginalia-v31";
+importScripts("db.js");
+
+const CACHE_NAME = "marginalia-v" + MARGINALIA_VERSION;
 
 // Shell files to precache (app skeleton)
 const SHELL = [
