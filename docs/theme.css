@@ -73,3 +73,82 @@ html[data-theme="dim"] {
 html[data-theme="black"] {
   --m-page-filter: invert(1) hue-rotate(180deg) brightness(0.75);
 }
+
+/* ── Shared toolbar component ───────────────────────────────────── */
+
+.m-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 0 12px;
+  background: var(--m-bg-1);
+  border-bottom: 1px solid var(--m-border);
+  flex-shrink: 0;
+}
+.m-toolbar-left,
+.m-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.m-toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.m-toolbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--m-fg);
+}
+.m-toolbar-subtitle {
+  font-size: 11px;
+  color: var(--m-fg-dim);
+  font-weight: 400;
+}
+.m-toolbar-text {
+  color: var(--m-fg-muted);
+  font-size: 13px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-btn {
+  background: none;
+  border: 1px solid var(--m-border-light);
+  color: var(--m-fg-muted);
+  font-size: 18px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+.m-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
+.m-btn-text {
+  width: auto;
+  padding: 0 14px;
+  font-size: 14px;
+}
+.m-btn-lg { font-size: 22px; font-weight: 300; }
+.m-page-input {
+  width: 52px;
+  height: 40px;
+  text-align: center;
+  background: var(--m-input-bg);
+  color: var(--m-fg);
+  border: 1px solid var(--m-border-light);
+  border-radius: 8px;
+  font-size: 14px;
+  padding: 0 4px;
+  font-family: inherit;
+}
+.m-page-total {
+  color: var(--m-fg-dim);
+  font-size: 13px;
+}

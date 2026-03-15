@@ -17,16 +17,19 @@
     <div id="app">
         <!-- Library view -->
         <div id="library" class="view active">
-            <div id="library-header">
-                <h1>Marginalia <span id="version-label"></span></h1>
-                <div id="library-header-right">
-                    <label id="btn-upload" title="Upload PDF">
+            <div class="m-toolbar">
+                <div class="m-toolbar-left">
+                    <span class="m-toolbar-title">Marginalia</span>
+                    <span class="m-toolbar-subtitle" id="version-label"></span>
+                </div>
+                <div class="m-toolbar-right">
+                    <label class="m-btn m-btn-lg" title="Upload PDF">
                         +
                         <input type="file" accept=".pdf" id="upload-input" hidden>
                     </label>
-                    <button id="btn-new-folder" title="New folder">📁</button>
-                    <button id="btn-settings" title="Settings">⚙</button>
-                    <button id="btn-chat" title="Chat">Chat</button>
+                    <button class="m-btn" id="btn-new-folder" title="New folder">📁</button>
+                    <button class="m-btn" id="btn-settings" title="Settings">⚙</button>
+                    <button class="m-btn m-btn-text" id="btn-chat" title="Chat">Chat</button>
                 </div>
             </div>
             <div id="book-list"></div>

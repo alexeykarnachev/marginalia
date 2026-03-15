@@ -302,23 +302,24 @@ function injectUI() {
     const mainContainer = document.getElementById("mainContainer");
     if (mainContainer) {
         const toolbar = document.createElement("div");
+        toolbar.className = "m-toolbar";
         toolbar.id = "marginalia-toolbar";
         toolbar.innerHTML = `
-            <div id="marginalia-toolbar-left">
-                <button class="m-toolbar-btn" id="m-back" title="Library">← Library</button>
-                <span id="m-book-title"></span>
+            <div class="m-toolbar-left">
+                <button class="m-btn m-btn-text" id="m-back" title="Library">← Library</button>
+                <span class="m-toolbar-text" id="m-book-title"></span>
             </div>
-            <div id="marginalia-toolbar-center">
-                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-prev" title="Previous page">‹</button>
-                <input type="number" id="m-page-input" value="1" min="1">
-                <span id="m-page-total">/ ?</span>
-                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-next" title="Next page">›</button>
+            <div class="m-toolbar-center">
+                <button class="m-btn" id="m-prev" title="Previous page">‹</button>
+                <input type="number" class="m-page-input" id="m-page-input" value="1" min="1">
+                <span class="m-page-total" id="m-page-total">/ ?</span>
+                <button class="m-btn" id="m-next" title="Next page">›</button>
             </div>
-            <div id="marginalia-toolbar-right">
-                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-zoom-out" title="Zoom out">−</button>
-                <button class="m-toolbar-btn m-toolbar-btn-icon" id="m-zoom-in" title="Zoom in">+</button>
-                <button class="m-toolbar-btn m-toolbar-btn-icon" id="marginaliaTheme" title="Theme">🌑</button>
-                <button class="m-toolbar-btn" id="marginaliaChatToggle" title="Chat">Chat</button>
+            <div class="m-toolbar-right">
+                <button class="m-btn" id="m-zoom-out" title="Zoom out">−</button>
+                <button class="m-btn" id="m-zoom-in" title="Zoom in">+</button>
+                <button class="m-btn" id="marginaliaTheme" title="Theme">🌑</button>
+                <button class="m-btn m-btn-text" id="marginaliaChatToggle" title="Chat">Chat</button>
             </div>
         `;
         mainContainer.insertBefore(toolbar, mainContainer.firstChild);

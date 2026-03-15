@@ -47,78 +47,10 @@ See https://github.com/adobe-type-tools/cmap-resources
       --chat-panel-width: 380px;
       --toolbar-height: 52px;
     }
-    /* Hide default pdf.js toolbar, replace with our own */
+    /* Hide default pdf.js toolbar */
     .toolbar { display: none !important; }
-    #marginalia-toolbar {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: var(--toolbar-height);
-      padding: 0 10px;
-      background: var(--m-bg-1);
-      border-bottom: 1px solid var(--m-border);
-      z-index: 2;
-      flex-shrink: 0;
-    }
-    #marginalia-toolbar-left,
-    #marginalia-toolbar-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    #marginalia-toolbar-center {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-    .m-toolbar-btn {
-      background: none;
-      border: 1px solid var(--m-border-light);
-      color: var(--m-fg-muted);
-      font-size: 18px;
-      cursor: pointer;
-      padding: 0 12px;
-      width: auto;
-      height: 40px;
-      border-radius: 8px;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .m-toolbar-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
-    .m-toolbar-btn-icon {
-      width: 40px;
-      padding: 0;
-    }
-    #m-page-input {
-      width: 52px;
-      height: 40px;
-      text-align: center;
-      background: var(--m-input-bg);
-      color: var(--m-fg);
-      border: 1px solid var(--m-border-light);
-      border-radius: 8px;
-      font-size: 14px;
-      padding: 0 4px;
-      font-family: inherit;
-    }
-    #m-page-total {
-      color: var(--m-fg-dim);
-      font-size: 13px;
-    }
-    #m-book-title {
-      color: var(--m-fg-muted);
-      font-size: 13px;
-      max-width: 300px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    /* Viewer toolbar uses shared .m-toolbar from theme.css, just add z-index */
+    #marginalia-toolbar { position: relative; z-index: 2; }
     #marginalia-chat {
       position: absolute;
       inset-block: var(--toolbar-height) 0;

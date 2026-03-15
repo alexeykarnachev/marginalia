@@ -18,34 +18,7 @@ body {
 /* Library */
 #library { padding: 20px; overflow-y: auto; }
 
-#library-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 52px;
-    padding: 0;
-    margin-bottom: 16px;
-}
-
-#library-header h1 { font-size: 24px; }
-#version-label { font-size: 11px; color: var(--m-fg-dim); font-weight: 400; margin-left: 8px; }
-#library-header-right { display: flex; gap: 8px; }
-
-#btn-settings, #btn-new-folder, #btn-upload {
-    background: none;
-    border: 1px solid var(--m-border-light);
-    color: var(--m-fg-muted);
-    font-size: 18px;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-#btn-upload { font-size: 22px; font-weight: 300; }
-#btn-settings:hover, #btn-new-folder:hover, #btn-upload:hover { border-color: var(--m-accent); color: var(--m-accent); }
+/* Library toolbar uses shared .m-toolbar from theme.css */
 
 /* Breadcrumb */
 .library-breadcrumb {
@@ -260,20 +233,7 @@ body {
 #btn-settings-save { background: var(--m-accent); color: var(--m-bg-0); font-weight: 600; }
 #btn-settings-cancel { background: var(--m-bg-2); color: var(--m-fg-muted); }
 
-/* Chat button in header */
-#btn-chat {
-    background: none;
-    border: 1px solid var(--m-border-light);
-    color: var(--m-fg-muted);
-    font-size: 14px;
-    height: 40px;
-    padding: 0 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-}
-#btn-chat:hover { border-color: var(--m-accent); color: var(--m-accent); }
+/* Chat button uses shared .m-btn .m-btn-text from theme.css */
 
 /* Library layout: flex row with chat panel */
 #app {
