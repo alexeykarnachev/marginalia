@@ -50,41 +50,9 @@ html[data-theme="dark"] {
   --m-page-filter: invert(0.92) hue-rotate(180deg) contrast(0.8) brightness(0.8);
 }
 
-/* ── Light ───────────────────────────────────────────────────────── */
+/* ── Light (dark UI + no page filter — original PDF colors) ──────── */
 
 html[data-theme="light"] {
-  --m-bg-0: #fbf1c7;
-  --m-bg-1: #ebdbb2;
-  --m-bg-2: #d5c4a1;
-
-  --m-fg: #3c3836;
-  --m-fg-muted: #665c54;
-  --m-fg-dim: #7c6f64;
-
-  --m-accent: #b57614;
-  --m-accent-hover: #d79921;
-
-  --m-link: #458588;
-  --m-link-hover: #076678;
-
-  --m-error: #cc241d;
-  --m-success: #98971a;
-
-  --m-border: #d5c4a1;
-  --m-border-light: #bdae93;
-
-  --m-user-bg: #ebdbb2;
-  --m-system-bg: #fbf1c7;
-  --m-system-fg: #665c54;
-  --m-tool-bg: #fbf1c7;
-  --m-tool-fg: #458588;
-
-  --m-code-bg: #ebdbb2;
-  --m-input-bg: #ebdbb2;
-
-  --m-overlay-bg: rgba(60, 56, 54, 0.5);
-  --m-shadow: rgba(0, 0, 0, 0.15);
-
   --m-page-filter: none;
 }
 
