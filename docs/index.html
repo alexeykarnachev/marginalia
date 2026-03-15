@@ -1,96 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a1a1a">
     <title>Marginalia</title>
-    <link rel="stylesheet" href="theme.css">
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icon-192.png">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+  <script type="module" crossorigin src="./assets/main-BAQs571u.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/app-DzwlsDN5.js">
+  <link rel="stylesheet" crossorigin href="./assets/app-CjesAVBT.css">
+  <link rel="stylesheet" crossorigin href="./assets/main-DrZBdgym.css">
 </head>
 <body>
-    <div id="app">
-        <div class="m-toolbar">
-            <div class="m-toolbar-left">
-                <span class="m-toolbar-title">Marginalia</span>
-                <span class="m-toolbar-subtitle" id="version-label"></span>
-            </div>
-            <div class="m-toolbar-right">
-                <label class="m-btn m-btn-lg" title="Upload PDF">
-                    +
-                    <input type="file" accept=".pdf" id="upload-input" hidden>
-                </label>
-                <button class="m-btn" id="btn-new-folder" title="New folder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-                <button class="m-btn" id="btn-settings" title="Settings">⚙</button>
-                <button class="m-theme-toggle" id="btn-theme" title="Toggle theme"></button>
-                <button class="m-btn m-btn-text" id="btn-chat" title="Chat">Chat</button>
-            </div>
-        </div>
-        <div id="app-body">
-        <!-- Library content (scrollable) -->
-        <div id="library">
-            <div id="book-list"></div>
-        </div>
-
-        <!-- Chat panel (injected by chat-ui.js) -->
-        <div id="library-chat" class="library-chat"></div>
-        </div> <!-- app-body -->
-
-        <!-- Settings modal -->
-        <div id="settings-overlay" class="overlay hidden">
-            <div id="settings-modal" class="modal">
-                <h2>Settings</h2>
-                <label>
-                    OpenRouter API Key
-                    <input type="password" id="settings-api-key" placeholder="sk-or-v1-...">
-                </label>
-                <label>
-                    Model
-                    <input type="text" id="settings-model" placeholder="x-ai/grok-4.1-fast">
-                </label>
-                <hr class="modal-divider">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="settings-auto-compact" checked>
-                    Auto-compact conversation
-                </label>
-                <label>
-                    Compact threshold (tokens)
-                    <input type="number" id="settings-compact-threshold" value="50000" min="10000" step="5000">
-                </label>
-                <div class="modal-buttons">
-                    <button id="btn-settings-save">Save</button>
-                    <button id="btn-settings-cancel">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <link rel="stylesheet" href="chat.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js" defer></script>
-    <script src="pdfjs/build/pdf.mjs" type="module"></script>
-    <script src="db.js" defer></script>
-    <script src="tools.js" defer></script>
-    <script src="agent.js" defer></script>
-    <script src="chat-ui.js" defer></script>
-    <script src="app.js" defer></script>
+    <div id="app"></div>
     <script>
-        if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("sw.js").then((reg) => {
-                reg.update();
-                setInterval(() => reg.update(), 5 * 60 * 1000);
-            });
-            // Reload when a new SW takes over
-            navigator.serviceWorker.addEventListener("controllerchange", () => {
-                location.reload();
-            });
-        }
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").then(reg => {
+            reg.update();
+            setInterval(() => reg.update(), 5 * 60 * 1000);
+        });
+        navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
+    }
     </script>
 </body>
 </html>

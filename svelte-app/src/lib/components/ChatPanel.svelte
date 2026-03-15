@@ -1,0 +1,650 @@
+<script lang="ts">
+  import { onMount, tick } from 'svelte';
+  import { marked } from 'marked';
+  import katex from 'katex';
+  import type { ChatMessage } from '../types';
+
+  interface MenuItem {
+    label: string;
+    onClick: () => void;
+    danger?: boolean;
+  }
+
+  let {
+    placeholder = 'Ask something...',
+    messages,
+    sending,
+    onSend,
+    onClear,
+    menuItems = [],
+    onClose,
+    width = 380,
+    pageNavEnabled = false,
+    onPageNav,
+    contextBar,
+    toolActivitySnippet,
+    fontSize = 14,
+    mono = false,
+    books = [],
+    onBookClick,
+  }: {
+    placeholder?: string;
+    messages: ChatMessage[];
+    sending: boolean;
+    onSend: (text: string) => void;
+    onClear: () => void;
+    menuItems?: MenuItem[];
+    onClose: () => void;
+    width?: number;
+    pageNavEnabled?: boolean;
+    onPageNav?: (page: number) => void;
+    contextBar?: import('svelte').Snippet;
+    toolActivitySnippet?: import('svelte').Snippet;
+    fontSize?: number;
+    mono?: boolean;
+    books?: { id: string; title: string }[];
+    onBookClick?: (bookId: string) => void;
+  } = $props();
+
+  let inputText = $state('');
+  let menuOpen = $state(false);
+  let messagesEl: HTMLDivElement;
+  let inputEl: HTMLTextAreaElement;
+  let containerEl: HTMLDivElement;
+  let sendDone = $state(false);
+
+  // Resize state
+  let resizing = $state(false);
+  let currentWidth = $state(width);
+  let startX = 0;
+  let startW = 0;
+
+  // Scroll to bottom on new messages
+  $effect(() => {
+    // Touch messages to create dependency
+    void messages.length;
+    void sending;
+    tick().then(() => {
+      if (messagesEl) {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    });
+  });
+
+  function handleSend() {
+    const text = inputText.trim();
+    if (!text || sending) return;
+    inputText = '';
+    onSend(text);
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
+
+  function handleClear() {
+    menuOpen = false;
+    onClear();
+  }
+
+  function handleMenuItemClick(item: MenuItem) {
+    menuOpen = false;
+    item.onClick();
+  }
+
+  function handleClickOutsideMenu(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.menu-btn') && !target.closest('.marginalia-popover')) {
+      menuOpen = false;
+    }
+  }
+
+  // Resize handlers
+  function onResizeStart(e: MouseEvent | TouchEvent) {
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    startX = clientX;
+    startW = currentWidth;
+    resizing = true;
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const cx = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
+      if ('preventDefault' in ev && 'touches' in ev === false) ev.preventDefault();
+      const newW = Math.max(280, Math.min(startW + (startX - cx), window.innerWidth * 0.7));
+      currentWidth = newW;
+    };
+
+    const onEnd = () => {
+      resizing = false;
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove);
+    document.addEventListener('touchend', onEnd);
+  }
+
+  // Render markdown content
+  function renderMarkdown(text: string): string {
+    const blocks: string[] = [];
+    const inlines: string[] = [];
+    const pageLinks: string[] = [];
+
+    let result = text;
+
+    // Protect [p.N] page links from markdown parser
+    if (pageNavEnabled) {
+      result = result.replace(/\[p\.(\d+(?:[-\u2013]\d+)?)\]/g, (m) => {
+        const id = `%%PAGE${pageLinks.length}%%`;
+        pageLinks.push(m);
+        return id;
+      });
+    }
+
+    // Protect LaTeX blocks
+    result = result.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (_, a, b) => {
+      const id = `%%BLOCK${blocks.length}%%`;
+      blocks.push(a || b);
+      return id;
+    });
+    result = result.replace(/\\\((.*?)\\\)|\$([^\s$](?:[^$]*?[^\s$])?)\$/g, (_, a, b) => {
+      const id = `%%INLINE${inlines.length}%%`;
+      inlines.push(a || b);
+      return id;
+    });
+
+    // Parse markdown
+    if (marked) {
+      result = marked.parse(result) as string;
+    }
+
+    // Render KaTeX
+    if (katex) {
+      blocks.forEach((tex, i) => {
+        try {
+          result = result.replace(`%%BLOCK${i}%%`,
+            katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false }));
+        } catch {}
+      });
+      inlines.forEach((tex, i) => {
+        try {
+          result = result.replace(`%%INLINE${i}%%`,
+            katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }));
+        } catch {}
+      });
+    }
+
+    // Strip UUIDs and IDs from display
+    result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, '');
+    result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, '');
+    result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, '');
+    result = result.replace(/,?\s*id:\s*[^\s,)]+/gi, '');
+    result = result.replace(/,\s*\)/g, ')');
+    result = result.replace(/\(\s*\)/g, '');
+
+    // Restore [p.N] page links
+    if (pageNavEnabled) {
+      pageLinks.forEach((pl, i) => { result = result.replace(`%%PAGE${i}%%`, pl); });
+      result = result.replace(/\[p\.(\d+)[-\u2013](\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1-$2</a>');
+      result = result.replace(/\[p\.(\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
+
+      const _pl = (_m: string, pre: string, n: string) =>
+        `${pre}<a class="marginalia-page-link" data-page="${n}" href="#">${n}</a>`;
+      result = result.replace(/\b(p\.)(\d+)\b/g, _pl);
+      result = result.replace(/\b(pp?\.\s*)(\d+)\b/g, _pl);
+      result = result.replace(/\b(page\s+)(\d+)\b/gi, _pl);
+      result = result.replace(/\b(pages?\s+)(\d+)\b/gi, _pl);
+      result = result.replace(/(стр\.\s*)(\d+)/g, _pl);
+      result = result.replace(/(с\.\s+)(\d+)/g, _pl);
+      result = result.replace(/(страниц[а-яё]*\s+)(\d+)/gi, _pl);
+    }
+
+    // Book title links: wrap <strong>Title</strong> patterns matching known book titles
+    if (books.length > 0) {
+      for (const book of books) {
+        if (!book.title) continue;
+        const escaped = book.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`<strong>(${escaped})</strong>`, 'g');
+        result = result.replace(re, `<a class="marginalia-book-link" data-book-id="${book.id}" href="#">$1</a>`);
+      }
+    }
+
+    return result;
+  }
+
+  function handleCopyClick(e: MouseEvent) {
+    const btn = (e.currentTarget as HTMLElement);
+    const msg = btn.closest('.marginalia-msg');
+    if (!msg) return;
+    const raw = (msg as HTMLElement).dataset.raw || msg.textContent || '';
+    navigator.clipboard.writeText(raw).catch(() => {});
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+  }
+
+  function handleMessagesClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    const link = target.closest('.marginalia-page-link') as HTMLElement | null;
+    if (link && pageNavEnabled && onPageNav) {
+      e.preventDefault();
+      const page = parseInt(link.dataset.page || '');
+      if (page) onPageNav(page);
+    }
+    const bookLink = target.closest('.marginalia-book-link') as HTMLElement | null;
+    if (bookLink && onBookClick) {
+      e.preventDefault();
+      const bookId = bookLink.dataset.bookId || '';
+      if (bookId) onBookClick(bookId);
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener('click', handleClickOutsideMenu);
+    return () => {
+      document.removeEventListener('click', handleClickOutsideMenu);
+    };
+  });
+
+  // Show checkmark after send completes
+  let prevSending = $state(false);
+  $effect(() => {
+    if (prevSending && !sending) {
+      sendDone = true;
+      setTimeout(() => { sendDone = false; }, 1500);
+    }
+    prevSending = sending;
+  });
+</script>
+
+<div
+  class="chat-panel"
+  bind:this={containerEl}
+  style:width="{currentWidth}px"
+  class:resizing
+>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="chat-resize-handle"
+    onmousedown={onResizeStart}
+    ontouchstart={onResizeStart}
+  ></div>
+
+  <div class="m-chat-header">
+    <span>Chat</span>
+    <div class="m-chat-header-right">
+      <button
+        class="m-chat-header-btn menu-btn"
+        title="More"
+        onclick={(e) => { e.stopPropagation(); menuOpen = !menuOpen; }}
+      >&#x22EF;</button>
+      <button
+        class="m-chat-header-btn"
+        title="Close"
+        onclick={onClose}
+      >&#x2715;</button>
+    </div>
+  </div>
+
+  {#if menuOpen}
+    <div class="marginalia-popover">
+      {#each menuItems as item}
+        <button
+          class="menu-item"
+          class:menu-item-danger={item.danger}
+          onclick={() => handleMenuItemClick(item)}
+        >{item.label}</button>
+      {/each}
+      {#if menuItems.length > 0}
+        <hr class="popover-divider" />
+      {/if}
+      <button
+        class="menu-item menu-item-danger"
+        onclick={handleClear}
+      >Clear</button>
+    </div>
+  {/if}
+
+  {#if contextBar}
+    {@render contextBar()}
+  {/if}
+
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="m-chat-messages"
+    class:mono
+    bind:this={messagesEl}
+    onclick={handleMessagesClick}
+    style:font-size="{fontSize}px"
+  >
+    {#each messages as msg}
+      {#if msg.role !== 'tool'}
+        {#if msg.role === 'assistant'}
+          <div class="marginalia-msg assistant" data-raw={msg.content}>
+            {@html renderMarkdown(msg.content)}
+            <button class="marginalia-copy-btn" onclick={handleCopyClick}>Copy</button>
+          </div>
+        {:else if msg.role === 'system'}
+          <div class="marginalia-msg system">{msg.content}</div>
+        {:else}
+          <div class="marginalia-msg user">{msg.content}</div>
+        {/if}
+      {/if}
+    {/each}
+    {#if toolActivitySnippet}
+      {@render toolActivitySnippet()}
+    {/if}
+    {#if sending}
+      <div class="marginalia-msg assistant marginalia-thinking">
+        <span class="thinking-dots">Thinking<span>.</span><span>.</span><span>.</span></span>
+      </div>
+    {/if}
+  </div>
+
+  <div class="m-chat-input-area">
+    <textarea
+      class="m-chat-input"
+      bind:this={inputEl}
+      bind:value={inputText}
+      {placeholder}
+      disabled={sending}
+      onkeydown={handleKeydown}
+    ></textarea>
+    <button
+      class="m-chat-send"
+      class:done={sendDone}
+      disabled={sending}
+      onclick={handleSend}
+    >{sendDone ? '\u2713' : 'Send'}</button>
+  </div>
+</div>
+
+<style>
+  .chat-panel {
+    background: var(--m-bg-0);
+    color: var(--m-fg);
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    flex-shrink: 0;
+    border-left: 1px solid var(--m-border);
+  }
+  .chat-panel.resizing {
+    user-select: none;
+  }
+
+  .chat-resize-handle {
+    position: absolute;
+    left: -4px;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+  .chat-resize-handle::after {
+    content: "";
+    width: 3px;
+    height: 36px;
+    border-radius: 2px;
+    background: var(--m-border-light);
+    transition: background 0.15s;
+  }
+  .chat-resize-handle:hover::after,
+  .chat-resize-handle:active::after {
+    background: var(--m-accent);
+  }
+
+  .m-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--m-bg-1);
+    border-bottom: 1px solid var(--m-border);
+    flex-shrink: 0;
+  }
+  .m-chat-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .m-chat-header-btn {
+    background: none;
+    border: none;
+    color: var(--m-fg-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+  }
+  .m-chat-header-btn:hover {
+    color: var(--m-fg);
+    background: var(--m-bg-2);
+  }
+
+  .marginalia-popover {
+    position: absolute;
+    top: 42px;
+    right: 8px;
+    background: var(--m-bg-1);
+    border: 1px solid var(--m-border-light);
+    border-radius: 8px;
+    padding: 8px 0;
+    z-index: 100;
+    min-width: 200px;
+    box-shadow: 0 4px 16px var(--m-shadow);
+  }
+
+  .menu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    color: var(--m-fg);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu-item:hover { background: var(--m-bg-2); }
+  .menu-item-danger { color: var(--m-error); }
+  .menu-item-danger:hover { background: rgba(251, 73, 52, 0.1); }
+
+  .popover-divider {
+    border: none;
+    border-top: 1px solid var(--m-border);
+    margin: 4px 0;
+  }
+
+  .m-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .m-chat-messages.mono {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  :global(.marginalia-msg) {
+    padding: 8px 12px;
+    border-radius: 8px;
+    word-break: break-word;
+    line-height: 1.5;
+    position: relative;
+  }
+  :global(.marginalia-msg.user) {
+    align-self: flex-end;
+    background: var(--m-user-bg);
+    max-width: 85%;
+    white-space: pre-wrap;
+  }
+  :global(.marginalia-msg.assistant) {
+    background: var(--m-bg-1);
+    border: 1px solid var(--m-border);
+  }
+  :global(.marginalia-msg.assistant code) {
+    background: var(--m-code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  :global(.marginalia-msg.assistant pre) {
+    background: var(--m-code-bg);
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  :global(.marginalia-msg.assistant pre code) {
+    background: none;
+    padding: 0;
+  }
+  :global(.marginalia-msg.assistant strong) {
+    color: var(--m-fg);
+  }
+  :global(.marginalia-msg.assistant h3),
+  :global(.marginalia-msg.assistant h4) {
+    margin: 12px 0 4px;
+    color: var(--m-fg);
+  }
+  :global(.marginalia-msg.assistant table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 0.9em;
+  }
+  :global(.marginalia-msg.assistant th),
+  :global(.marginalia-msg.assistant td) {
+    border: 1px solid var(--m-border-light);
+    padding: 6px 10px;
+    text-align: left;
+  }
+  :global(.marginalia-msg.assistant th) {
+    background: var(--m-code-bg);
+    font-weight: 600;
+    color: var(--m-fg);
+  }
+  :global(.marginalia-msg.assistant tr:nth-child(even)) {
+    background: var(--m-bg-2);
+  }
+  :global(.marginalia-msg.system) {
+    background: var(--m-system-bg);
+    color: var(--m-system-fg);
+    font-size: 0.85em;
+    font-style: italic;
+  }
+  :global(.marginalia-msg.tool-status) {
+    background: var(--m-tool-bg);
+    color: var(--m-tool-fg);
+    font-size: 0.8em;
+    font-style: italic;
+    padding: 4px 12px;
+  }
+
+  .marginalia-copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--m-bg-2);
+    border: 1px solid var(--m-border-light);
+    color: var(--m-fg-muted);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  :global(.marginalia-msg:hover) .marginalia-copy-btn { opacity: 1; }
+  @media (hover: none) {
+    .marginalia-copy-btn { opacity: 0.6; }
+  }
+
+  :global(.marginalia-page-link) {
+    color: var(--m-accent);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+  }
+  :global(.marginalia-page-link:hover) { text-decoration-style: solid; }
+
+  :global(.marginalia-book-link) {
+    color: var(--m-accent);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  :global(.marginalia-book-link:hover) { text-decoration-style: solid; }
+
+  :global(.thinking-dots span) {
+    animation: blink 1.4s infinite both;
+  }
+  :global(.thinking-dots span:nth-child(2)) { animation-delay: 0.2s; }
+  :global(.thinking-dots span:nth-child(3)) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+  .m-chat-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--m-bg-1);
+    flex-shrink: 0;
+  }
+  .m-chat-input {
+    flex: 1;
+    background: var(--m-input-bg);
+    color: var(--m-fg);
+    border: 1px solid var(--m-border-light);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 13px;
+    resize: none;
+    min-height: 36px;
+    max-height: 120px;
+    font-family: inherit;
+  }
+  .m-chat-send {
+    background: var(--m-accent);
+    color: var(--m-bg-0);
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    align-self: flex-end;
+  }
+  .m-chat-send:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .m-chat-send.done {
+    background: var(--m-success);
+    transition: background 0.3s;
+  }
+</style>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Marginalia</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module" src="/src/library/main.ts"></script>
+    <script>
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").then(reg => {
+            reg.update();
+            setInterval(() => reg.update(), 5 * 60 * 1000);
+        });
+        navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
+    }
+    </script>
+</body>
+</html>

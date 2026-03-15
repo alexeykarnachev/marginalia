@@ -1,0 +1,10 @@
+[      38ms] [ERROR] Manifest: Line: 1, column: 1, Syntax error. @ http://localhost:8230/manifest.json:0
+[      39ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[  224221ms] [ERROR] Manifest: Line: 1, column: 1, Syntax error. @ http://localhost:8230/manifest.json:0
+[  224221ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[  297457ms] [ERROR] Manifest: Line: 1, column: 1, Syntax error. @ http://localhost:8230/manifest.json:0
+[  297457ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[  454243ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[  527644ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ https://openrouter.ai/api/v1/chat/completions:0
+[  577302ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[  656932ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ https://openrouter.ai/api/v1/chat/completions:0

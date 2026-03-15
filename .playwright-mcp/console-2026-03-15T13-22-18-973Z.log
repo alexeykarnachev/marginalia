@@ -1,0 +1,11 @@
+[     198ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[     208ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:8230/icon-192.png (Download error or resource isn't a valid image) @ http://localhost:8230/:0
+[     429ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8230/:0
+[  211807ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8230/favicon.ico:0
+[  318331ms] TypeError: Cannot destructure property 'AbortException' of 'globalThis.pdfjsLib' as it is undefined.
+    at http://localhost:8230/pdfjs/web/viewer.mjs:1277:3
+[  539748ms] Unexpected token '<'
+[  539749ms] Unexpected token '<'
+[  539749ms] Unexpected token '<'
+[  539749ms] Unexpected token '<'
+[  539750ms] Unexpected token '<'

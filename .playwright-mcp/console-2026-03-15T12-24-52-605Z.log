@@ -1,0 +1,7 @@
+[      74ms] Error: https://svelte.dev/e/effect_orphan
+    at me (http://localhost:8229/assets/app-htebMA3E.js:1:1914)
+    at dn (http://localhost:8229/assets/app-htebMA3E.js:1:18940)
+    at gn (http://localhost:8229/assets/app-htebMA3E.js:1:19693)
+    at ci (http://localhost:8229/assets/app-htebMA3E.js:2:5209)
+    at http://localhost:8229/assets/app-htebMA3E.js:2:5374
+[      78ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8229/:0
