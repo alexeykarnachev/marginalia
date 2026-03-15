@@ -143,13 +143,25 @@ async function renderLibrary() {
     const childBooks = books.filter(b => (b.folder_id || null) === currentFolderId);
     for (const book of childBooks) {
         const el = document.createElement("div");
-        el.className = "library-item book-item";
+        el.className = "book-item";
 
         const sizeMB = (book.size / 1048576).toFixed(1);
-        const pageCount = book.pages ? book.pages.length + "p" : (book.pages === null ? "indexing..." : "");
-        const meta = [sizeMB + " MB", pageCount].filter(Boolean).join(", ");
+        const pageCount = book.pages ? book.pages.length + "p" : (book.pages === null ? "..." : "");
+        const meta = [pageCount, sizeMB + " MB"].filter(Boolean).join(" · ");
 
-        el.innerHTML = `<span class="item-icon">📄</span><span class="item-title">${escapeHtml(book.title)}</span><span class="item-meta">${meta}</span>`;
+        // Cover
+        const cover = document.createElement("div");
+        cover.className = "book-cover";
+        cover.innerHTML = `<span class="book-cover-placeholder">📄</span>`;
+        el.appendChild(cover);
+
+        // Render first page as cover thumbnail
+        renderBookCover(book, cover);
+
+        // Info
+        const info = document.createElement("div");
+        info.className = "book-info";
+        info.innerHTML = `<span class="book-title" title="${escapeHtml(book.title)}">${escapeHtml(book.title)}</span><span class="book-meta">${meta}</span>`;
 
         const actions = document.createElement("div");
         actions.className = "item-actions";
@@ -193,7 +205,8 @@ async function renderLibrary() {
         actions.appendChild(moveBtn);
         actions.appendChild(renameBtn);
         actions.appendChild(deleteBtn);
-        el.appendChild(actions);
+        info.appendChild(actions);
+        el.appendChild(info);
 
         el.addEventListener("click", (e) => {
             if (e.target.closest(".item-actions")) return;
@@ -264,6 +277,39 @@ function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
+}
+
+async function renderBookCover(book, coverEl) {
+    // Wait for pdfjsLib to be available
+    if (typeof globalThis.pdfjsLib === "undefined") {
+        let attempts = 0;
+        while (typeof globalThis.pdfjsLib === "undefined" && attempts < 30) {
+            await new Promise(r => setTimeout(r, 200));
+            attempts++;
+        }
+    }
+    if (typeof globalThis.pdfjsLib === "undefined") return;
+
+    try {
+        const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: "application/pdf" });
+        const buf = await blob.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+        const page = await pdf.getPage(1);
+
+        const viewport = page.getViewport({ scale: 1 });
+        const canvas = document.createElement("canvas");
+        const scale = 200 / viewport.width;
+        canvas.width = viewport.width * scale;
+        canvas.height = viewport.height * scale;
+
+        await page.render({
+            canvasContext: canvas.getContext("2d"),
+            viewport: page.getViewport({ scale }),
+        }).promise;
+
+        coverEl.innerHTML = "";
+        coverEl.appendChild(canvas);
+    } catch {}
 }
 
 // --- Init ---

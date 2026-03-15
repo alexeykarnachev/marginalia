@@ -26,27 +26,20 @@ body {
 }
 
 #library-header h1 { font-size: 24px; }
-#version-label { font-size: 11px; color: var(--m-border); font-weight: 400; vertical-align: middle; }
+#version-label { font-size: 11px; color: var(--m-fg-dim); font-weight: 400; margin-left: 8px; }
 #library-header-right { display: flex; gap: 8px; }
 
 #btn-settings, #btn-new-folder {
     background: none;
-    border: 1px solid var(--m-border);
-    color: var(--m-fg);
+    border: 1px solid var(--m-border-light);
+    color: var(--m-fg-muted);
     font-size: 18px;
     width: 40px;
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
 }
-#btn-settings:hover, #btn-new-folder:hover { border-color: var(--m-accent); }
-
-#book-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 20px;
-}
+#btn-settings:hover, #btn-new-folder:hover { border-color: var(--m-accent); color: var(--m-accent); }
 
 /* Breadcrumb */
 .library-breadcrumb {
@@ -55,27 +48,85 @@ body {
     font-size: 14px;
     color: var(--m-fg-muted);
 }
-.breadcrumb-item.clickable { color: var(--m-accent); cursor: pointer; }
+.breadcrumb-item.clickable { color: var(--m-link); cursor: pointer; }
 .breadcrumb-item.clickable:hover { text-decoration: underline; }
 .breadcrumb-item.current { color: var(--m-fg); }
-.breadcrumb-sep { color: var(--m-border); }
+.breadcrumb-sep { color: var(--m-fg-dim); margin: 0 4px; }
 
-/* Library items (folders + books) */
-.library-item {
+/* Book grid */
+#book-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+/* Folder items — full width row above books */
+.folder-item {
+    grid-column: 1 / -1;
     background: var(--m-bg-1);
-    padding: 12px 14px;
+    padding: 10px 14px;
     border-radius: 8px;
+    border-left: 3px solid var(--m-accent);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 10px;
 }
-.library-item:hover { background: var(--m-bg-2); }
+.folder-item:hover { background: var(--m-bg-2); }
+.folder-item .item-title { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.item-icon { font-size: 18px; flex-shrink: 0; }
-.item-title { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-meta { color: var(--m-fg-muted); font-size: 13px; flex-shrink: 0; }
+/* Book cards */
+.book-item {
+    background: var(--m-bg-1);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+}
+.book-item:hover { box-shadow: 0 2px 12px var(--m-shadow); }
 
+.book-cover {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: var(--m-bg-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+.book-cover canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.book-cover-placeholder {
+    font-size: 32px;
+    color: var(--m-fg-dim);
+}
+
+.book-info {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.book-title {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.book-meta {
+    font-size: 11px;
+    color: var(--m-fg-dim);
+}
+
+/* Item actions — visible on hover, always on touch */
 .item-actions {
     display: flex;
     gap: 4px;
@@ -83,21 +134,21 @@ body {
     opacity: 0;
     transition: opacity 0.15s;
 }
-.library-item:hover .item-actions { opacity: 1; }
-/* Touch devices: always show actions since there's no hover */
+.folder-item:hover .item-actions,
+.book-item:hover .item-actions { opacity: 1; }
 @media (hover: none) {
     .item-actions { opacity: 0.7; }
 }
 
 .item-btn {
     background: none;
-    border: 1px solid var(--m-border);
+    border: 1px solid var(--m-border-light);
     color: var(--m-fg-muted);
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -105,25 +156,29 @@ body {
 .item-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
 .item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
 
-.folder-item { border-left: 3px solid var(--m-accent); }
+.item-meta { color: var(--m-fg-muted); font-size: 13px; flex-shrink: 0; }
 
 .library-empty {
+    grid-column: 1 / -1;
     color: var(--m-fg-dim);
     font-size: 14px;
-    padding: 20px 0;
+    padding: 40px 0;
     text-align: center;
 }
 
 .upload-btn {
-    display: inline-block;
-    background: var(--m-accent);
-    color: var(--m-fg);
-    padding: 12px 24px;
+    grid-column: 1 / -1;
+    display: block;
+    background: var(--m-bg-1);
+    color: var(--m-accent);
+    border: 1px dashed var(--m-border-light);
+    padding: 14px 24px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 15px;
+    font-size: 14px;
     text-align: center;
 }
+.upload-btn:hover { border-color: var(--m-accent); }
 
 /* Settings modal */
 .overlay {
@@ -163,9 +218,9 @@ body {
     width: 100%;
     margin-top: 6px;
     padding: 10px;
-    background: var(--m-bg-2);
+    background: var(--m-input-bg);
     color: var(--m-fg);
-    border: 1px solid var(--m-border);
+    border: 1px solid var(--m-border-light);
     border-radius: 6px;
     font-size: 14px;
     font-family: inherit;
@@ -205,5 +260,5 @@ body {
     cursor: pointer;
 }
 
-#btn-settings-save { background: var(--m-accent); color: var(--m-fg); }
-#btn-settings-cancel { background: var(--m-border-light); color: var(--m-fg); }
+#btn-settings-save { background: var(--m-accent); color: var(--m-bg-0); font-weight: 600; }
+#btn-settings-cancel { background: var(--m-bg-2); color: var(--m-fg-muted); }

@@ -1,51 +1,50 @@
 /* theme.css — Single source of truth for all colors in Marginalia.
-   Gruvbox-inspired palette with dark, light, sepia, dim, and black themes.
-   All variables use the --m- prefix. */
+   Gruvbox palette: https://github.com/morhetz/gruvbox */
 
 /* ── Dark (default) ─────────────────────────────────────────────── */
 
 :root,
 html[data-theme="dark"] {
-  /* Backgrounds */
-  --m-bg-0: #282828;
-  --m-bg-1: #3c3836;
-  --m-bg-2: #504945;
+  /* Backgrounds: bg0_h -> bg0 -> bg1 -> bg2 */
+  --m-bg-0: #1d2021;
+  --m-bg-1: #282828;
+  --m-bg-2: #3c3836;
 
-  /* Foregrounds */
+  /* Foregrounds: fg -> fg1 -> gray */
   --m-fg: #ebdbb2;
   --m-fg-muted: #a89984;
   --m-fg-dim: #928374;
 
-  /* Accent */
+  /* Accent: yellow */
   --m-accent: #d79921;
   --m-accent-hover: #fabd2f;
 
-  /* Links */
+  /* Links: blue */
   --m-link: #83a598;
-  --m-link-hover: #8ec07c;
+  --m-link-hover: #fabd2f;
 
   /* Semantic */
   --m-error: #fb4934;
   --m-success: #b8bb26;
 
-  /* Borders */
-  --m-border: #504945;
-  --m-border-light: #665c54;
+  /* Borders: bg2 -> bg3 */
+  --m-border: #3c3836;
+  --m-border-light: #504945;
 
-  /* Chat messages */
-  --m-user-bg: #4a3520;
-  --m-system-bg: #2e3828;
-  --m-system-fg: #b8bb26;
-  --m-tool-bg: #2e2e3a;
+  /* Chat messages — subtle tints of the base, not separate hues */
+  --m-user-bg: #32302f;
+  --m-system-bg: #282828;
+  --m-system-fg: #a89984;
+  --m-tool-bg: #282828;
   --m-tool-fg: #83a598;
 
   /* Surfaces */
-  --m-code-bg: #1d2021;
-  --m-input-bg: #1d2021;
+  --m-code-bg: #282828;
+  --m-input-bg: #282828;
 
   /* Overlays */
-  --m-overlay-bg: rgba(29, 32, 33, 0.75);
-  --m-shadow: rgba(0, 0, 0, 0.4);
+  --m-overlay-bg: rgba(29, 32, 33, 0.8);
+  --m-shadow: rgba(0, 0, 0, 0.5);
 
   /* Page filter */
   --m-page-filter: invert(0.92) hue-rotate(180deg) contrast(0.8) brightness(0.8);
@@ -54,48 +53,38 @@ html[data-theme="dark"] {
 /* ── Light ───────────────────────────────────────────────────────── */
 
 html[data-theme="light"] {
-  /* Backgrounds */
   --m-bg-0: #fbf1c7;
   --m-bg-1: #ebdbb2;
   --m-bg-2: #d5c4a1;
 
-  /* Foregrounds */
   --m-fg: #3c3836;
-  --m-fg-muted: #7c6f64;
-  --m-fg-dim: #928374;
+  --m-fg-muted: #665c54;
+  --m-fg-dim: #7c6f64;
 
-  /* Accent */
   --m-accent: #b57614;
   --m-accent-hover: #d79921;
 
-  /* Links */
   --m-link: #458588;
-  --m-link-hover: #689d6a;
+  --m-link-hover: #076678;
 
-  /* Semantic */
   --m-error: #cc241d;
   --m-success: #98971a;
 
-  /* Borders */
   --m-border: #d5c4a1;
   --m-border-light: #bdae93;
 
-  /* Chat messages */
-  --m-user-bg: #d5c4a1;
-  --m-system-bg: #dce5c8;
-  --m-system-fg: #79740e;
-  --m-tool-bg: #d2d8cc;
-  --m-tool-fg: #076678;
+  --m-user-bg: #ebdbb2;
+  --m-system-bg: #fbf1c7;
+  --m-system-fg: #665c54;
+  --m-tool-bg: #fbf1c7;
+  --m-tool-fg: #458588;
 
-  /* Surfaces */
-  --m-code-bg: #d5c4a1;
-  --m-input-bg: #fbf1c7;
+  --m-code-bg: #ebdbb2;
+  --m-input-bg: #ebdbb2;
 
-  /* Overlays */
-  --m-overlay-bg: rgba(251, 241, 199, 0.75);
+  --m-overlay-bg: rgba(60, 56, 54, 0.5);
   --m-shadow: rgba(0, 0, 0, 0.15);
 
-  /* Page filter */
   --m-page-filter: none;
 }
 
