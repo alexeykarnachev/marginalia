@@ -1155,16 +1155,13 @@ function _updateViewerMargin() {
         rule.id = "marginalia-viewer-margin";
         document.head.appendChild(rule);
     }
+    const outer = document.getElementById("outerContainer");
+    if (!outer) return;
     if (panel.classList.contains("open")) {
         const w = parseInt(panel.style.width) || 380;
-        rule.textContent = `
-            html, body { overflow-x: hidden !important; }
-            body { display: flex !important; flex-direction: row !important; }
-            #outerContainer { flex: 1 !important; min-width: 0 !important; width: auto !important; }
-            #marginalia-chat { position: relative !important; transform: none !important; flex-shrink: 0 !important; }
-        `;
+        outer.style.width = (window.innerWidth - w) + "px";
     } else {
-        rule.textContent = "";
+        outer.style.width = "";
     }
 }
 
@@ -1770,6 +1767,9 @@ function init() {
 
     // Capture selection on any mouseup/touchend in the viewer
     document.addEventListener("mouseup", _captureSelection);
+
+    // Keep viewer width in sync on window resize
+    window.addEventListener("resize", () => _updateViewerMargin());
     document.addEventListener("touchend", _captureSelection);
     // Restore chat open state
     if (localStorage.getItem("marginalia_chat_open") === "1") {
