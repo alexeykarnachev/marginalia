@@ -390,6 +390,11 @@ function injectUI() {
             <div class="marginalia-prompt-buttons">
                 <button id="marginalia-prompt-save">Save</button>
                 <button id="marginalia-prompt-cancel">Cancel</button>
+                <button id="marginalia-prompt-view">View full prompt</button>
+            </div>
+            <div id="marginalia-prompt-viewer" class="hidden">
+                <h3>Full system prompt (read-only)</h3>
+                <pre id="marginalia-prompt-viewer-text"></pre>
             </div>
         </div>
     `;
@@ -427,6 +432,7 @@ function injectUI() {
     document.getElementById("marginalia-chat-prompt").addEventListener("click", openPromptEditor);
     document.getElementById("marginalia-prompt-save").addEventListener("click", savePromptEditor);
     document.getElementById("marginalia-prompt-cancel").addEventListener("click", closePromptEditor);
+    document.getElementById("marginalia-prompt-view").addEventListener("click", togglePromptViewer);
     document.getElementById("marginalia-mono-btn").addEventListener("click", toggleMono);
     document.getElementById("marginalia-raw-btn").addEventListener("click", toggleRaw);
 
@@ -919,11 +925,34 @@ function injectStyles() {
         }
         #marginalia-prompt-save { background: #4a9eff; color: #fff; border-color: #4a9eff; }
         #marginalia-prompt-cancel { background: transparent; color: #ccc; }
+        #marginalia-prompt-view { background: transparent; color: #aaa; font-size: 12px; }
+        #marginalia-prompt-viewer {
+            margin-top: 12px;
+            border-top: 1px solid #444;
+            padding-top: 10px;
+        }
+        #marginalia-prompt-viewer.hidden { display: none; }
+        #marginalia-prompt-viewer h3 { font-size: 13px; color: #888; margin-bottom: 8px; }
+        #marginalia-prompt-viewer-text {
+            background: #1a1a1a;
+            color: #aaa;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            line-height: 1.5;
+            max-height: 50vh;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            user-select: text;
+        }
 
         .marginalia-light #marginalia-prompt-modal { background: #f5f5f5; border-color: #ccc; color: #333; }
         .marginalia-light #marginalia-prompt-modal h3 { color: #111; }
         .marginalia-light #marginalia-prompt-textarea { background: #fff; color: #333; border-color: #ccc; }
         .marginalia-light #marginalia-prompt-cancel { color: #666; border-color: #ccc; }
+        .marginalia-light #marginalia-prompt-viewer { border-top-color: #ddd; }
+        .marginalia-light #marginalia-prompt-viewer-text { background: #eee; color: #555; }
 
         /* Tools editor */
         #marginalia-tools-modal {
@@ -1142,6 +1171,21 @@ function savePromptEditor() {
 
 function closePromptEditor() {
     document.getElementById("marginalia-prompt-overlay").classList.add("hidden");
+    document.getElementById("marginalia-prompt-viewer").classList.add("hidden");
+}
+
+async function togglePromptViewer() {
+    const viewer = document.getElementById("marginalia-prompt-viewer");
+    if (!viewer.classList.contains("hidden")) {
+        viewer.classList.add("hidden");
+        return;
+    }
+    const context = await getContext();
+    let system = renderPrompt(SYSTEM_PROMPT, context);
+    const bookPrompt = getBookPrompt();
+    if (bookPrompt) system += "\n\n## Book-specific instructions (MUST FOLLOW)\n" + bookPrompt;
+    document.getElementById("marginalia-prompt-viewer-text").textContent = system;
+    viewer.classList.remove("hidden");
 }
 
 function openToolsEditor() {
