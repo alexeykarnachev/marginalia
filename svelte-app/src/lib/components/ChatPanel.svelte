@@ -213,13 +213,23 @@
       });
     }
 
-    // Strip UUIDs and IDs from display
-    result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, '');
-    result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, '');
+    // Book links: convert [id: UUID] patterns into clickable links before stripping
+    if (books.length > 0) {
+      const bookById = new Map(books.map(b => [b.id, b]));
+      // Match [id: UUID] or (id: UUID) — replace with link using book title
+      result = result.replace(/[\[(]id:\s*`?([0-9a-f-]{36})`?\s*[\])]/gi, (_m, id) => {
+        const book = bookById.get(id);
+        if (book) return `<a class="marginalia-book-link" data-book-id="${id}" href="#">${book.title}</a>`;
+        return '';
+      });
+    }
+
+    // Strip remaining UUIDs and IDs from display
+    result = result.replace(/\bid:\s*`?[0-9a-f-]{36}`?/gi, '');
     result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, '');
-    result = result.replace(/,?\s*id:\s*[^\s,)]+/gi, '');
     result = result.replace(/,\s*\)/g, ')');
     result = result.replace(/\(\s*\)/g, '');
+    result = result.replace(/\[\s*\]/g, '');
 
     // Restore [p.N] page links
     if (pageNavEnabled) {
@@ -238,7 +248,7 @@
       result = result.replace(/(страниц[а-яё]*\s+)(\d+)/gi, _pl);
     }
 
-    // Book title links: wrap <strong>Title</strong> patterns matching known book titles
+    // Book title links: wrap <strong>Title</strong> matching known book titles
     if (books.length > 0) {
       for (const book of books) {
         if (!book.title) continue;
@@ -248,7 +258,7 @@
       }
     }
 
-    result = DOMPurify.sanitize(result);
+    result = DOMPurify.sanitize(result, { ADD_ATTR: ['data-page', 'data-book-id'] });
     return result;
   }
 
