@@ -390,10 +390,9 @@ function injectUI() {
             <div class="marginalia-prompt-buttons">
                 <button id="marginalia-prompt-save">Save</button>
                 <button id="marginalia-prompt-cancel">Cancel</button>
-                <button id="marginalia-prompt-view">View full prompt</button>
             </div>
+            <button id="marginalia-prompt-view">View full system prompt</button>
             <div id="marginalia-prompt-viewer" class="hidden">
-                <h3>Full system prompt (read-only)</h3>
                 <pre id="marginalia-prompt-viewer-text"></pre>
             </div>
         </div>
@@ -925,7 +924,11 @@ function injectStyles() {
         }
         #marginalia-prompt-save { background: #4a9eff; color: #fff; border-color: #4a9eff; }
         #marginalia-prompt-cancel { background: transparent; color: #ccc; }
-        #marginalia-prompt-view { background: transparent; color: #aaa; font-size: 12px; }
+        #marginalia-prompt-view {
+            background: none; border: none; color: #4a9eff; font-size: 12px;
+            cursor: pointer; padding: 0; margin-top: 10px; text-decoration: underline;
+        }
+        #marginalia-prompt-view:hover { color: #6ab4ff; }
         #marginalia-prompt-viewer {
             margin-top: 12px;
             border-top: 1px solid #444;
