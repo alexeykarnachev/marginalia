@@ -101,6 +101,7 @@
     if (!text || sending) return;
     inputText = '';
     onSend(text);
+    inputEl?.focus();
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -426,6 +427,7 @@
       class="m-chat-send"
       class:done={sendDone}
       disabled={sending}
+      onmousedown={(e) => e.preventDefault()}
       onclick={handleSend}
     >{sendDone ? '\u2713' : 'Send'}</button>
   </div>

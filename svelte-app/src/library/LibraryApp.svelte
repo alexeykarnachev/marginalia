@@ -23,7 +23,7 @@
 
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
-  let currentFolderId = $state<string | null>(null);
+  let currentFolderId = $state<string | null>(sessionStorage.getItem('marginalia_folder') || null);
   let chatOpen = $state(localStorage.getItem(LS_LIB_CHAT_OPEN) === '1');
   let settingsOpen = $state(false);
   let promptEditorOpen = $state(false);
@@ -112,6 +112,11 @@
 
   function handleNavigateFolder(folderId: string | null) {
     currentFolderId = folderId;
+    if (folderId) {
+      sessionStorage.setItem('marginalia_folder', folderId);
+    } else {
+      sessionStorage.removeItem('marginalia_folder');
+    }
   }
 
   async function handleNewFolder() {

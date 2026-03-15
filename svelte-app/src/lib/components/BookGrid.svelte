@@ -94,11 +94,15 @@
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="folder-item" onclick={(e) => handleFolderClick(folder, e)}>
-        <span class="item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-        <span class="item-title">{folder.name}</span>
-        <div class="item-actions">
-          <button class="item-btn" title="Rename" onclick={(e) => handleFolderRename(folder, e)}>&#x270F;</button>
-          <button class="item-btn item-btn-danger" title="Delete" onclick={(e) => handleFolderDelete(folder, e)}>&#x2715;</button>
+        <div class="folder-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="folder-info">
+          <span class="folder-name" title={folder.name}>{folder.name}</span>
+          <div class="item-actions">
+            <button class="item-btn" title="Rename" onclick={(e) => handleFolderRename(folder, e)}>&#x270F;</button>
+            <button class="item-btn item-btn-danger" title="Delete" onclick={(e) => handleFolderDelete(folder, e)}>&#x2715;</button>
+          </div>
         </div>
       </div>
     {/each}
@@ -150,21 +154,36 @@
   .breadcrumb-sep { color: var(--m-fg-dim); margin: 0 4px; }
 
   .folder-item {
-    width: 100%;
-    background: var(--m-bg-2);
-    padding: 10px 14px;
+    width: 180px;
+    background: var(--m-bg-1);
+    border: 1px solid var(--m-border);
     border-radius: 8px;
-    border-left: 3px solid var(--m-accent);
     cursor: pointer;
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: box-shadow 0.15s;
   }
-  .folder-item:hover { background: var(--m-bg-2); }
-  .item-title {
+  .folder-item:hover { box-shadow: 0 2px 12px var(--m-shadow); }
+
+  .folder-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0 12px;
+    color: var(--m-accent);
+  }
+
+  .folder-info {
+    padding: 0 10px 10px;
+  }
+
+  .folder-name {
+    display: block;
+    font-size: 13px;
     font-weight: 500;
-    flex: 1;
-    min-width: 0;
+    color: var(--m-fg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
