@@ -17,6 +17,7 @@
     { label: 'S', value: 12 },
     { label: 'M', value: 14 },
     { label: 'L', value: 16 },
+    { label: 'XL', value: 20 },
   ] as const;
 
   interface MenuItem {
@@ -73,6 +74,7 @@
 
   let inputText = $state('');
   let menuOpen = $state(false);
+  let rawMode = $state(false);
   let messagesEl: HTMLDivElement;
   let inputEl: HTMLTextAreaElement;
   let containerEl: HTMLDivElement;
@@ -371,6 +373,14 @@
           >{mono ? 'ON' : 'OFF'}</button>
         </div>
       {/if}
+      <div class="menu-control-row">
+        <span class="menu-control-label">Raw</span>
+        <button
+          class="menu-toggle-btn"
+          class:active={rawMode}
+          onclick={() => { rawMode = !rawMode; }}
+        >{rawMode ? 'ON' : 'OFF'}</button>
+      </div>
       <hr class="popover-divider" />
       <button
         class="menu-item menu-item-danger"
@@ -395,8 +405,12 @@
     {#each messages as msg}
       {#if msg.role !== 'tool'}
         {#if msg.role === 'assistant'}
-          <div class="marginalia-msg assistant" data-raw={msg.content}>
-            {@html renderMarkdown(msg.content)}
+          <div class="marginalia-msg assistant" class:raw={rawMode} data-raw={msg.content}>
+            {#if rawMode}
+              <pre class="raw-content">{msg.content}</pre>
+            {:else}
+              {@html renderMarkdown(msg.content)}
+            {/if}
             <button class="marginalia-copy-btn" onclick={handleCopyClick}>Copy</button>
           </div>
         {:else if msg.role === 'system'}
@@ -699,6 +713,15 @@
   :global(.marginalia-msg:hover) .marginalia-copy-btn { opacity: 1; }
   @media (hover: none) {
     .marginalia-copy-btn { opacity: 0.6; }
+  }
+
+  .raw-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9em;
+    margin: 0;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    color: var(--m-fg-muted);
   }
 
   :global(.marginalia-page-link) {
