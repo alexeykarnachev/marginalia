@@ -256,42 +256,38 @@ body {
 #btn-settings-save { background: var(--m-accent); color: var(--m-bg-0); font-weight: 600; }
 #btn-settings-cancel { background: var(--m-bg-2); color: var(--m-fg-muted); }
 
-/* Library chat */
-#library-chat-toggle {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--m-accent);
-    color: var(--m-bg-0);
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    z-index: 100;
-    box-shadow: 0 2px 8px var(--m-shadow);
-}
-#library-chat-toggle:hover { background: var(--m-accent-hover); }
-
-.library-chat {
-    position: fixed;
-    bottom: 0;
-    right: 0;
-    width: 400px;
-    max-width: 100vw;
-    height: 60vh;
-    max-height: 80vh;
-    background: var(--m-bg-0);
+/* Chat button in header */
+#btn-chat {
+    background: none;
     border: 1px solid var(--m-border-light);
-    border-bottom: none;
-    border-radius: 12px 12px 0 0;
-    display: flex;
-    flex-direction: column;
-    z-index: 200;
-    box-shadow: 0 -4px 20px var(--m-shadow);
+    color: var(--m-fg-muted);
+    font-size: 13px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 8px;
+    cursor: pointer;
 }
-.library-chat.hidden { display: none; }
+#btn-chat:hover { border-color: var(--m-accent); color: var(--m-accent); }
+
+/* Library layout: flex row with chat panel */
+#app {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+#app > .view { flex: 1; min-width: 0; }
+
+/* Library chat — right side panel, same as viewer */
+.library-chat {
+    width: 380px;
+    flex-shrink: 0;
+    background: var(--m-bg-0);
+    border-left: 1px solid var(--m-border);
+    display: none;
+    flex-direction: column;
+    height: 100vh;
+}
+.library-chat.open { display: flex; }
 
 #library-chat-header {
     display: flex;
@@ -299,9 +295,9 @@ body {
     justify-content: space-between;
     padding: 10px 14px;
     background: var(--m-bg-1);
-    border-radius: 12px 12px 0 0;
     border-bottom: 1px solid var(--m-border);
     font-weight: 500;
+    flex-shrink: 0;
 }
 #library-chat-close {
     background: none;
@@ -310,6 +306,7 @@ body {
     font-size: 18px;
     cursor: pointer;
 }
+#library-chat-close:hover { color: var(--m-fg); }
 
 #library-chat-messages {
     flex: 1;
@@ -326,6 +323,7 @@ body {
     padding: 10px 12px;
     border-top: 1px solid var(--m-border);
     background: var(--m-bg-1);
+    flex-shrink: 0;
 }
 #library-chat-input {
     flex: 1;
@@ -353,7 +351,7 @@ body {
 }
 #library-chat-send:disabled { opacity: 0.5; cursor: default; }
 
-/* Library chat messages reuse chat.css message classes */
+/* Chat messages */
 .lib-msg {
     padding: 8px 12px;
     border-radius: 8px;

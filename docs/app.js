@@ -348,11 +348,14 @@ const libChatMessages = [];
 let libChatSending = false;
 
 function toggleLibChat() {
+    const s = getSettings();
     const panel = document.getElementById("library-chat");
-    const toggle = document.getElementById("library-chat-toggle");
-    panel.classList.toggle("hidden");
-    toggle.style.display = panel.classList.contains("hidden") ? "" : "none";
-    if (!panel.classList.contains("hidden")) {
+    if (!panel.classList.contains("open") && !s.apiKey) {
+        alert("Set your OpenRouter API key in Settings first.");
+        return;
+    }
+    panel.classList.toggle("open");
+    if (panel.classList.contains("open")) {
         document.getElementById("library-chat-input").focus();
     }
 }
@@ -455,7 +458,7 @@ ${context.libraryTree}`;
 }
 
 // Wire up library chat
-document.getElementById("library-chat-toggle").addEventListener("click", toggleLibChat);
+document.getElementById("btn-chat").addEventListener("click", toggleLibChat);
 document.getElementById("library-chat-close").addEventListener("click", toggleLibChat);
 document.getElementById("library-chat-send").addEventListener("click", sendLibChat);
 document.getElementById("library-chat-input").addEventListener("keydown", (e) => {
