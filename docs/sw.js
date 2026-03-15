@@ -37,9 +37,9 @@ self.addEventListener("fetch", (e) => {
     // Never cache API calls
     if (url.hostname !== location.hostname) return;
 
-    // Network-first for everything: try network, fall back to cache (offline support)
+    // Network-first, bypassing browser HTTP cache
     e.respondWith(
-        fetch(e.request)
+        fetch(e.request, { cache: "no-cache" })
             .then((res) => {
                 const clone = res.clone();
                 caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
