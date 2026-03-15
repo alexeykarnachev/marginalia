@@ -123,10 +123,12 @@ export function createChatState(): ChatState {
       messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];
       try {
         const msgsForCompact = messages.filter(m => m.content !== 'Compacting conversation...');
-        const newSummary = await compactConversation(apiKey, model, bookId, msgsForCompact, summary);
-        messages = [];
-        summary = newSummary;
-        messages = [{ role: 'system', content: `Compacted (${newSummary.length} char summary)` }];
+        const result = await compactConversation(apiKey, model, bookId, msgsForCompact, summary);
+        summary = result.summary;
+        messages = [
+          { role: 'system', content: `Compacted (${result.inputTokens} in / ${result.outputTokens} out tokens)` },
+          { role: 'assistant', content: result.summary },
+        ];
       } catch (err: any) {
         messages = messages.filter(m => m.content !== 'Compacting conversation...');
         const msg = (err as Error).name === 'AbortError'

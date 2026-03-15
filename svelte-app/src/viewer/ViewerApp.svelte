@@ -537,6 +537,7 @@
 <PromptEditor
   open={promptEditorOpen}
   {bookId}
+  summary={chatState.summary}
   onClose={() => { promptEditorOpen = false; }}
 />
 

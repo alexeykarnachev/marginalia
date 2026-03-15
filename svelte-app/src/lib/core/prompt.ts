@@ -88,11 +88,14 @@ export function buildApiMessages(
   summary: string | null,
 ): ChatMessage[] {
   const convMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
-  const result: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
 
+  // Inject summary into the system prompt if available
+  let fullSystem = systemPrompt;
   if (summary) {
-    result.push({ role: 'assistant', content: 'Previous conversation summary:\n' + summary });
+    fullSystem += '\n\n## Previous conversation summary\n' + summary;
   }
+
+  const result: ChatMessage[] = [{ role: 'system', content: fullSystem }];
 
   for (const m of convMessages) {
     result.push({ role: m.role, content: m.content });

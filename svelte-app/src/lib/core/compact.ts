@@ -15,9 +15,15 @@ Preserve ALL of:
 - Any specific facts or arguments discussed
 Format as a bulleted list grouped by topic. Be specific, cite pages.`;
 
+export interface CompactResult {
+  summary: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 /**
  * Compact a conversation: LLM summarizes all messages into a summary.
- * Returns the summary string. The caller decides what to do with messages.
+ * Returns the summary and token usage.
  */
 export async function compactConversation(
   apiKey: string,
@@ -25,7 +31,7 @@ export async function compactConversation(
   bookId: string,
   messages: ChatMessage[],
   existingSummary: string | null,
-): Promise<string> {
+): Promise<CompactResult> {
   const conv = messages.filter(m => m.role === 'user' || m.role === 'assistant');
   if (conv.length < 2) {
     throw new Error('Nothing to compact');
@@ -48,5 +54,10 @@ export async function compactConversation(
   const summary = (data as any).choices?.[0]?.message?.content || '';
   if (!summary) throw new Error('LLM returned empty summary');
 
-  return summary;
+  const usage = (data as any).usage || {};
+  return {
+    summary,
+    inputTokens: usage.prompt_tokens || 0,
+    outputTokens: usage.completion_tokens || 0,
+  };
 }

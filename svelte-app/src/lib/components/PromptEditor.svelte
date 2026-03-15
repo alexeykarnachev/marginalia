@@ -6,10 +6,12 @@
   let {
     open,
     bookId,
+    summary = null,
     onClose,
   }: {
     open: boolean;
     bookId: string;
+    summary?: string | null;
     onClose: () => void;
   } = $props();
 
@@ -51,6 +53,7 @@
     let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
     const bp = getBookPrompt(bookId);
     if (bp) system += '\n\n## Book-specific instructions (MUST FOLLOW)\n' + bp;
+    if (summary) system += '\n\n## Previous conversation summary\n' + summary;
     fullPromptText = system;
     showFullPrompt = true;
   }

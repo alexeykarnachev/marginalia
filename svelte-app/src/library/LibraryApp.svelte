@@ -309,7 +309,7 @@ ${context.libraryTree}`,
   </div>
 
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
-  <PromptEditor open={promptEditorOpen} bookId={LIBRARY_CHAT_STORAGE_KEY} onClose={() => { promptEditorOpen = false; }} />
+  <PromptEditor open={promptEditorOpen} bookId={LIBRARY_CHAT_STORAGE_KEY} summary={chatState.summary} onClose={() => { promptEditorOpen = false; }} />
   <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
   <CompactEditor open={compactEditorOpen} bookId={LIBRARY_CHAT_STORAGE_KEY} onClose={() => { compactEditorOpen = false; }} onCompact={handleCompact} />
 
