@@ -539,6 +539,7 @@ function injectStyles() {
         }
 
         #marginalia-chat {
+            position: relative;
             width: 380px;
             min-width: 280px;
             max-width: 70vw;
@@ -554,10 +555,10 @@ function injectStyles() {
         #marginalia-chat.open { display: flex; }
         #marginalia-chat-resize {
             position: absolute;
-            left: 0;
+            left: -4px;
             top: 0;
             bottom: 0;
-            width: 6px;
+            width: 8px;
             cursor: col-resize;
             z-index: 10;
             display: flex;
