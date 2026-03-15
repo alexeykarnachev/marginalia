@@ -366,7 +366,7 @@ function renderLibChat() {
     for (const msg of libChatMessages) {
         if (msg.role === "tool") continue;
         const div = document.createElement("div");
-        div.className = "lib-msg " + msg.role;
+        div.className = "marginalia-msg " + msg.role;
         div.textContent = msg.content;
         el.appendChild(div);
     }

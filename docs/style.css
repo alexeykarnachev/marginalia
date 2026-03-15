@@ -279,7 +279,7 @@ body {
 }
 #app > .view { flex: 1; min-width: 0; }
 
-/* Library chat — right side panel, same as viewer */
+/* Library chat panel — positioned via flex, styled via shared .m-chat-* in chat.css */
 .library-chat {
     width: 380px;
     flex-shrink: 0;
@@ -290,27 +290,3 @@ body {
     height: 100vh;
 }
 .library-chat.open { display: flex; }
-
-/* Library chat messages use shared .m-chat-* and .lib-msg classes from chat.css */
-.lib-msg {
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    line-height: 1.5;
-    max-width: 90%;
-    word-wrap: break-word;
-}
-.lib-msg.user {
-    background: var(--m-user-bg);
-    align-self: flex-end;
-}
-.lib-msg.assistant {
-    background: var(--m-bg-1);
-    align-self: flex-start;
-}
-.lib-msg.system {
-    background: var(--m-system-bg);
-    color: var(--m-system-fg);
-    font-size: 11px;
-    align-self: center;
-}
