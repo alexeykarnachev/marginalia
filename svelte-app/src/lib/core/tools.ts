@@ -46,6 +46,21 @@ declare const pdfjsLib: {
   getDocument: (params: { data: Uint8Array }) => { promise: Promise<{ getPage: (num: number) => Promise<{ getTextContent: () => Promise<{ items: { str: string }[] }> }>; numPages: number }> };
 };
 
+// --- PDF app accessor (set by Svelte ViewerApp to provide iframe's PDFViewerApplication) ---
+
+let _pdfAppGetter: (() => PDFViewerApp | null) | null = null;
+
+export function setPdfAppGetter(getter: (() => PDFViewerApp | null) | null): void {
+  _pdfAppGetter = getter;
+}
+
+function _getPdfApp(): PDFViewerApp | undefined {
+  if (_pdfAppGetter) {
+    return _pdfAppGetter() ?? undefined;
+  }
+  return (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication;
+}
+
 // --- Tool registry ---
 
 const toolRegistry: ToolDefinition[] = [];
@@ -131,7 +146,7 @@ async function _getCurrentBookId(): Promise<string | null> {
 }
 
 async function _getPageTextFromViewer(pageNum: number): Promise<string> {
-  const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication;
+  const app = _getPdfApp();
   if (!app?.pdfDocument) return '';
   try {
     const page = await app.pdfDocument.getPage(pageNum);
@@ -143,7 +158,7 @@ async function _getPageTextFromViewer(pageNum: number): Promise<string> {
 }
 
 async function _getPageCountFromViewer(): Promise<number> {
-  const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication;
+  const app = _getPdfApp();
   return app?.pagesCount || 0;
 }
 
@@ -268,7 +283,7 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
 
   const app =
     typeof window !== 'undefined'
-      ? (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication
+      ? _getPdfApp()
       : null;
   const currentPage = app?.page || 1;
   const currentPageCount = currentBook?.pages
@@ -982,7 +997,7 @@ const MAX_HISTORY = 50;
 let _lastTrackedPage: number | null = null;
 
 export function trackPageChange(): void {
-  const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication;
+  const app = _getPdfApp();
   if (!app) return;
   const current = app.page!;
   if (current !== _lastTrackedPage) {
@@ -999,7 +1014,7 @@ export function getPageHistory(): number[] {
 }
 
 export function initPageTracking(): void {
-  const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication;
+  const app = _getPdfApp();
   if (app) {
     _lastTrackedPage = app.page!;
     app.eventBus?.on('pagechanging', () => trackPageChange());

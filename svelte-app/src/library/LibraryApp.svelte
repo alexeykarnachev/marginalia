@@ -4,6 +4,8 @@
   import BookGrid from '../lib/components/BookGrid.svelte';
   import ChatPanel from '../lib/components/ChatPanel.svelte';
   import Settings from '../lib/components/Settings.svelte';
+  import PromptEditor from '../lib/components/PromptEditor.svelte';
+  import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import { settings, applyTheme } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, getSettings, MARGINALIA_VERSION } from '../lib/core/db';
@@ -17,6 +19,8 @@
   let currentFolderId = $state<string | null>(null);
   let chatOpen = $state(localStorage.getItem('marginalia_lib_chat_open') === '1');
   let settingsOpen = $state(false);
+  let promptEditorOpen = $state(false);
+  let toolsEditorOpen = $state(false);
 
   // Chat font/mono settings
   let chatFontSize = $state(parseInt(localStorage.getItem('marginalia_lib_chat_font') || '14'));
@@ -268,6 +272,8 @@ ${context.libraryTree}`;
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      if (promptEditorOpen) { promptEditorOpen = false; return; }
+      if (toolsEditorOpen) { toolsEditorOpen = false; return; }
       if (settingsOpen) { settingsOpen = false; return; }
       if (chatOpen) { chatOpen = false; localStorage.setItem('marginalia_lib_chat_open', '0'); return; }
     }
@@ -345,6 +351,8 @@ ${context.libraryTree}`;
         onMonoToggle={toggleMono}
         stats={chatState.stats}
         menuItems={[
+          { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
+          { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
           { label: 'Compact', onClick: handleCompact },
         ]}
       />
@@ -352,6 +360,8 @@ ${context.libraryTree}`;
   </div>
 
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
+  <PromptEditor open={promptEditorOpen} bookId="_library" onClose={() => { promptEditorOpen = false; }} />
+  <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
 
   {#if !chatOpen}
     <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>

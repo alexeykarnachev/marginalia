@@ -13,6 +13,7 @@
     setCachedSelection,
     setGetPageHistoryFn,
     setOnBookChangeFn,
+    setPdfAppGetter,
     initPageTracking,
     getPageHistory,
   } from '../lib/core/tools';
@@ -506,6 +507,9 @@
     initPageTracking();
     setGetPageHistoryFn(() => getPageHistory());
 
+    // Wire PDF app access for tools
+    setPdfAppGetter(() => getPdfApp());
+
     // Book change handler
     setOnBookChangeFn(handleBookChange);
 
@@ -515,6 +519,7 @@
       document.removeEventListener('touchend', captureSelection);
       setGetPageHistoryFn(null);
       setOnBookChangeFn(null);
+      setPdfAppGetter(null);
     };
   });
 
@@ -684,10 +689,10 @@
     position: fixed;
     bottom: 20px;
     left: 20px;
-    background: var(--m-bg-2);
-    color: var(--m-fg);
+    background: var(--m-bg-1);
+    color: var(--m-fg-muted);
     border: 1px solid var(--m-border-light);
-    border-radius: 20px;
+    border-radius: 8px;
     padding: 8px 16px;
     font-size: 13px;
     cursor: pointer;
@@ -695,7 +700,7 @@
     box-shadow: 0 2px 8px var(--m-shadow);
     transition: opacity 0.2s;
   }
-  .page-back-btn:hover { background: var(--m-accent-hover); }
+  .page-back-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
 
   .indexing-status {
     position: fixed;

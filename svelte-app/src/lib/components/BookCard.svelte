@@ -1,11 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import * as pdfjsLib from 'pdfjs-dist';
-  import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
   import type { Book } from '../types';
 
-  // Set worker source using Vite URL import
-  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+  // Use pdf.js from public directory (same as the viewer iframe uses)
+  async function getPdfjsLib() {
+    if ((globalThis as any)._pdfjsLib) return (globalThis as any)._pdfjsLib;
+    const lib = await import('pdfjs-dist');
+    lib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
+    (globalThis as any)._pdfjsLib = lib;
+    return lib;
+  }
 
   // Module-level cover cache: avoids re-rendering covers on re-mount
   const coverCache = new Map<string, string>();
@@ -31,7 +35,17 @@
   let pageCount = $derived(
     book.pages ? book.pages.length + 'p' : (book.pages === null ? '...' : '')
   );
-  let meta = $derived([pageCount, sizeMB + ' MB'].filter(Boolean).join(' \u00B7 '));
+  // Read per-book spending from localStorage
+  let bookCost = $derived(() => {
+    try {
+      const raw = localStorage.getItem(`marginalia_stats_${book.id}`);
+      if (!raw) return '';
+      const stats = JSON.parse(raw);
+      if (stats.cost > 0) return `$${stats.cost.toFixed(3)}`;
+    } catch {}
+    return '';
+  });
+  let meta = $derived([pageCount, sizeMB + ' MB', bookCost()].filter(Boolean).join(' \u00B7 '));
 
   function handleCardClick(e: MouseEvent) {
     if ((e.target as HTMLElement).closest('.item-actions')) return;
@@ -67,6 +81,7 @@
     if (!book.data) return;
 
     try {
+      const pdfjsLib = await getPdfjsLib();
       const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
       const buf = await blob.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
