@@ -2,6 +2,9 @@
 
 import type { ChatMessage } from '../types';
 
+export const BOOK_PROMPT_HEADER = '## Book-specific instructions (MUST FOLLOW)';
+export const SUMMARY_HEADER = '## Previous conversation summary';
+
 export const SYSTEM_PROMPT = `You are Marginalia, an AI reading assistant.
 
 ## Environment
@@ -92,7 +95,7 @@ export function buildApiMessages(
   // Inject summary into the system prompt if available
   let fullSystem = systemPrompt;
   if (summary) {
-    fullSystem += '\n\n## Previous conversation summary\n' + summary;
+    fullSystem += '\n\n' + SUMMARY_HEADER + '\n' + summary;
   }
 
   const result: ChatMessage[] = [{ role: 'system', content: fullSystem }];

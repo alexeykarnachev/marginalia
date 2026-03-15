@@ -20,6 +20,7 @@
   } from '../lib/core/tools';
   import {
     SYSTEM_PROMPT,
+    BOOK_PROMPT_HEADER,
     renderPrompt,
   } from '../lib/core/prompt';
   import { sendChatMessage } from '../lib/core/chat-send';
@@ -157,7 +158,7 @@
       buildSystemPrompt: (context: any) => {
         let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
         const bp = getBookPrompt(bookId);
-        if (bp) system += '\n\n## Book-specific instructions (MUST FOLLOW)\n' + bp;
+        if (bp) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bp;
         return system;
       },
       storageKey: bookId,
@@ -359,10 +360,11 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      if (compactEditorOpen) { compactEditorOpen = false; return; }
-      if (promptEditorOpen) { promptEditorOpen = false; return; }
-      if (toolsEditorOpen) { toolsEditorOpen = false; return; }
-      if (chatOpen) { chatOpen = false; localStorage.setItem(LS_CHAT_OPEN, '0'); return; }
+      // Modals handle their own Escape via Modal.svelte
+      if (chatOpen && !compactEditorOpen && !promptEditorOpen && !toolsEditorOpen) {
+        chatOpen = false;
+        localStorage.setItem(LS_CHAT_OPEN, '0');
+      }
     }
   }
 

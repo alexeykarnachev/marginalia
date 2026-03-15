@@ -21,11 +21,6 @@ export interface ChatMessage {
   _compressed?: boolean;
 }
 
-export interface Settings {
-  apiKey: string;
-  model: string;
-}
-
 export interface ChatStats {
   inputTokens: number;
   outputTokens: number;

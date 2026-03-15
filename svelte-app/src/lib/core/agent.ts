@@ -18,7 +18,7 @@ import {
 // After the agent processes tool results, older results are compressed to stubs.
 // The most recent round of tool results is always kept in full.
 
-export function _compressOldToolResults(messages: ChatMessage[]): void {
+function _compressOldToolResults(messages: ChatMessage[]): void {
   // Find the index of the last assistant message (marks the boundary between
   // "already processed" and "fresh" tool results)
   let lastAssistantIdx = -1;
@@ -40,7 +40,7 @@ export function _compressOldToolResults(messages: ChatMessage[]): void {
   }
 }
 
-export function _compressToolContent(content: string): string {
+function _compressToolContent(content: string): string {
   // Page read: keep header, drop body
   const pageHeader = content.match(/^\[.+?, p\.\d+[^\]]*\]/);
   if (pageHeader) {
@@ -73,9 +73,7 @@ export function _compressToolContent(content: string): string {
 
 // --- API helpers ---
 
-export { OPENROUTER_URL } from './constants';
-
-export function _apiHeaders(apiKey: string): Record<string, string> {
+function _apiHeaders(apiKey: string): Record<string, string> {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` };
 }
 

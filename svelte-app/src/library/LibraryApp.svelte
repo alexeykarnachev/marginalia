@@ -18,12 +18,13 @@
     LS_LIB_CHAT_OPEN,
     LS_LIB_CHAT_WIDTH,
     SS_BOOK_ID,
+    SS_FOLDER_ID,
     LIBRARY_CHAT_STORAGE_KEY,
   } from '../lib/core/constants';
 
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
-  let currentFolderId = $state<string | null>(sessionStorage.getItem('marginalia_folder') || null);
+  let currentFolderId = $state<string | null>(sessionStorage.getItem(SS_FOLDER_ID) || null);
   let chatOpen = $state(localStorage.getItem(LS_LIB_CHAT_OPEN) === '1');
   let settingsOpen = $state(false);
   let promptEditorOpen = $state(false);
@@ -113,9 +114,9 @@
   function handleNavigateFolder(folderId: string | null) {
     currentFolderId = folderId;
     if (folderId) {
-      sessionStorage.setItem('marginalia_folder', folderId);
+      sessionStorage.setItem(SS_FOLDER_ID, folderId);
     } else {
-      sessionStorage.removeItem('marginalia_folder');
+      sessionStorage.removeItem(SS_FOLDER_ID);
     }
   }
 
@@ -213,11 +214,11 @@ ${context.libraryTree}`,
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      if (compactEditorOpen) { compactEditorOpen = false; return; }
-      if (promptEditorOpen) { promptEditorOpen = false; return; }
-      if (toolsEditorOpen) { toolsEditorOpen = false; return; }
-      if (settingsOpen) { settingsOpen = false; return; }
-      if (chatOpen) { chatOpen = false; localStorage.setItem(LS_LIB_CHAT_OPEN, '0'); return; }
+      // Modals handle their own Escape via Modal.svelte
+      if (chatOpen && !compactEditorOpen && !promptEditorOpen && !toolsEditorOpen && !settingsOpen) {
+        chatOpen = false;
+        localStorage.setItem(LS_LIB_CHAT_OPEN, '0');
+      }
     }
   }
 

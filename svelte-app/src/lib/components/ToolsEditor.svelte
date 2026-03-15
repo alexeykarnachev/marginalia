@@ -1,5 +1,6 @@
 <script lang="ts">
   import { getAllTools, setToolEnabled } from '../core/tools';
+  import Modal from './Modal.svelte';
 
   let {
     open,
@@ -21,48 +22,30 @@
     setToolEnabled(name, enabled);
     tools = tools.map(t => t.name === name ? { ...t, enabled } : t);
   }
-
-  function handleBackdropClick(e: MouseEvent) {
-    if (e.target === e.currentTarget) onClose();
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onClose();
-  }
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
-
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="prompt-overlay" onclick={handleBackdropClick}>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="prompt-modal" onclick={(e) => e.stopPropagation()}>
-      <h3>Agent tools</h3>
-      <p class="prompt-hint">Toggle tools the AI agent can use. Disabled tools won't be offered to the model.</p>
-      <div class="tools-list">
-        {#each tools as tool}
-          <label class="tool-row">
-            <input
-              type="checkbox"
-              checked={tool.enabled}
-              onchange={(e) => handleToggle(tool.name, (e.target as HTMLInputElement).checked)}
-            />
-            <div class="tool-info">
-              <strong>{tool.name}</strong>
-              <span>{tool.description}</span>
-            </div>
-          </label>
-        {/each}
-      </div>
-      <div class="prompt-buttons">
-        <button class="prompt-btn" onclick={onClose}>Close</button>
-      </div>
-    </div>
+<Modal {open} {onClose}>
+  <h3>Agent tools</h3>
+  <p class="prompt-hint">Toggle tools the AI agent can use. Disabled tools won't be offered to the model.</p>
+  <div class="tools-list">
+    {#each tools as tool}
+      <label class="tool-row">
+        <input
+          type="checkbox"
+          checked={tool.enabled}
+          onchange={(e) => handleToggle(tool.name, (e.target as HTMLInputElement).checked)}
+        />
+        <div class="tool-info">
+          <strong>{tool.name}</strong>
+          <span>{tool.description}</span>
+        </div>
+      </label>
+    {/each}
   </div>
-{/if}
+  <div class="prompt-buttons">
+    <button class="prompt-btn" onclick={onClose}>Close</button>
+  </div>
+</Modal>
 
 <style>
   .tools-list {
