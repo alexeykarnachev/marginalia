@@ -1,0 +1,516 @@
+/* Chat panel — layout is handled by viewer.html <style> via inset-inline-end */
+#marginalia-chat {
+    --chat-bg: #1e1e1e;
+    --chat-fg: #e0e0e0;
+    --chat-surface: #2a2a2a;
+    --chat-surface-alt: #252525;
+    --chat-surface-dim: #222;
+    --chat-surface-dim-hover: #2f2f2f;
+    --chat-border: #333;
+    --chat-border-light: #444;
+    --chat-border-mid: #555;
+    --chat-muted: #888;
+    --chat-muted-dim: #999;
+    --chat-muted-light: #aaa;
+    --chat-muted-lighter: #ccc;
+    --chat-accent: #4a9eff;
+    --chat-accent-hover: #3a8eef;
+    --chat-accent-alt: #6ab4ff;
+    --chat-accent-success: #4caf50;
+    --chat-emphasis: #fff;
+    --chat-input-bg: #1a1a1a;
+    --chat-user-bg: #2b5278;
+    --chat-system-bg: #1a2e1a;
+    --chat-system-fg: #8a8;
+    --chat-tool-bg: #1a1a2e;
+    --chat-tool-fg: #88a;
+    --chat-tool-activity-bg: #1a1a2e;
+    --chat-tool-activity-fg: #7799bb;
+    --chat-code-bg: #363636;
+    --chat-table-even: #2f2f2f;
+    --chat-btn-bg: #333;
+    --chat-btn-border: #555;
+    --chat-btn-fg: #aaa;
+    --chat-copy-bg: #444;
+    --chat-modal-bg: #2a2a2a;
+    --chat-modal-fg: #ccc;
+    --chat-modal-input-fg: #ddd;
+    --chat-modal-viewer-fg: #aaa;
+    --chat-modal-hint: #888;
+    --chat-resize-bg: #555;
+    --chat-progress-bg: #333;
+    --chat-overlay-bg: rgba(0,0,0,0.6);
+    --chat-page-back-shadow: rgba(0,0,0,0.3);
+
+    background: var(--chat-bg);
+    color: var(--chat-fg);
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    overflow: hidden;
+}
+#marginalia-chat-resize {
+    position: absolute;
+    left: -4px;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    cursor: col-resize;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+#marginalia-chat-resize::after {
+    content: "";
+    width: 3px;
+    height: 36px;
+    border-radius: 2px;
+    background: var(--chat-resize-bg);
+    transition: background 0.15s;
+}
+#marginalia-chat-resize:hover::after,
+#marginalia-chat-resize:active::after {
+    background: var(--chat-accent);
+}
+#marginalia-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--chat-surface);
+    border-bottom: 1px solid var(--chat-border);
+    flex-shrink: 0;
+}
+#marginalia-chat-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+#marginalia-font-size {
+    display: flex;
+    gap: 2px;
+}
+.marginalia-font-btn {
+    background: var(--chat-btn-bg);
+    border: 1px solid var(--chat-btn-border);
+    color: var(--chat-btn-fg);
+    height: 26px;
+    width: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0;
+}
+.marginalia-font-btn.active {
+    background: var(--chat-accent);
+    border-color: var(--chat-accent);
+    color: white;
+}
+#marginalia-mono-btn,
+#marginalia-raw-btn {
+    background: var(--chat-btn-bg);
+    border: 1px solid var(--chat-btn-border);
+    color: var(--chat-btn-fg);
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 6px;
+}
+#marginalia-mono-btn.active,
+#marginalia-raw-btn.active {
+    background: var(--chat-accent);
+    border-color: var(--chat-accent);
+    color: white;
+}
+#marginalia-chat-clear,
+#marginalia-chat-compact,
+#marginalia-chat-prompt,
+#marginalia-chat-tools {
+    background: none;
+    border: 1px solid var(--chat-border-light);
+    color: var(--chat-muted-dim);
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 8px;
+    white-space: nowrap;
+}
+#marginalia-chat-close {
+    background: none;
+    border: none;
+    color: var(--chat-fg);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 0;
+}
+#marginalia-chat-clear:hover,
+#marginalia-chat-compact:hover,
+#marginalia-chat-prompt:hover,
+#marginalia-chat-tools:hover {
+    border-color: var(--chat-muted);
+    color: var(--chat-fg);
+}
+#marginalia-context-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--chat-surface-alt);
+    color: var(--chat-muted);
+    font-size: 12px;
+    border-bottom: 1px solid var(--chat-border);
+    flex-shrink: 0;
+}
+#marginalia-context-progress {
+    flex-shrink: 0;
+    width: 60px;
+    height: 4px;
+    background: var(--chat-progress-bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+#marginalia-context-fill {
+    height: 100%;
+    background: var(--chat-accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+#marginalia-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+#marginalia-chat-messages.mono {
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
+}
+.marginalia-msg {
+    padding: 8px 12px;
+    border-radius: 8px;
+    word-break: break-word;
+    line-height: 1.5;
+    position: relative;
+}
+.marginalia-msg.user {
+    align-self: flex-end;
+    background: var(--chat-user-bg);
+    max-width: 85%;
+    white-space: pre-wrap;
+}
+.marginalia-msg.assistant {
+    background: var(--chat-surface);
+}
+.marginalia-msg.assistant code {
+    background: var(--chat-code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+.marginalia-msg.assistant pre {
+    background: var(--chat-code-bg);
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+.marginalia-msg.assistant pre code {
+    background: none;
+    padding: 0;
+}
+.marginalia-msg.assistant strong {
+    color: var(--chat-emphasis);
+}
+.marginalia-msg.assistant h3,
+.marginalia-msg.assistant h4 {
+    margin: 12px 0 4px;
+    color: var(--chat-emphasis);
+}
+.marginalia-msg.assistant table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 0.9em;
+}
+.marginalia-msg.assistant th,
+.marginalia-msg.assistant td {
+    border: 1px solid var(--chat-border-light);
+    padding: 6px 10px;
+    text-align: left;
+}
+.marginalia-msg.assistant th {
+    background: var(--chat-code-bg);
+    font-weight: 600;
+    color: var(--chat-emphasis);
+}
+.marginalia-msg.assistant tr:nth-child(even) {
+    background: var(--chat-table-even);
+}
+.marginalia-msg.system {
+    background: var(--chat-system-bg);
+    color: var(--chat-system-fg);
+    font-size: 0.85em;
+    font-style: italic;
+}
+.marginalia-msg.tool-status {
+    background: var(--chat-tool-bg);
+    color: var(--chat-tool-fg);
+    font-size: 0.8em;
+    font-style: italic;
+    padding: 4px 12px;
+}
+.tool-activity {
+    background: var(--chat-tool-activity-bg);
+    color: var(--chat-tool-activity-fg);
+    font-size: 0.8em;
+    padding: 6px 12px;
+    border-radius: 8px;
+    white-space: pre-line;
+    line-height: 1.6;
+    border-left: 2px solid var(--chat-accent);
+}
+.marginalia-copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--chat-copy-bg);
+    border: 1px solid var(--chat-btn-border);
+    color: var(--chat-muted-lighter);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.marginalia-msg:hover .marginalia-copy-btn { opacity: 1; }
+.marginalia-page-link {
+    color: var(--chat-accent);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+}
+.marginalia-page-link:hover { text-decoration-style: solid; }
+.marginalia-page-back {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: var(--chat-accent);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    z-index: 99999;
+    box-shadow: 0 2px 8px var(--chat-page-back-shadow);
+    transition: opacity 0.2s;
+}
+.marginalia-page-back:hover { background: var(--chat-accent-hover); }
+.marginalia-page-back.hidden { display: none; }
+
+.thinking-dots span {
+    animation: blink 1.4s infinite both;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+#marginalia-chat-stats {
+    padding: 4px 12px;
+    background: var(--chat-surface-alt);
+    color: var(--chat-muted);
+    font-size: 11px;
+    border-top: 1px solid var(--chat-border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#marginalia-stats-bar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 3px;
+    background: var(--chat-progress-bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+#marginalia-stats-fill {
+    height: 100%;
+    background: var(--chat-accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+.marginalia-model-name {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+#marginalia-chat-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--chat-surface);
+    flex-shrink: 0;
+}
+#marginalia-chat-input {
+    flex: 1;
+    background: var(--chat-input-bg);
+    color: var(--chat-fg);
+    border: 1px solid var(--chat-border-light);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 13px;
+    resize: none;
+    min-height: 36px;
+    max-height: 120px;
+    font-family: inherit;
+}
+#marginalia-chat-send {
+    background: var(--chat-accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    align-self: flex-end;
+}
+#marginalia-chat-send:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+#marginalia-chat-send.done {
+    background: var(--chat-accent-success);
+    transition: background 0.3s;
+}
+
+/* Light theme overrides */
+.marginalia-light #marginalia-chat {
+    --chat-bg: #f9f9f9;
+    --chat-fg: #333;
+    --chat-surface: #e8e8e8;
+    --chat-surface-alt: #eee;
+    --chat-surface-dim: #eee;
+    --chat-surface-dim-hover: #e0e0e0;
+    --chat-border: #ddd;
+    --chat-border-light: #ccc;
+    --chat-border-mid: #ccc;
+    --chat-muted: #888;
+    --chat-muted-dim: #666;
+    --chat-muted-light: #666;
+    --chat-muted-lighter: #666;
+    --chat-emphasis: #111;
+    --chat-input-bg: #fff;
+    --chat-user-bg: #2b5278;
+    --chat-system-bg: #e0f0e0;
+    --chat-system-fg: #585;
+    --chat-tool-bg: #e0e0f0;
+    --chat-tool-fg: #558;
+    --chat-tool-activity-bg: #e8e8f4;
+    --chat-tool-activity-fg: #446688;
+    --chat-code-bg: #d0d0d0;
+    --chat-table-even: #eee;
+    --chat-btn-bg: #ddd;
+    --chat-btn-border: #ccc;
+    --chat-btn-fg: #666;
+    --chat-copy-bg: #ddd;
+    --chat-modal-bg: #f5f5f5;
+    --chat-modal-fg: #333;
+    --chat-modal-input-fg: #333;
+    --chat-modal-viewer-fg: #555;
+    --chat-modal-hint: #888;
+    --chat-resize-bg: #bbb;
+    --chat-progress-bg: #ccc;
+    --chat-accent: #2070cc;
+    --chat-accent-hover: #1a60b0;
+    --chat-accent-alt: #1a60b0;
+}
+
+/* Prompt editor overlay */
+.marginalia-prompt-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--chat-overlay-bg); z-index: 100001;
+    display: flex; align-items: center; justify-content: center;
+}
+.marginalia-prompt-overlay.hidden { display: none; }
+#marginalia-prompt-modal {
+    background: var(--chat-modal-bg); border: 1px solid var(--chat-btn-border); border-radius: 8px;
+    padding: 20px; width: 90%; max-width: 500px; color: var(--chat-modal-fg);
+}
+#marginalia-prompt-modal h3 { margin: 0 0 4px; color: var(--chat-emphasis); font-size: 15px; }
+.marginalia-prompt-hint { margin: 0 0 12px; font-size: 12px; color: var(--chat-modal-hint); }
+#marginalia-prompt-textarea {
+    width: 100%; height: 150px; background: var(--chat-input-bg); color: var(--chat-modal-input-fg);
+    border: 1px solid var(--chat-btn-border); border-radius: 4px; padding: 8px;
+    font-size: 13px; resize: vertical; box-sizing: border-box;
+    font-family: inherit;
+}
+.marginalia-prompt-buttons { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
+.marginalia-prompt-buttons button {
+    padding: 6px 16px; border-radius: 4px; border: 1px solid var(--chat-btn-border);
+    cursor: pointer; font-size: 13px;
+}
+#marginalia-prompt-save { background: var(--chat-accent); color: #fff; border-color: var(--chat-accent); }
+#marginalia-prompt-cancel { background: transparent; color: var(--chat-modal-fg); }
+#marginalia-prompt-view {
+    background: none; border: none; color: var(--chat-accent); font-size: 12px;
+    cursor: pointer; padding: 0; margin-top: 10px; text-decoration: underline;
+}
+#marginalia-prompt-view:hover { color: var(--chat-accent-alt); }
+#marginalia-prompt-viewer {
+    margin-top: 12px;
+    border-top: 1px solid var(--chat-border-light);
+    padding-top: 10px;
+}
+#marginalia-prompt-viewer.hidden { display: none; }
+#marginalia-prompt-viewer h3 { font-size: 13px; color: var(--chat-muted); margin-bottom: 8px; }
+#marginalia-prompt-viewer-text {
+    background: var(--chat-input-bg);
+    color: var(--chat-modal-viewer-fg);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    max-height: 50vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+}
+
+/* Tools editor */
+#marginalia-tools-modal {
+    background: var(--chat-modal-bg); border: 1px solid var(--chat-btn-border); border-radius: 8px;
+    padding: 20px; width: 90%; max-width: 500px; color: var(--chat-modal-fg);
+    max-height: 80vh; overflow-y: auto;
+}
+#marginalia-tools-modal h3 { margin: 0 0 4px; color: var(--chat-emphasis); font-size: 15px; }
+#marginalia-tools-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.marginalia-tool-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px; border-radius: 6px; cursor: pointer;
+    background: var(--chat-surface-dim);
+}
+.marginalia-tool-row:hover { background: var(--chat-surface-dim-hover); }
+.marginalia-tool-row input[type="checkbox"] {
+    margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px;
+    accent-color: var(--chat-accent);
+}
+.marginalia-tool-info { display: flex; flex-direction: column; gap: 2px; }
+.marginalia-tool-info strong { font-size: 13px; color: var(--chat-modal-input-fg); }
+.marginalia-tool-info span { font-size: 11px; color: var(--chat-muted); line-height: 1.4; }
+
+/* Tool result in chat */
+.marginalia-tool-result-preview {
+    font-size: 0.8em; color: var(--chat-muted); margin-top: 2px;
+    white-space: pre-wrap; max-height: 60px; overflow: hidden;
+    text-overflow: ellipsis;
+}

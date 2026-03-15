@@ -1,20 +1,6 @@
 // Marginalia — library page logic
 // Loaded after: db.js
 
-// --- Settings ---
-
-function getSettings() {
-    return {
-        apiKey: localStorage.getItem("openrouter_api_key") || "",
-        model: localStorage.getItem("openrouter_model") || "x-ai/grok-4.1-fast",
-    };
-}
-
-function saveSettings(apiKey, model) {
-    localStorage.setItem("openrouter_api_key", apiKey);
-    localStorage.setItem("openrouter_model", model);
-}
-
 // --- Elements ---
 
 const libraryEl = document.getElementById("book-list");
@@ -145,12 +131,7 @@ async function renderLibrary() {
             e.stopPropagation();
             if (!confirm(`Delete folder "${folder.name}"? Books inside will move here.`)) return;
             // Move children up
-            for (const b of books) {
-                if (b.folder_id === folder.id) { b.folder_id = currentFolderId; await saveBook(b); }
-            }
-            for (const f of folders) {
-                if (f.parent_id === folder.id) { f.parent_id = currentFolderId; await saveFolder(f); }
-            }
+            await _reparentFolderContents(folder.id, currentFolderId);
             await deleteFolder(folder.id);
             renderLibrary();
         });
@@ -205,10 +186,7 @@ async function renderLibrary() {
             e.stopPropagation();
             if (!confirm(`Delete "${book.title}"?`)) return;
             await deleteBook(book.id);
-            localStorage.removeItem(`marginalia_chat_${book.id}`);
-            localStorage.removeItem(`marginalia_stats_${book.id}`);
-            localStorage.removeItem(`marginalia_model_${book.id}`);
-            localStorage.removeItem(`marginalia_prompt_${book.id}`);
+            deleteBookData(book.id);
             renderLibrary();
         });
 

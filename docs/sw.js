@@ -12,6 +12,7 @@ const SHELL = [
     "./agent.js",
     "./marginalia.js",
     "./style.css",
+    "./chat.css",
     "./manifest.json",
 ];
 

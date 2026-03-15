@@ -91,6 +91,12 @@ async function _getPageCountFromViewer() {
     return window.PDFViewerApplication?.pagesCount || 0;
 }
 
+async function _loadPdfDoc(book) {
+    const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: "application/pdf" });
+    const buf = await blob.arrayBuffer();
+    return pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+}
+
 async function getBookPageText(bookId, pageNum) {
     if (_bookPageProvider) return await _bookPageProvider.getPageText(bookId, pageNum);
 
@@ -106,9 +112,7 @@ async function getBookPageText(bookId, pageNum) {
             return book.pages[pageNum - 1];
         }
         // Fallback: extract from raw PDF data
-        const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: "application/pdf" });
-        const arrayBuf = await blob.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) }).promise;
+        const pdf = await _loadPdfDoc(book);
         const page = await pdf.getPage(pageNum);
         const content = await page.getTextContent();
         return content.items.map(item => item.str).join(" ");
@@ -129,9 +133,7 @@ async function getBookPageCount(bookId) {
         if (!book) return 0;
         if (book.pages) return book.pages.length;
         // Fallback: count from raw PDF
-        const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: "application/pdf" });
-        const arrayBuf = await blob.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuf) }).promise;
+        const pdf = await _loadPdfDoc(book);
         return pdf.numPages;
     } catch {
         return 0;
@@ -268,6 +270,12 @@ function _buildRegex(query) {
     } catch {
         return new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
     }
+}
+
+function _extractSnippet(text, match, contextChars = 80) {
+    const start = Math.max(0, match.index - contextChars);
+    const end = Math.min(text.length, match.index + match[0].length + contextChars);
+    return (start > 0 ? "..." : "") + text.slice(start, end) + (end < text.length ? "..." : "");
 }
 
 registerTool({
@@ -432,10 +440,7 @@ registerTool({
                 totalMatches += matches.length;
                 totalPages++;
                 if (results.length < maxResults) {
-                    const m = matches[0];
-                    const start = Math.max(0, m.index - 80);
-                    const end = Math.min(text.length, m.index + m[0].length + 80);
-                    const snippet = (start > 0 ? "..." : "") + text.slice(start, end) + (end < text.length ? "..." : "");
+                    const snippet = _extractSnippet(text, matches[0]);
                     const countSuffix = matches.length > 1 ? ` (${matches.length} matches on page)` : "";
                     results.push(`p.${i + 1}${countSuffix}: ${snippet}`);
                 }
@@ -480,10 +485,7 @@ registerTool({
                 if (matches.length > 0) {
                     bookMatches += matches.length;
                     if (results.length < maxPerBook) {
-                        const m = matches[0];
-                        const start = Math.max(0, m.index - 60);
-                        const end = Math.min(pages[i].length, m.index + m[0].length + 60);
-                        const snippet = (start > 0 ? "..." : "") + pages[i].slice(start, end) + (end < pages[i].length ? "..." : "");
+                        const snippet = _extractSnippet(pages[i], matches[0], 60);
                         results.push(`  p.${i + 1}: ${snippet}`);
                     }
                 }
@@ -619,6 +621,7 @@ registerTool({
         const book = await getBook(book_id);
         if (!book) return `Error: book "${book_id}" not found`;
         await deleteBook(book_id);
+        deleteBookData(book_id);
         return `Deleted "${book.title}"`;
     },
 });
@@ -667,6 +670,17 @@ registerTool({
     },
 });
 
+async function _reparentFolderContents(folderId, newParentId) {
+    const books = await getAllBooks();
+    for (const b of books) {
+        if (b.folder_id === folderId) { b.folder_id = newParentId; await saveBook(b); }
+    }
+    const folders = await getAllFolders();
+    for (const f of folders) {
+        if (f.parent_id === folderId) { f.parent_id = newParentId; await saveFolder(f); }
+    }
+}
+
 registerTool({
     name: "delete_folder",
     description: "Delete a folder. Contents (books and subfolders) move to the parent folder.",
@@ -679,14 +693,7 @@ registerTool({
         const folder = await getFolder(folder_id);
         if (!folder) return `Error: folder "${folder_id}" not found`;
         const parentId = folder.parent_id || null;
-        const books = await getAllBooks();
-        for (const b of books) {
-            if (b.folder_id === folder_id) { b.folder_id = parentId; await saveBook(b); }
-        }
-        const folders = await getAllFolders();
-        for (const f of folders) {
-            if (f.parent_id === folder_id) { f.parent_id = parentId; await saveFolder(f); }
-        }
+        await _reparentFolderContents(folder_id, parentId);
         await deleteFolder(folder_id);
         return `Deleted folder "${folder.name}"`;
     },

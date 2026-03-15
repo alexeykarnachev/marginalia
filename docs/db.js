@@ -1,4 +1,4 @@
-const MARGINALIA_VERSION = 61;
+const MARGINALIA_VERSION = 62;
 
 // Marginalia — library data layer
 // In browser: backed by IndexedDB. In tests: backed by in-memory store.
@@ -111,6 +111,26 @@ async function saveFolder(folder) {
 async function deleteFolder(id) {
     if (_db._backend) return _db._backend.deleteFolder(id);
     return _db._idbDelete("folders", id);
+}
+
+function deleteBookData(bookId) {
+    ["chat", "stats", "model", "prompt"].forEach(k =>
+        localStorage.removeItem(`marginalia_${k}_${bookId}`)
+    );
+}
+
+// --- Settings (shared by app.js and marginalia.js) ---
+
+function getSettings() {
+    return {
+        apiKey: localStorage.getItem("openrouter_api_key") || "",
+        model: localStorage.getItem("openrouter_model") || "x-ai/grok-4.1-fast",
+    };
+}
+
+function saveSettings(apiKey, model) {
+    localStorage.setItem("openrouter_api_key", apiKey);
+    localStorage.setItem("openrouter_model", model);
 }
 
 // --- In-memory backend (for tests and Node.js) ---

@@ -72,13 +72,6 @@ function renderPrompt(template, context) {
 
 // --- Settings ---
 
-function getSettings() {
-    return {
-        apiKey: localStorage.getItem("openrouter_api_key") || "",
-        model: getChatModel(),
-    };
-}
-
 // Auto-compaction settings
 function getAutoCompactEnabled() {
     return localStorage.getItem("marginalia_auto_compact") !== "0"; // on by default
@@ -99,8 +92,7 @@ function modelStorageKey() {
 
 function getChatModel() {
     return localStorage.getItem(modelStorageKey())
-        || localStorage.getItem("openrouter_model")
-        || "x-ai/grok-4.1-fast";
+        || getSettings().model;
 }
 
 function setChatModel(model) {
@@ -192,10 +184,10 @@ function setBookPrompt(text) {
 
 function saveChatState() {
     localStorage.setItem(chatStorageKey(), JSON.stringify({
-        messages: chatMessages,
-        summary: chatSummary,
+        messages: chatState.messages,
+        summary: chatState.summary,
     }));
-    localStorage.setItem(statsStorageKey(), JSON.stringify(chatStats));
+    localStorage.setItem(statsStorageKey(), JSON.stringify(chatState.stats));
 }
 
 function loadChatState() {
@@ -203,16 +195,16 @@ function loadChatState() {
         const raw = JSON.parse(localStorage.getItem(chatStorageKey()));
         if (Array.isArray(raw)) {
             // Legacy format: bare array
-            chatMessages = raw;
-            chatSummary = null;
+            chatState.messages = raw;
+            chatState.summary = null;
         } else if (raw && raw.messages) {
-            chatMessages = raw.messages;
-            chatSummary = raw.summary || null;
+            chatState.messages = raw.messages;
+            chatState.summary = raw.summary || null;
         }
     } catch {}
     try {
         const stats = JSON.parse(localStorage.getItem(statsStorageKey()));
-        if (stats) chatStats = { ...chatStats, ...stats };
+        if (stats) chatState.stats = { ...chatState.stats, ...stats };
     } catch {}
 }
 
@@ -533,502 +525,20 @@ function initResize(panel) {
 }
 
 function injectStyles() {
-    const style = document.createElement("style");
-    style.textContent = `
-        /* Chat panel — layout is handled by viewer.html <style> via inset-inline-end */
-        #marginalia-chat {
-            background: #1e1e1e;
-            color: #e0e0e0;
-            display: flex;
-            flex-direction: column;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            font-size: 14px;
-            overflow: hidden;
-        }
-        #marginalia-chat-resize {
-            position: absolute;
-            left: -4px;
-            top: 0;
-            bottom: 0;
-            width: 8px;
-            cursor: col-resize;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: none;
-        }
-        #marginalia-chat-resize::after {
-            content: "";
-            width: 3px;
-            height: 36px;
-            border-radius: 2px;
-            background: #555;
-            transition: background 0.15s;
-        }
-        #marginalia-chat-resize:hover::after,
-        #marginalia-chat-resize:active::after {
-            background: #4a9eff;
-        }
-        #marginalia-chat-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 12px;
-            background: #2a2a2a;
-            border-bottom: 1px solid #333;
-            flex-shrink: 0;
-        }
-        #marginalia-chat-header-right {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        #marginalia-font-size {
-            display: flex;
-            gap: 2px;
-        }
-        .marginalia-font-btn {
-            background: #333;
-            border: 1px solid #555;
-            color: #aaa;
-            height: 26px;
-            width: 28px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            padding: 0;
-        }
-        .marginalia-font-btn.active {
-            background: #4a9eff;
-            border-color: #4a9eff;
-            color: white;
-        }
-        #marginalia-mono-btn,
-        #marginalia-raw-btn {
-            background: #333;
-            border: 1px solid #555;
-            color: #aaa;
-            height: 26px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            padding: 0 6px;
-        }
-        #marginalia-mono-btn.active,
-        #marginalia-raw-btn.active {
-            background: #4a9eff;
-            border-color: #4a9eff;
-            color: white;
-        }
-        #marginalia-chat-clear,
-        #marginalia-chat-compact,
-        #marginalia-chat-prompt,
-        #marginalia-chat-tools {
-            background: none;
-            border: 1px solid #444;
-            color: #999;
-            height: 26px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            padding: 0 8px;
-            white-space: nowrap;
-        }
-        #marginalia-chat-close {
-            background: none;
-            border: none;
-            color: #e0e0e0;
-            font-size: 22px;
-            cursor: pointer;
-            padding: 0;
-        }
-        #marginalia-chat-clear:hover,
-        #marginalia-chat-compact:hover,
-        #marginalia-chat-prompt:hover,
-        #marginalia-chat-tools:hover {
-            border-color: #888;
-            color: #e0e0e0;
-        }
-        #marginalia-context-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            background: #252525;
-            color: #888;
-            font-size: 12px;
-            border-bottom: 1px solid #333;
-            flex-shrink: 0;
-        }
-        #marginalia-context-progress {
-            flex-shrink: 0;
-            width: 60px;
-            height: 4px;
-            background: #333;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        #marginalia-context-fill {
-            height: 100%;
-            background: #4a9eff;
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-        #marginalia-chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        #marginalia-chat-messages.mono {
-            font-family: "Consolas", "Monaco", "Courier New", monospace;
-        }
-        .marginalia-msg {
-            padding: 8px 12px;
-            border-radius: 8px;
-            word-break: break-word;
-            line-height: 1.5;
-            position: relative;
-        }
-        .marginalia-msg.user {
-            align-self: flex-end;
-            background: #2b5278;
-            max-width: 85%;
-            white-space: pre-wrap;
-        }
-        .marginalia-msg.assistant {
-            background: #2a2a2a;
-        }
-        .marginalia-msg.assistant code {
-            background: #363636;
-            padding: 1px 4px;
-            border-radius: 3px;
-            font-size: 0.9em;
-        }
-        .marginalia-msg.assistant pre {
-            background: #363636;
-            padding: 10px;
-            border-radius: 6px;
-            overflow-x: auto;
-            margin: 8px 0;
-        }
-        .marginalia-msg.assistant pre code {
-            background: none;
-            padding: 0;
-        }
-        .marginalia-msg.assistant strong {
-            color: #fff;
-        }
-        .marginalia-msg.assistant h3,
-        .marginalia-msg.assistant h4 {
-            margin: 12px 0 4px;
-            color: #fff;
-        }
-        .marginalia-msg.assistant table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 8px 0;
-            font-size: 0.9em;
-        }
-        .marginalia-msg.assistant th,
-        .marginalia-msg.assistant td {
-            border: 1px solid #444;
-            padding: 6px 10px;
-            text-align: left;
-        }
-        .marginalia-msg.assistant th {
-            background: #363636;
-            font-weight: 600;
-            color: #fff;
-        }
-        .marginalia-msg.assistant tr:nth-child(even) {
-            background: #2f2f2f;
-        }
-        .marginalia-msg.system {
-            background: #1a2e1a;
-            color: #8a8;
-            font-size: 0.85em;
-            font-style: italic;
-        }
-        .marginalia-msg.tool-status {
-            background: #1a1a2e;
-            color: #88a;
-            font-size: 0.8em;
-            font-style: italic;
-            padding: 4px 12px;
-        }
-        .tool-activity {
-            background: #1a1a2e;
-            color: #7799bb;
-            font-size: 0.8em;
-            padding: 6px 12px;
-            border-radius: 8px;
-            white-space: pre-line;
-            line-height: 1.6;
-            border-left: 2px solid #4a9eff;
-        }
-        .marginalia-copy-btn {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            background: #444;
-            border: 1px solid #555;
-            color: #ccc;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .marginalia-msg:hover .marginalia-copy-btn { opacity: 1; }
-        .marginalia-page-link {
-            color: #4a9eff;
-            text-decoration: underline;
-            text-decoration-style: dotted;
-            cursor: pointer;
-        }
-        .marginalia-page-link:hover { text-decoration-style: solid; }
-        .marginalia-page-back {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: #4a9eff;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 13px;
-            cursor: pointer;
-            z-index: 99999;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            transition: opacity 0.2s;
-        }
-        .marginalia-page-back:hover { background: #3a8eef; }
-        .marginalia-page-back.hidden { display: none; }
-
-        .thinking-dots span {
-            animation: blink 1.4s infinite both;
-        }
-        .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
-
-        #marginalia-chat-stats {
-            padding: 4px 12px;
-            background: #252525;
-            color: #888;
-            font-size: 11px;
-            border-top: 1px solid #333;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        #marginalia-stats-bar {
-            flex-shrink: 0;
-            width: 40px;
-            height: 3px;
-            background: #333;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        #marginalia-stats-fill {
-            height: 100%;
-            background: #4a9eff;
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-        .marginalia-model-name {
-            cursor: pointer;
-            text-decoration: underline;
-            text-decoration-style: dotted;
-        }
-
-        #marginalia-chat-input-area {
-            display: flex;
-            gap: 8px;
-            padding: 10px 12px;
-            background: #2a2a2a;
-            flex-shrink: 0;
-        }
-        #marginalia-chat-input {
-            flex: 1;
-            background: #1a1a1a;
-            color: #e0e0e0;
-            border: 1px solid #444;
-            border-radius: 6px;
-            padding: 8px;
-            font-size: 13px;
-            resize: none;
-            min-height: 36px;
-            max-height: 120px;
-            font-family: inherit;
-        }
-        #marginalia-chat-send {
-            background: #4a9eff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 8px 16px;
-            cursor: pointer;
-            font-size: 13px;
-            align-self: flex-end;
-        }
-        #marginalia-chat-send:disabled {
-            opacity: 0.5;
-            cursor: default;
-        }
-        #marginalia-chat-send.done {
-            background: #4caf50;
-            transition: background 0.3s;
-        }
-
-        /* Light theme overrides */
-        .marginalia-light #marginalia-chat { background: #f9f9f9; color: #333; }
-        .marginalia-light #marginalia-mono-btn,
-        .marginalia-light #marginalia-raw-btn { background: #ddd; border-color: #ccc; color: #666; }
-        .marginalia-light #marginalia-mono-btn.active,
-        .marginalia-light #marginalia-raw-btn.active { background: #4a9eff; border-color: #4a9eff; color: white; }
-        .marginalia-light #marginalia-chat-header { background: #e8e8e8; color: #333; }
-        .marginalia-light #marginalia-chat-close { color: #333; }
-        .marginalia-light #marginalia-chat-clear,
-        .marginalia-light #marginalia-chat-compact,
-        .marginalia-light #marginalia-chat-prompt,
-        .marginalia-light #marginalia-chat-tools { border-color: #ccc; color: #666; }
-        .marginalia-light .marginalia-font-btn { background: #ddd; border-color: #ccc; color: #666; }
-        .marginalia-light .marginalia-font-btn.active { background: #4a9eff; border-color: #4a9eff; color: white; }
-        .marginalia-light #marginalia-context-bar { background: #eee; color: #666; border-color: #ddd; }
-        .marginalia-light #marginalia-context-progress { background: #ccc; }
-        .marginalia-light #marginalia-chat-messages { background: #f5f5f5; }
-        .marginalia-light .marginalia-msg { color: #333; }
-        .marginalia-light .marginalia-msg.assistant { background: #e0e0e0; }
-        .marginalia-light .marginalia-msg.system { background: #e0f0e0; color: #585; }
-        .marginalia-light .marginalia-msg.tool-status { background: #e0e0f0; color: #558; }
-        .marginalia-light .tool-activity { background: #e8e8f4; color: #446688; border-left-color: #2070cc; }
-        .marginalia-light .marginalia-msg.assistant code { background: #d0d0d0; }
-        .marginalia-light .marginalia-msg.assistant pre { background: #d0d0d0; }
-        .marginalia-light .marginalia-msg.assistant strong { color: #111; }
-        .marginalia-light .marginalia-msg.assistant h3,
-        .marginalia-light .marginalia-msg.assistant h4 { color: #111; }
-        .marginalia-light .marginalia-msg.assistant th,
-        .marginalia-light .marginalia-msg.assistant td { border-color: #ccc; }
-        .marginalia-light .marginalia-msg.assistant th { background: #ddd; color: #111; }
-        .marginalia-light .marginalia-msg.assistant tr:nth-child(even) { background: #eee; }
-        .marginalia-light .marginalia-copy-btn { background: #ddd; border-color: #bbb; color: #666; }
-        .marginalia-light .marginalia-page-link { color: #2070cc; }
-        .marginalia-light #marginalia-chat-stats { background: #eee; color: #888; border-color: #ddd; }
-        .marginalia-light #marginalia-stats-bar { background: #ccc; }
-        .marginalia-light #marginalia-chat-input-area { background: #e8e8e8; }
-        .marginalia-light #marginalia-chat-input { background: #fff; color: #333; }
-
-        /* Prompt editor overlay */
-        .marginalia-prompt-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6); z-index: 100001;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .marginalia-prompt-overlay.hidden { display: none; }
-        #marginalia-prompt-modal {
-            background: #2a2a2a; border: 1px solid #555; border-radius: 8px;
-            padding: 20px; width: 90%; max-width: 500px; color: #ccc;
-        }
-        #marginalia-prompt-modal h3 { margin: 0 0 4px; color: #fff; font-size: 15px; }
-        .marginalia-prompt-hint { margin: 0 0 12px; font-size: 12px; color: #888; }
-        #marginalia-prompt-textarea {
-            width: 100%; height: 150px; background: #1a1a1a; color: #ddd;
-            border: 1px solid #555; border-radius: 4px; padding: 8px;
-            font-size: 13px; resize: vertical; box-sizing: border-box;
-            font-family: inherit;
-        }
-        .marginalia-prompt-buttons { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
-        .marginalia-prompt-buttons button {
-            padding: 6px 16px; border-radius: 4px; border: 1px solid #555;
-            cursor: pointer; font-size: 13px;
-        }
-        #marginalia-prompt-save { background: #4a9eff; color: #fff; border-color: #4a9eff; }
-        #marginalia-prompt-cancel { background: transparent; color: #ccc; }
-        #marginalia-prompt-view {
-            background: none; border: none; color: #4a9eff; font-size: 12px;
-            cursor: pointer; padding: 0; margin-top: 10px; text-decoration: underline;
-        }
-        #marginalia-prompt-view:hover { color: #6ab4ff; }
-        #marginalia-prompt-viewer {
-            margin-top: 12px;
-            border-top: 1px solid #444;
-            padding-top: 10px;
-        }
-        #marginalia-prompt-viewer.hidden { display: none; }
-        #marginalia-prompt-viewer h3 { font-size: 13px; color: #888; margin-bottom: 8px; }
-        #marginalia-prompt-viewer-text {
-            background: #1a1a1a;
-            color: #aaa;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            line-height: 1.5;
-            max-height: 50vh;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-            user-select: text;
-        }
-
-        .marginalia-light #marginalia-prompt-modal { background: #f5f5f5; border-color: #ccc; color: #333; }
-        .marginalia-light #marginalia-prompt-modal h3 { color: #111; }
-        .marginalia-light #marginalia-prompt-textarea { background: #fff; color: #333; border-color: #ccc; }
-        .marginalia-light #marginalia-prompt-cancel { color: #666; border-color: #ccc; }
-        .marginalia-light #marginalia-prompt-viewer { border-top-color: #ddd; }
-        .marginalia-light #marginalia-prompt-viewer-text { background: #eee; color: #555; }
-
-        /* Tools editor */
-        #marginalia-tools-modal {
-            background: #2a2a2a; border: 1px solid #555; border-radius: 8px;
-            padding: 20px; width: 90%; max-width: 500px; color: #ccc;
-            max-height: 80vh; overflow-y: auto;
-        }
-        #marginalia-tools-modal h3 { margin: 0 0 4px; color: #fff; font-size: 15px; }
-        #marginalia-tools-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-        .marginalia-tool-row {
-            display: flex; align-items: flex-start; gap: 10px;
-            padding: 8px; border-radius: 6px; cursor: pointer;
-            background: #222;
-        }
-        .marginalia-tool-row:hover { background: #2f2f2f; }
-        .marginalia-tool-row input[type="checkbox"] {
-            margin-top: 3px; flex-shrink: 0; width: 16px; height: 16px;
-            accent-color: #4a9eff;
-        }
-        .marginalia-tool-info { display: flex; flex-direction: column; gap: 2px; }
-        .marginalia-tool-info strong { font-size: 13px; color: #ddd; }
-        .marginalia-tool-info span { font-size: 11px; color: #888; line-height: 1.4; }
-
-        .marginalia-light #marginalia-tools-modal { background: #f5f5f5; border-color: #ccc; color: #333; }
-        .marginalia-light #marginalia-tools-modal h3 { color: #111; }
-        .marginalia-light .marginalia-tool-row { background: #eee; }
-        .marginalia-light .marginalia-tool-row:hover { background: #e0e0e0; }
-        .marginalia-light .marginalia-tool-info strong { color: #222; }
-        .marginalia-light .marginalia-tool-info span { color: #666; }
-
-        /* Tool result in chat */
-        .marginalia-tool-result-preview {
-            font-size: 0.8em; color: #888; margin-top: 2px;
-            white-space: pre-wrap; max-height: 60px; overflow: hidden;
-            text-overflow: ellipsis;
-        }
-    `;
-    document.head.appendChild(style);
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "../../chat.css";
+    document.head.appendChild(link);
 }
 
 // --- Chat logic ---
 
-let chatMessages = [];
-let chatSummary = null; // Compressed summary of older conversation
-let chatStats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
-let isSending = false;
+const chatState = {
+    messages: [],
+    summary: null,
+    stats: { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" },
+    sending: false,
+};
 
 function getChatFontSize() {
     return localStorage.getItem("marginalia_chat_font") || "m";
@@ -1073,10 +583,9 @@ function toggleRaw() {
 }
 
 let contextLimit = 200000;
-let contextLimitFetched = false;
 
 async function fetchContextLimit(modelId) {
-    if (contextLimitFetched || !modelId) return;
+    if (!modelId) return;
     try {
         const res = await fetch("https://openrouter.ai/api/v1/models");
         const data = await res.json();
@@ -1084,7 +593,6 @@ async function fetchContextLimit(modelId) {
             || data.data?.find(m => m.id.startsWith(modelId));
         if (model?.context_length) {
             contextLimit = model.context_length;
-            contextLimitFetched = true;
             renderStats();
         }
     } catch {}
@@ -1095,15 +603,15 @@ function renderStats() {
     const bar = document.getElementById("marginalia-stats-fill");
     if (!el) return;
 
-    const total = chatStats.inputTokens + chatStats.outputTokens;
-    const ctx = chatStats.lastContextTokens;
+    const total = chatState.stats.inputTokens + chatState.stats.outputTokens;
+    const ctx = chatState.stats.lastContextTokens;
     const pct = Math.min(100, (ctx / contextLimit) * 100);
 
-    const modelName = chatStats.model || getChatModel();
+    const modelName = chatState.stats.model || getChatModel();
     let parts = [];
     if (ctx > 0) parts.push(`ctx: ${fmtTokens(ctx)}/${fmtTokens(contextLimit)}`);
-    if (total > 0) parts.push(`${fmtTokens(chatStats.inputTokens)} in / ${fmtTokens(chatStats.outputTokens)} out`);
-    if (chatStats.cost > 0) parts.push(`$${chatStats.cost.toFixed(4)}`);
+    if (total > 0) parts.push(`${fmtTokens(chatState.stats.inputTokens)} in / ${fmtTokens(chatState.stats.outputTokens)} out`);
+    if (chatState.stats.cost > 0) parts.push(`$${chatState.stats.cost.toFixed(4)}`);
 
     const textEl = el.querySelector(".marginalia-stats-text");
     textEl.innerHTML = "";
@@ -1131,7 +639,7 @@ function promptChangeModel() {
     const newModel = prompt("Model for this book's chat:", current);
     if (newModel && newModel.trim() && newModel.trim() !== current) {
         setChatModel(newModel.trim());
-        chatStats.model = newModel.trim();
+        chatState.stats.model = newModel.trim();
         saveChatState();
     }
 }
@@ -1142,10 +650,6 @@ function fmtTokens(n) {
 }
 
 let contextInterval = null;
-
-function _updateViewerMargin() {
-    // Layout handled by CSS flex in #marginalia-root (viewer.html) — no JS needed
-}
 
 async function toggleChat() {
     const s = getSettings();
@@ -1228,11 +732,11 @@ function closeToolsEditor() {
 }
 
 function clearChat() {
-    if (chatMessages.length === 0) return;
+    if (chatState.messages.length === 0) return;
     if (!confirm("Clear chat history for this book?")) return;
-    chatMessages = [];
-    chatSummary = null;
-    chatStats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
+    chatState.messages = [];
+    chatState.summary = null;
+    chatState.stats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
     saveChatState();
     renderChat();
     renderStats();
@@ -1284,13 +788,13 @@ function buildApiMessages(systemPrompt, messages, summary) {
 }
 
 async function compactChat() {
-    const convMessages = chatMessages.filter(m => m.role === "user" || m.role === "assistant");
+    const convMessages = chatState.messages.filter(m => m.role === "user" || m.role === "assistant");
     if (convMessages.length < 6) return;
 
     const s = getSettings();
     if (!s.apiKey) return;
 
-    chatMessages.push({ role: "system", content: "Compacting conversation..." });
+    chatState.messages.push({ role: "system", content: "Compacting conversation..." });
     renderChat();
 
     // Split: summarize the older portion, keep recent verbatim
@@ -1298,12 +802,12 @@ async function compactChat() {
     const older = convMessages.slice(0, -RECENT_MSG_COUNT);
 
     if (older.length < 2) {
-        chatMessages = chatMessages.filter(m => m.content !== "Compacting conversation...");
+        chatState.messages = chatState.messages.filter(m => m.content !== "Compacting conversation...");
         return;
     }
 
     // Build summarization prompt
-    const previousSummary = chatSummary ? `Previous summary:\n${chatSummary}\n\n` : "";
+    const previousSummary = chatState.summary ? `Previous summary:\n${chatState.summary}\n\n` : "";
     const historyText = older.map(m => `${m.role}: ${m.content}`).join("\n\n");
 
     const compactPrompt = [
@@ -1325,24 +829,24 @@ ${previousSummary}Conversation to summarize:` },
         if (!summary) throw new Error("Empty summary");
 
         if (data.usage) {
-            chatStats.inputTokens += data.usage.prompt_tokens || 0;
-            chatStats.outputTokens += data.usage.completion_tokens || 0;
-            chatStats.cost += data.usage.cost || 0;
+            chatState.stats.inputTokens += data.usage.prompt_tokens || 0;
+            chatState.stats.outputTokens += data.usage.completion_tokens || 0;
+            chatState.stats.cost += data.usage.cost || 0;
         }
 
         // Merge with existing summary
-        chatSummary = summary;
+        chatState.summary = summary;
 
         // Keep only recent messages + a compaction notice
-        chatMessages = chatMessages.filter(m => m.content !== "Compacting conversation...");
-        const recentFromAll = chatMessages.slice(-RECENT_MSG_COUNT);
-        chatMessages = [
+        chatState.messages = chatState.messages.filter(m => m.content !== "Compacting conversation...");
+        const recentFromAll = chatState.messages.slice(-RECENT_MSG_COUNT);
+        chatState.messages = [
             { role: "system", content: `Conversation compacted (${older.length} messages summarized)` },
             ...recentFromAll,
         ];
     } catch (err) {
-        chatMessages = chatMessages.filter(m => m.content !== "Compacting conversation...");
-        chatMessages.push({ role: "system", content: `Compact failed: ${err.message}` });
+        chatState.messages = chatState.messages.filter(m => m.content !== "Compacting conversation...");
+        chatState.messages.push({ role: "system", content: `Compact failed: ${err.message}` });
     }
 
     saveChatState();
@@ -1410,7 +914,7 @@ function renderMarkdown(text) {
 function renderChat() {
     const el = document.getElementById("marginalia-chat-messages");
     el.innerHTML = "";
-    for (const msg of chatMessages) {
+    for (const msg of chatState.messages) {
         el.appendChild(createMsgEl(msg));
     }
     el.scrollTop = el.scrollHeight;
@@ -1473,7 +977,7 @@ async function getContext() {
 }
 
 function setSending(val) {
-    isSending = val;
+    chatState.sending = val;
     const btn = document.getElementById("marginalia-chat-send");
     const input = document.getElementById("marginalia-chat-input");
     if (btn) {
@@ -1529,7 +1033,7 @@ function _humanizeToolAction(name, args) {
     }
 }
 
-// Tool activity is shown as ephemeral UI, not stored in chatMessages.
+// Tool activity is shown as ephemeral UI, not stored in chatState.messages.
 // After the turn, a compact summary replaces the individual tool lines.
 let _toolActivity = []; // accumulates during a turn
 
@@ -1561,7 +1065,7 @@ function _finalizeToolActivity() {
         const summary = _toolActivity.length <= 2
             ? _toolActivity.join(" → ")
             : `${_toolActivity[0]} → ... → ${_toolActivity[_toolActivity.length - 1]} (${_toolActivity.length} steps)`;
-        chatMessages.push({ role: "system", content: summary });
+        chatState.messages.push({ role: "system", content: summary });
     }
     _toolActivity = [];
 }
@@ -1569,7 +1073,7 @@ function _finalizeToolActivity() {
 async function sendMessage() {
     const input = document.getElementById("marginalia-chat-input");
     const text = input.value.trim();
-    if (!text || isSending) return;
+    if (!text || chatState.sending) return;
 
     const s = getSettings();
     if (!s.apiKey) return;
@@ -1578,7 +1082,7 @@ async function sendMessage() {
     updateContextBar(context);
     _cachedSelection = ""; // consumed — clear for next turn
 
-    chatMessages.push({ role: "user", content: text });
+    chatState.messages.push({ role: "user", content: text });
     input.value = "";
     renderChat();
     setSending(true);
@@ -1593,14 +1097,14 @@ async function sendMessage() {
     }
 
     // Build API messages with context management (trimming + summary)
-    const apiMessages = buildApiMessages(system, chatMessages, chatSummary);
+    const apiMessages = buildApiMessages(system, chatState.messages, chatState.summary);
 
     // Prepare streaming message element
     let streamingMsgEl = null;
     let streamingContent = "";
 
     try {
-        const result = await agentLoop(s.apiKey, s.model, apiMessages, {
+        const result = await agentLoop(s.apiKey, getChatModel(), apiMessages, {
             onThinking: (iteration) => {
                 if (iteration > 0) {
                     // Agent is doing another LLM call after tool execution
@@ -1614,12 +1118,12 @@ async function sendMessage() {
                     _finalizeToolActivity();
                     renderChat(); // re-render to show tool summary
                     streamingContent = "";
-                    chatMessages.push({ role: "assistant", content: "" });
-                    streamingMsgEl = createMsgEl(chatMessages[chatMessages.length - 1]);
+                    chatState.messages.push({ role: "assistant", content: "" });
+                    streamingMsgEl = createMsgEl(chatState.messages[chatState.messages.length - 1]);
                     document.getElementById("marginalia-chat-messages").appendChild(streamingMsgEl);
                 }
                 streamingContent = fullContent;
-                chatMessages[chatMessages.length - 1].content = fullContent;
+                chatState.messages[chatState.messages.length - 1].content = fullContent;
                 if (rawMode) {
                     streamingMsgEl.textContent = fullContent;
                 } else {
@@ -1637,12 +1141,12 @@ async function sendMessage() {
                 // Activity already shown by onToolCall
             },
             onUsage: (usage, model) => {
-                chatStats.inputTokens += usage.prompt_tokens || 0;
-                chatStats.outputTokens += usage.completion_tokens || 0;
-                chatStats.cost += usage.cost || 0;
-                chatStats.lastContextTokens = usage.prompt_tokens || 0;
+                chatState.stats.inputTokens += usage.prompt_tokens || 0;
+                chatState.stats.outputTokens += usage.completion_tokens || 0;
+                chatState.stats.cost += usage.cost || 0;
+                chatState.stats.lastContextTokens = usage.prompt_tokens || 0;
                 if (model) {
-                    chatStats.model = model;
+                    chatState.stats.model = model;
                     fetchContextLimit(model);
                 }
             },
@@ -1650,7 +1154,7 @@ async function sendMessage() {
 
         hideThinking();
 
-        // If we streamed, the message is already in chatMessages; just add copy button
+        // If we streamed, the message is already in chatState.messages; just add copy button
         if (streamingMsgEl) {
             const copyBtn = document.createElement("button");
             copyBtn.className = "marginalia-copy-btn";
@@ -1664,13 +1168,13 @@ async function sendMessage() {
             streamingMsgEl.appendChild(copyBtn);
         } else {
             // No streaming happened (edge case) — add result normally
-            chatMessages.push({ role: "assistant", content: result.content });
+            chatState.messages.push({ role: "assistant", content: result.content });
         }
         renderStats();
     } catch (err) {
         hideThinking();
         _finalizeToolActivity();
-        chatMessages.push({ role: "assistant", content: `Error: ${err.message}` });
+        chatState.messages.push({ role: "assistant", content: `Error: ${err.message}` });
     }
     _clearToolActivity();
     setSending(false);
@@ -1679,8 +1183,8 @@ async function sendMessage() {
 
     // Auto-compact: trigger on token threshold OR message count
     if (getAutoCompactEnabled()) {
-        const convCount = chatMessages.filter(m => m.role === "user" || m.role === "assistant").length;
-        const overTokens = chatStats.lastContextTokens > getAutoCompactThreshold();
+        const convCount = chatState.messages.filter(m => m.role === "user" || m.role === "assistant").length;
+        const overTokens = chatState.stats.lastContextTokens > getAutoCompactThreshold();
         const overMessages = convCount > RECENT_MSG_COUNT + 10; // ~11+ exchanges beyond the recent window
         if ((overTokens || overMessages) && convCount > RECENT_MSG_COUNT + 4) {
             await compactChat();
@@ -1719,9 +1223,9 @@ var _onBookChange = function(bookId) {
     // Switch to new book
     sessionStorage.setItem("marginalia_book_id", bookId);
     // Load new book's chat state
-    chatMessages = [];
-    chatSummary = null;
-    chatStats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
+    chatState.messages = [];
+    chatState.summary = null;
+    chatState.stats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
     loadChatState();
     renderChat();
     renderStats();
@@ -1740,7 +1244,7 @@ function _captureSelection() {
 
 function init() {
     loadChatState();
-    fetchContextLimit(chatStats.model || getChatModel());
+    fetchContextLimit(chatState.stats.model || getChatModel());
     injectUI();
     applyTheme();
     loadPdfFromDB();
@@ -1749,8 +1253,6 @@ function init() {
     // Capture selection on any mouseup/touchend in the viewer
     document.addEventListener("mouseup", _captureSelection);
 
-    // Keep viewer width in sync on window resize
-    // Layout handled by CSS (inset-inline-end on #viewerContainer)
     document.addEventListener("touchend", _captureSelection);
     // Restore chat open state
     if (localStorage.getItem("marginalia_chat_open") === "1") {

@@ -59,6 +59,13 @@ function _compressToolContent(content) {
     return content.slice(0, 200) + `\n[truncated — was ${content.length} chars]`;
 }
 
+// --- API helpers ---
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+function _apiHeaders(apiKey) {
+    return { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
+}
+
 // --- LLM call with streaming ---
 
 async function llmCall(apiKey, model, messages, tools, onDelta) {
@@ -73,12 +80,9 @@ async function llmCall(apiKey, model, messages, tools, onDelta) {
     const body = { model, messages: cleanMessages, stream: true };
     if (tools && tools.length) body.tools = tools;
 
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch(OPENROUTER_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-        },
+        headers: _apiHeaders(apiKey),
         body: JSON.stringify(body),
     });
 
@@ -253,12 +257,9 @@ async function agentLoop(apiKey, model, messages, callbacks) {
 
 // Simple non-agentic LLM call (for compaction etc.)
 async function simpleLLMCall(apiKey, model, messages) {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = await fetch(OPENROUTER_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-        },
+        headers: _apiHeaders(apiKey),
         body: JSON.stringify({ model, messages }),
     });
 
