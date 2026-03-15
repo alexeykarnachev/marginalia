@@ -42,12 +42,31 @@ See https://github.com/adobe-type-tools/cmap-resources
   <script src="../../agent.js" defer></script>
   <script src="../../marginalia.js" defer></script>
   <style>
-    #marginalia-root { display:flex; width:100%; height:100%; }
+    :root { --chat-panel-width: 380px; }
+    #marginalia-chat {
+      position: absolute;
+      inset-block: var(--toolbar-height) 0;
+      inset-inline-end: calc(-1 * var(--chat-panel-width));
+      width: var(--chat-panel-width);
+      visibility: hidden;
+      z-index: 100;
+      transition-property: inset-inline-end;
+      transition-duration: var(--sidebar-transition-duration);
+      transition-timing-function: var(--sidebar-transition-timing-function);
+    }
+    #outerContainer:is(.chatMoving, .chatOpen) #marginalia-chat { visibility: visible; }
+    #outerContainer.chatOpen #marginalia-chat { inset-inline-end: 0; }
+    #outerContainer.chatOpen #viewerContainer:not(.pdfPresentationMode) {
+      inset-inline-end: var(--chat-panel-width);
+      transition-property: inset-inline-end;
+    }
+    #outerContainer.chatResizing :is(#marginalia-chat, #viewerContainer) {
+      transition-duration: 0s;
+    }
   </style>
   </head>
 
   <body tabindex="0">
-    <div id="marginalia-root">
     <div id="outerContainer">
 
       <div id="sidebarContainer">
@@ -643,7 +662,6 @@ See https://github.com/adobe-type-tools/cmap-resources
       </div> <!-- editorUndoBar -->
 
     </div> <!-- outerContainer -->
-    </div> <!-- marginalia-root -->
     <div id="printContainer"></div>
   </body>
 </html>

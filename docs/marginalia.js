@@ -385,7 +385,7 @@ function injectUI() {
             <button id="marginalia-chat-send">Send</button>
         </div>
     `;
-    (document.getElementById("marginalia-root") || document.body).appendChild(chatPanel);
+    (document.getElementById("outerContainer") || document.body).appendChild(chatPanel);
 
     // Prompt editor overlay
     const promptOverlay = document.createElement("div");
@@ -487,16 +487,23 @@ function initResize(panel) {
     let startX = null;
     let startW = null;
 
+    const outer = document.getElementById("outerContainer");
+
+    function _setChatWidth(w) {
+        const clamped = Math.max(280, Math.min(w, window.innerWidth * 0.7));
+        panel.style.width = clamped + "px";
+        document.documentElement.style.setProperty("--chat-panel-width", clamped + "px");
+    }
+
     function onMove(x) {
         if (startX == null) return;
-        panel.style.width = Math.max(280, startW - (x - startX)) + "px";
-        _updateViewerMargin();
+        _setChatWidth(startW - (x - startX));
     }
 
     function onDragEnd() {
         if (startX != null) {
             localStorage.setItem("marginalia_chat_width", panel.offsetWidth);
-            _updateViewerMargin();
+            outer.classList.remove("chatResizing");
         }
         startX = null;
         document.body.style.userSelect = "";
@@ -506,6 +513,7 @@ function initResize(panel) {
     handle.addEventListener("mousedown", (e) => {
         e.preventDefault();
         startX = e.clientX; startW = panel.offsetWidth;
+        outer.classList.add("chatResizing");
         document.body.style.userSelect = "none";
         document.body.style.webkitUserSelect = "none";
     });
@@ -515,44 +523,28 @@ function initResize(panel) {
     handle.addEventListener("touchstart", (e) => {
         e.preventDefault();
         startX = e.touches[0].clientX; startW = panel.offsetWidth;
+        outer.classList.add("chatResizing");
     });
     document.addEventListener("touchmove", (e) => { if (startX != null) onMove(e.touches[0].clientX); });
     document.addEventListener("touchend", onDragEnd);
 
     const saved = localStorage.getItem("marginalia_chat_width");
-    if (saved) panel.style.width = saved + "px";
+    if (saved) _setChatWidth(parseInt(saved));
 }
 
 function injectStyles() {
     const style = document.createElement("style");
     style.textContent = `
-        /* Layout: flex root wraps viewer + chat side-by-side */
-        #marginalia-root {
-            display: flex;
-            width: 100%;
-            height: 100%;
-        }
-        #marginalia-root > #outerContainer {
-            flex: 1;
-            min-width: 0;
-            width: auto;
-        }
-
+        /* Chat panel — layout is handled by viewer.html <style> via inset-inline-end */
         #marginalia-chat {
-            position: relative;
-            width: 380px;
-            min-width: 280px;
-            max-width: 70vw;
-            height: 100%;
-            flex-shrink: 0;
             background: #1e1e1e;
             color: #e0e0e0;
+            display: flex;
             flex-direction: column;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 14px;
-            display: none;
+            overflow: hidden;
         }
-        #marginalia-chat.open { display: flex; }
         #marginalia-chat-resize {
             position: absolute;
             left: -4px;
@@ -1157,17 +1149,16 @@ function _updateViewerMargin() {
 
 async function toggleChat() {
     const s = getSettings();
-    const panel = document.getElementById("marginalia-chat");
-    if (!panel.classList.contains("open") && !s.apiKey) {
+    const outer = document.getElementById("outerContainer");
+    const isOpen = outer.classList.contains("chatOpen");
+    if (!isOpen && !s.apiKey) {
         alert("Please set your OpenRouter API key in Settings (on the library page).");
         return;
     }
-    panel.classList.toggle("open");
-    localStorage.setItem("marginalia_chat_open", panel.classList.contains("open") ? "1" : "0");
-    _updateViewerMargin();
-    // Update again after slide transition completes
-    panel.addEventListener("transitionend", () => _updateViewerMargin(), { once: true });
-    if (panel.classList.contains("open")) {
+    outer.classList.toggle("chatOpen");
+    const nowOpen = outer.classList.contains("chatOpen");
+    localStorage.setItem("marginalia_chat_open", nowOpen ? "1" : "0");
+    if (nowOpen) {
         refreshContextBar();
         contextInterval = setInterval(refreshContextBar, 1000);
     } else {
@@ -1759,14 +1750,13 @@ function init() {
     document.addEventListener("mouseup", _captureSelection);
 
     // Keep viewer width in sync on window resize
-    window.addEventListener("resize", () => _updateViewerMargin());
+    // Layout handled by CSS (inset-inline-end on #viewerContainer)
     document.addEventListener("touchend", _captureSelection);
     // Restore chat open state
     if (localStorage.getItem("marginalia_chat_open") === "1") {
-        const panel = document.getElementById("marginalia-chat");
-        if (panel && getSettings().apiKey) {
-            panel.classList.add("open");
-            _updateViewerMargin();
+        const outer = document.getElementById("outerContainer");
+        if (outer && getSettings().apiKey) {
+            outer.classList.add("chatOpen");
             refreshContextBar();
             contextInterval = setInterval(refreshContextBar, 1000);
         }
