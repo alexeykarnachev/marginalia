@@ -31,6 +31,7 @@
     onResizeEnd: onResizeEndCb,
     onFontSizeChange,
     onMonoToggle,
+    stats,
   }: {
     placeholder?: string;
     messages: ChatMessage[];
@@ -52,6 +53,7 @@
     onResizeEnd?: (width: number) => void;
     onFontSizeChange?: (size: number) => void;
     onMonoToggle?: () => void;
+    stats?: { inputTokens: number; outputTokens: number; cost: number; model: string };
   } = $props();
 
   let inputText = $state('');
@@ -387,6 +389,14 @@
     {/if}
   </div>
 
+  {#if stats && (stats.cost > 0 || stats.inputTokens > 0)}
+    <div class="chat-stats-bar">
+      <span class="chat-stats-model">{stats.model || 'unknown'}</span>
+      <span class="chat-stats-tokens">{(stats.inputTokens / 1000).toFixed(1)}k in / {(stats.outputTokens / 1000).toFixed(1)}k out</span>
+      <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
+    </div>
+  {/if}
+
   <div class="m-chat-input-area">
     <textarea
       class="m-chat-input"
@@ -694,6 +704,18 @@
   :global(.thinking-dots span:nth-child(2)) { animation-delay: 0.2s; }
   :global(.thinking-dots span:nth-child(3)) { animation-delay: 0.4s; }
   @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+  .chat-stats-bar {
+    display: flex;
+    gap: 12px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--m-fg-dim);
+    border-top: 1px solid var(--m-border);
+    flex-shrink: 0;
+  }
+  .chat-stats-model { color: var(--m-link); }
+  .chat-stats-cost { margin-left: auto; }
 
   .m-chat-input-area {
     display: flex;

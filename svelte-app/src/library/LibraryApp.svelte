@@ -282,7 +282,6 @@ ${context.libraryTree}`;
         </svg>
       </button>
       <button class="m-btn" title="Settings" onclick={() => settingsOpen = true}>&#x2699;</button>
-      <button class="m-btn m-btn-text" title="Chat" onclick={toggleChat}>Chat</button>
     {/snippet}
   </Toolbar>
 
@@ -324,11 +323,16 @@ ${context.libraryTree}`;
         }}
         onFontSizeChange={setFontSize}
         onMonoToggle={toggleMono}
+        stats={chatState.stats}
       />
     {/if}
   </div>
 
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
+
+  {#if !chatOpen}
+    <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>
+  {/if}
 </div>
 
 <style>

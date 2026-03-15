@@ -216,3 +216,24 @@ html[data-theme="light"] .m-theme-toggle::after {
   color: var(--m-fg-dim);
   font-size: 13px;
 }
+
+/* Floating chat button */
+.m-chat-fab {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--m-accent);
+  color: var(--m-bg-0);
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 100;
+  box-shadow: 0 2px 10px var(--m-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.m-chat-fab:hover { background: var(--m-accent-hover); }

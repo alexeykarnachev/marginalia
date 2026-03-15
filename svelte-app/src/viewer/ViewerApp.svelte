@@ -420,10 +420,34 @@
 
     app.open({ url });
 
+    // Inject dark mode CSS into iframe
+    applyThemeToIframe();
+
     // Index book on first open
     if (!book.pages) {
       indexBookInBackground(bid);
     }
+  }
+
+  function applyThemeToIframe() {
+    try {
+      const iframeDoc = pdfIframe?.contentDocument;
+      if (!iframeDoc) return;
+      let style = iframeDoc.getElementById('marginalia-theme-style');
+      if (!style) {
+        style = iframeDoc.createElement('style');
+        style.id = 'marginalia-theme-style';
+        iframeDoc.head.appendChild(style);
+      }
+      if (settings.theme === 'dark') {
+        style.textContent = `
+          .pdfViewer .page { filter: invert(0.88) hue-rotate(180deg); }
+          body { background: #1d2021 !important; }
+        `;
+      } else {
+        style.textContent = '';
+      }
+    } catch {}
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -466,6 +490,7 @@
         pageInputValue = String(currentPage);
       }
       updateContext();
+      applyThemeToIframe();
     }, 500);
 
     // Restore chat open state
@@ -521,7 +546,6 @@
       <button class="m-btn" title="Zoom out" onclick={handleZoomOut}>&minus;</button>
       <button class="m-btn" title="Zoom in" onclick={handleZoomIn}>+</button>
       <ThemeToggle />
-      <button class="m-btn m-btn-text" title="Chat" onclick={toggleChat}>Chat</button>
     </div>
   </div>
 
@@ -552,6 +576,7 @@
         onResizeEnd={() => chatResizing = false}
         onFontSizeChange={setFontSize}
         onMonoToggle={toggleMono}
+        stats={chatState.stats}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
@@ -600,6 +625,10 @@
   open={toolsEditorOpen}
   onClose={() => { toolsEditorOpen = false; }}
 />
+
+{#if !chatOpen}
+  <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>
+{/if}
 
 <style>
   .viewer-app {
@@ -655,9 +684,9 @@
     position: fixed;
     bottom: 20px;
     left: 20px;
-    background: var(--m-accent);
+    background: var(--m-bg-2);
     color: var(--m-fg);
-    border: none;
+    border: 1px solid var(--m-border-light);
     border-radius: 20px;
     padding: 8px 16px;
     font-size: 13px;
