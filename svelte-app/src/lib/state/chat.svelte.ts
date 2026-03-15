@@ -2,6 +2,7 @@
 // Export a createChatState() factory that returns reactive chat state
 
 import type { ChatMessage, ChatStats } from '../types';
+import { compactMessages } from '../core/prompt';
 
 export interface ChatState {
   readonly messages: ChatMessage[];
@@ -18,6 +19,9 @@ export interface ChatState {
   resetStats: () => void;
   saveToStorage: (bookId: string) => void;
   loadFromStorage: (bookId: string) => void;
+  compact: (apiKey: string, model: string) => Promise<void>;
+  handleDelta: (full: string) => void;
+  trackUsage: (usage: any, model: string) => void;
 }
 
 const defaultStats: ChatStats = {
@@ -98,6 +102,45 @@ export function createChatState(): ChatState {
         const stored = JSON.parse(localStorage.getItem(`marginalia_stats_${bookId}`) || 'null');
         if (stored) stats = { ...defaultStats, ...stored };
       } catch { /* ignore parse errors */ }
+    },
+
+    async compact(apiKey: string, model: string) {
+      if (!apiKey) return;
+      const convCount = messages.filter(
+        (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
+      ).length;
+      if (convCount < 6) return;
+      const compactMsg: ChatMessage = { role: 'system', content: 'Compacting...' };
+      messages = [...messages, compactMsg];
+      try {
+        const result = await compactMessages(apiKey, model, messages, summary);
+        messages = result.messages;
+        summary = result.summary;
+      } catch (err: any) {
+        messages = messages.filter(m => m !== compactMsg);
+        messages = [...messages, { role: 'system', content: `Compact failed: ${(err as Error).message}` }];
+      }
+    },
+
+    handleDelta(full: string) {
+      const last = messages[messages.length - 1];
+      if (last?.role === 'assistant') {
+        const idx = messages.length - 1;
+        messages = [...messages.slice(0, idx), { ...messages[idx], content: full }];
+      } else {
+        messages = [...messages, { role: 'assistant', content: full }];
+      }
+    },
+
+    trackUsage(usage: any, model: string) {
+      stats = {
+        ...stats,
+        inputTokens: stats.inputTokens + (usage.prompt_tokens || 0),
+        outputTokens: stats.outputTokens + (usage.completion_tokens || 0),
+        cost: stats.cost + (usage.cost || 0),
+        lastContextTokens: usage.prompt_tokens || 0,
+        model: model || stats.model,
+      };
     },
   };
 }

@@ -23,8 +23,8 @@
     SYSTEM_PROMPT,
     renderPrompt,
     buildApiMessages,
-    compactMessages,
   } from '../lib/core/prompt';
+  import { humanizeToolAction } from '../lib/core/ui-helpers';
   import type { ChatMessage } from '../lib/types';
 
   let bookTitle = $state('');
@@ -154,30 +154,6 @@
     localStorage.setItem('marginalia_chat_open', chatOpen ? '1' : '0');
   }
 
-  // Humanize tool action names for display
-  function humanizeToolAction(name: string, args: any): string {
-    switch (name) {
-      case 'read_page': return `Reading page ${args.page}...`;
-      case 'read_pages': return `Reading pages ${args.from}-${args.to}...`;
-      case 'search_book': return `Searching for "${args.query}"...`;
-      case 'search_all_books': return `Searching all books for "${args.query}"...`;
-      case 'go_to_page': return `Going to page ${args.page}...`;
-      case 'go_back': return 'Going back...';
-      case 'open_book': return 'Opening book...';
-      case 'get_table_of_contents': return 'Getting table of contents...';
-      case 'rename_book': return `Renaming to "${args.new_title}"...`;
-      case 'move_book': return 'Moving book...';
-      case 'delete_book': return 'Deleting book...';
-      case 'create_folder': return `Creating folder "${args.name}"...`;
-      case 'rename_folder': return `Renaming folder to "${args.new_name}"...`;
-      case 'delete_folder': return 'Deleting folder...';
-      case 'move_folder': return 'Moving folder...';
-      case 'batch_move_books': return `Moving ${args.book_ids?.length || '?'} books...`;
-      case 'batch_rename_books': return `Renaming ${args.renames?.length || '?'} books...`;
-      default: return `${name}...`;
-    }
-  }
-
   async function handleChatSend(text: string) {
     if (!settings.apiKey) {
       alert('Set your OpenRouter API key in Settings first.');
@@ -203,13 +179,7 @@
         onDelta: (_delta: string, full: string) => {
           // Clear tool activity when text starts streaming
           toolActivity = [];
-          const msgs = chatState.messages;
-          const last = msgs[msgs.length - 1];
-          if (last?.role === 'assistant') {
-            chatState.updateLastMessage(full);
-          } else {
-            chatState.addMessage({ role: 'assistant', content: full });
-          }
+          chatState.handleDelta(full);
         },
         onToolCall: (name: string, args: any) => {
           toolActivity = [...toolActivity, humanizeToolAction(name, args)];
@@ -217,11 +187,7 @@
         onToolResult: () => {},
         onThinking: () => {},
         onUsage: (usage: any, model: string) => {
-          chatState.stats.inputTokens += usage.prompt_tokens || 0;
-          chatState.stats.outputTokens += usage.completion_tokens || 0;
-          chatState.stats.cost += usage.cost || 0;
-          chatState.stats.lastContextTokens = usage.prompt_tokens || 0;
-          if (model) chatState.stats.model = model;
+          chatState.trackUsage(usage, model);
         },
       });
 
@@ -289,32 +255,7 @@
   }
 
   async function handleCompact() {
-    if (!settings.apiKey) return;
-    const convCount = chatState.messages.filter(
-      (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
-    ).length;
-    if (convCount < 6) {
-      chatState.addMessage({ role: 'system', content: 'Not enough messages to compact.' });
-      return;
-    }
-
-    chatState.addMessage({ role: 'system', content: 'Compacting conversation...' });
-    try {
-      const result = await compactMessages(
-        settings.apiKey,
-        settings.model,
-        chatState.messages,
-        chatState.summary,
-      );
-      chatState.setMessages(result.messages);
-      chatState.setSummary(result.summary);
-    } catch (err: any) {
-      // Remove the "Compacting..." message
-      chatState.setMessages(
-        chatState.messages.filter((m: ChatMessage) => m.content !== 'Compacting conversation...')
-      );
-      chatState.addMessage({ role: 'system', content: `Compact failed: ${err.message}` });
-    }
+    await chatState.compact(settings.apiKey, settings.model);
     if (bookId) chatState.saveToStorage(bookId);
   }
 
@@ -747,13 +688,4 @@
     transition: opacity 0.3s;
   }
 
-  .tool-activity {
-    background: var(--m-bg-1);
-    color: var(--m-fg-muted);
-    font-size: 0.8em;
-    font-style: italic;
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--m-border);
-  }
 </style>

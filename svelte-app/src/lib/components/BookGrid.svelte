@@ -94,7 +94,7 @@
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="folder-item" onclick={(e) => handleFolderClick(folder, e)}>
-        <span class="item-icon">&#x1F4C1;</span>
+        <span class="item-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
         <span class="item-title">{folder.name}</span>
         <div class="item-actions">
           <button class="item-btn" title="Rename" onclick={(e) => handleFolderRename(folder, e)}>&#x270F;</button>
@@ -151,7 +151,7 @@
 
   .folder-item {
     width: 100%;
-    background: var(--m-bg-1);
+    background: var(--m-bg-2);
     padding: 10px 14px;
     border-radius: 8px;
     border-left: 3px solid var(--m-accent);

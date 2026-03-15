@@ -310,23 +310,30 @@ export async function simpleLLMCall(
   model: string,
   messages: ChatMessage[]
 ): Promise<Record<string, unknown>> {
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: _apiHeaders(apiKey),
-    body: JSON.stringify({ model, messages }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      headers: _apiHeaders(apiKey),
+      body: JSON.stringify({ model, messages }),
+      signal: controller.signal,
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
-    try {
-      const d = JSON.parse(text);
-      throw new Error(d.error?.message || d.error || `API error ${res.status}`);
-    } catch (e) {
-      if ((e as Error).message.startsWith('API')) throw e;
-      throw new Error(`API error ${res.status}: ${res.statusText}`);
+    if (!res.ok) {
+      const text = await res.text();
+      try {
+        const d = JSON.parse(text);
+        throw new Error(d.error?.message || d.error || `API error ${res.status}`);
+      } catch (e) {
+        if ((e as Error).message.startsWith('API')) throw e;
+        throw new Error(`API error ${res.status}: ${res.statusText}`);
+      }
     }
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || data.error || 'Unknown error');
+    return data;
+  } finally {
+    clearTimeout(timeout);
   }
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || data.error || 'Unknown error');
-  return data;
 }

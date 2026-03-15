@@ -11,7 +11,8 @@
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { agentLoop } from '../lib/core/agent';
-  import { buildApiMessages, compactMessages } from '../lib/core/prompt';
+  import { buildApiMessages } from '../lib/core/prompt';
+  import { humanizeToolAction } from '../lib/core/ui-helpers';
   import type { Book, Folder, ChatMessage } from '../lib/types';
 
   let books = $state<Book[]>([]);
@@ -38,6 +39,9 @@
   }
 
   const chatState = createChatState();
+
+  // Tool activity state
+  let toolActivity = $state<string[]>([]);
 
   let uploadInput: HTMLInputElement;
 
@@ -152,20 +156,7 @@
   }
 
   async function handleCompact() {
-    if (!settings.apiKey) return;
-    const convCount = chatState.messages.filter(
-      (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
-    ).length;
-    if (convCount < 6) return;
-    chatState.addMessage({ role: 'system', content: 'Compacting...' });
-    try {
-      const result = await compactMessages(settings.apiKey, settings.model, chatState.messages, chatState.summary);
-      chatState.setMessages(result.messages);
-      chatState.setSummary(result.summary);
-    } catch (err: any) {
-      chatState.setMessages(chatState.messages.filter((m: ChatMessage) => m.content !== 'Compacting...'));
-      chatState.addMessage({ role: 'system', content: `Compact failed: ${err.message}` });
-    }
+    await chatState.compact(settings.apiKey, settings.model);
   }
 
   function toggleChat() {
@@ -184,6 +175,7 @@
     }
     chatState.addMessage({ role: 'user', content: text });
     chatState.setSending(true);
+    toolActivity = [];
 
     try {
       const context = await buildLibraryContext();
@@ -198,22 +190,16 @@ ${context.libraryTree}`;
 
       const result = await agentLoop(settings.apiKey, settings.model, apiMessages, {
         onDelta: (_delta: string, full: string) => {
-          const msgs = chatState.messages;
-          const last = msgs[msgs.length - 1];
-          if (last?.role === 'assistant') {
-            chatState.updateLastMessage(full);
-          } else {
-            chatState.addMessage({ role: 'assistant', content: full });
-          }
+          toolActivity = [];
+          chatState.handleDelta(full);
         },
-        onToolCall: () => {},
+        onToolCall: (name: string, args: any) => {
+          toolActivity = [...toolActivity, humanizeToolAction(name, args)];
+        },
         onToolResult: () => {},
         onThinking: () => {},
         onUsage: (usage: any, model: string) => {
-          chatState.stats.inputTokens += usage.prompt_tokens || 0;
-          chatState.stats.outputTokens += usage.completion_tokens || 0;
-          chatState.stats.cost += usage.cost || 0;
-          if (model) chatState.stats.model = model;
+          chatState.trackUsage(usage, model);
         },
       });
 
@@ -353,7 +339,17 @@ ${context.libraryTree}`;
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
           { label: 'Compact', onClick: handleCompact },
         ]}
-      />
+      >
+        {#snippet toolActivitySnippet()}
+          {#if toolActivity.length > 0}
+            <div class="tool-activity">
+              {#each toolActivity as activity}
+                <div>{activity}</div>
+              {/each}
+            </div>
+          {/if}
+        {/snippet}
+      </ChatPanel>
     {/if}
   </div>
 
