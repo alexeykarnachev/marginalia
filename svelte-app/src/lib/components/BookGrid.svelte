@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Book, Folder } from '../types';
   import BookCard from './BookCard.svelte';
+  import { lsStatsKey } from '../core/constants';
 
   let {
     books,
@@ -51,6 +52,36 @@
     return crumbs;
   }
 
+  function folderMeta(folderId: string): string {
+    // Count books in this folder (and subfolders recursively)
+    const folderIds = new Set<string>();
+    function collectFolders(id: string) {
+      folderIds.add(id);
+      for (const f of folders) {
+        if (f.parent_id === id) collectFolders(f.id);
+      }
+    }
+    collectFolders(folderId);
+    const folderBooks = books.filter(b => b.folder_id && folderIds.has(b.folder_id));
+    const count = folderBooks.length;
+
+    let totalCost = 0;
+    for (const b of folderBooks) {
+      try {
+        const raw = localStorage.getItem(lsStatsKey(b.id));
+        if (raw) {
+          const stats = JSON.parse(raw);
+          if (stats.cost > 0) totalCost += stats.cost;
+        }
+      } catch {}
+    }
+
+    const parts: string[] = [];
+    parts.push(count === 1 ? '1 book' : `${count} books`);
+    if (totalCost > 0) parts.push(`$${totalCost.toFixed(3)}`);
+    return parts.join(' \u00B7 ');
+  }
+
   function handleFolderClick(folder: Folder, e: MouseEvent) {
     if ((e.target as HTMLElement).closest('.item-actions')) return;
     onNavigateFolder(folder.id);
@@ -93,12 +124,13 @@
     {#each childFolders as folder}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="folder-item" onclick={(e) => handleFolderClick(folder, e)}>
-        <div class="folder-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <div class="m-card" onclick={(e) => handleFolderClick(folder, e)}>
+        <div class="m-card-cover folder-cover">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <div class="folder-info">
-          <span class="folder-name" title={folder.name}>{folder.name}</span>
+        <div class="m-card-info">
+          <span class="m-card-title" title={folder.name}>{folder.name}</span>
+          <span class="m-card-meta">{folderMeta(folder.id)}</span>
           <div class="item-actions">
             <button class="item-btn" title="Rename" onclick={(e) => handleFolderRename(folder, e)}>&#x270F;</button>
             <button class="item-btn item-btn-danger" title="Delete" onclick={(e) => handleFolderDelete(folder, e)}>&#x2715;</button>
@@ -153,44 +185,9 @@
   .breadcrumb-item.current { color: var(--m-fg); }
   .breadcrumb-sep { color: var(--m-fg-dim); margin: 0 4px; }
 
-  .folder-item {
-    width: 180px;
-    background: var(--m-bg-1);
-    border: 1px solid var(--m-border);
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-    flex-shrink: 0;
-    align-self: start;
-    transition: box-shadow 0.15s;
-  }
-  .folder-item:hover { box-shadow: 0 2px 12px var(--m-shadow); }
-
-  .folder-icon {
+  .folder-cover {
     color: var(--m-accent);
-    flex-shrink: 0;
-    display: flex;
   }
-
-  .folder-info {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .folder-name {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--m-fg);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .folder-item:hover :global(.item-actions) { opacity: 1; }
 
   .library-empty {
     width: 100%;

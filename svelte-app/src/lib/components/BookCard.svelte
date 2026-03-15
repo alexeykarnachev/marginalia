@@ -130,17 +130,17 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="book-item" onclick={handleCardClick}>
-  <div class="book-cover" bind:this={coverEl}>
+<div class="m-card" onclick={handleCardClick}>
+  <div class="m-card-cover" bind:this={coverEl}>
     {#if coverUrl}
       <img src={coverUrl} alt={book.title} style="width:100%;height:100%;object-fit:cover;" />
     {:else}
-      <span class="book-cover-placeholder">&#x1F4C4;</span>
+      <span class="cover-placeholder">&#x1F4C4;</span>
     {/if}
   </div>
-  <div class="book-info">
-    <span class="book-title" title={book.title}>{book.title}</span>
-    <span class="book-meta">{meta}</span>
+  <div class="m-card-info">
+    <span class="m-card-title" title={book.title}>{book.title}</span>
+    <span class="m-card-meta">{meta}</span>
     <div class="item-actions">
       <button class="item-btn" title="Move" onclick={handleMove}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -163,54 +163,8 @@
 </div>
 
 <style>
-  .book-item {
-    width: 180px;
-    background: var(--m-bg-1);
-    border: 1px solid var(--m-border);
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    transition: box-shadow 0.15s;
-    flex-shrink: 0;
-  }
-  .book-item:hover { box-shadow: 0 2px 12px var(--m-shadow); }
-
-  .book-cover {
-    width: 100%;
-    aspect-ratio: 3 / 4;
-    background: var(--m-bg-2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    position: relative;
-  }
-  .book-cover-placeholder {
+  .cover-placeholder {
     font-size: 32px;
     color: var(--m-fg-dim);
   }
-
-  .book-info {
-    padding: 6px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .book-title {
-    font-size: 14px;
-    font-weight: 500;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-height: 1.3;
-  }
-  .book-meta {
-    font-size: 11px;
-    color: var(--m-fg-dim);
-  }
-
-  .book-item:hover :global(.item-actions) { opacity: 1; }
 </style>

@@ -277,6 +277,56 @@ html[data-theme="light"] .m-theme-toggle::after {
 .item-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
 .item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
 
+/* ── Library card (shared by BookCard + folder items) ──────────── */
+
+.m-card {
+  width: 180px;
+  background: var(--m-bg-1);
+  border: 1px solid var(--m-border);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.m-card:hover { box-shadow: 0 2px 12px var(--m-shadow); }
+.m-card:hover .item-actions { opacity: 1; }
+
+.m-card-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: var(--m-bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.m-card-info {
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.m-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+}
+
+.m-card-meta {
+  font-size: 11px;
+  color: var(--m-fg-dim);
+}
+
 /* ── Modal editor (shared by PromptEditor, CompactEditor, etc.) ─── */
 
 .prompt-overlay {
