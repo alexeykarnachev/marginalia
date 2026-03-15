@@ -529,25 +529,18 @@ function injectStyles() {
         /* Page filter is applied inline by applyTheme() */
 
         #marginalia-chat {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
             width: 380px;
             min-width: 280px;
             max-width: 70vw;
             background: #1e1e1e;
             color: #e0e0e0;
-            display: flex;
             flex-direction: column;
             z-index: 100000;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             font-size: 14px;
-            right: 0;
-            transform: translateX(100%);
-            transition: transform 0.2s ease;
+            display: none;
         }
-        #marginalia-chat.open { transform: translateX(0); }
+        #marginalia-chat.open { display: flex; }
         #marginalia-chat-resize {
             position: absolute;
             left: 0;
@@ -1148,15 +1141,21 @@ let contextInterval = null;
 
 function _updateViewerMargin() {
     const panel = document.getElementById("marginalia-chat");
-    if (!panel) return;
-    const body = document.body;
-    if (panel.classList.contains("open")) {
-        const w = parseInt(panel.style.width) || 380;
-        body.style.setProperty("margin-right", w + "px", "important");
-        body.style.setProperty("overflow-x", "hidden", "important");
-    } else {
-        body.style.removeProperty("margin-right");
-        body.style.removeProperty("overflow-x");
+    const outer = document.getElementById("outerContainer");
+    if (!panel || !outer) return;
+
+    // On first call, wrap outerContainer + chat in a flex container
+    let wrapper = document.getElementById("marginalia-layout");
+    if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.id = "marginalia-layout";
+        wrapper.style.cssText = "display:flex;width:100%;height:100%;overflow:hidden;";
+        outer.parentNode.insertBefore(wrapper, outer);
+        wrapper.appendChild(outer);
+        wrapper.appendChild(panel);
+        outer.style.cssText += ";flex:1;min-width:0;width:auto !important;height:100%;";
+        panel.style.position = "relative";
+        panel.style.height = "100%";
     }
 }
 
