@@ -140,6 +140,7 @@
     gap: 16px;
     margin-bottom: 20px;
     padding: 0 4px;
+    contain: content;
   }
 
   .library-breadcrumb {

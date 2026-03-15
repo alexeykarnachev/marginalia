@@ -27,6 +27,10 @@
     mono = false,
     books = [],
     onBookClick,
+    onResizeStart: onResizeStartCb,
+    onResizeEnd: onResizeEndCb,
+    onFontSizeChange,
+    onMonoToggle,
   }: {
     placeholder?: string;
     messages: ChatMessage[];
@@ -44,6 +48,10 @@
     mono?: boolean;
     books?: { id: string; title: string }[];
     onBookClick?: (bookId: string) => void;
+    onResizeStart?: () => void;
+    onResizeEnd?: (width: number) => void;
+    onFontSizeChange?: (size: number) => void;
+    onMonoToggle?: () => void;
   } = $props();
 
   let inputText = $state('');
@@ -109,6 +117,7 @@
     startX = clientX;
     startW = currentWidth;
     resizing = true;
+    onResizeStartCb?.();
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';
 
@@ -121,6 +130,7 @@
 
     const onEnd = () => {
       resizing = false;
+      onResizeEndCb?.(currentWidth);
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
       document.removeEventListener('mousemove', onMove);
@@ -305,9 +315,34 @@
           onclick={() => handleMenuItemClick(item)}
         >{item.label}</button>
       {/each}
-      {#if menuItems.length > 0}
+      {#if menuItems.length > 0 && (onFontSizeChange || onMonoToggle)}
         <hr class="popover-divider" />
       {/if}
+      {#if onFontSizeChange}
+        <div class="menu-control-row">
+          <span class="menu-control-label">Font</span>
+          <div class="menu-segmented">
+            {#each [{l:'S',s:12},{l:'M',s:14},{l:'L',s:16}] as fs}
+              <button
+                class="menu-seg-btn"
+                class:active={fontSize === fs.s}
+                onclick={() => { onFontSizeChange(fs.s); }}
+              >{fs.l}</button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+      {#if onMonoToggle}
+        <div class="menu-control-row">
+          <span class="menu-control-label">Mono</span>
+          <button
+            class="menu-toggle-btn"
+            class:active={mono}
+            onclick={() => { onMonoToggle(); }}
+          >{mono ? 'ON' : 'OFF'}</button>
+        </div>
+      {/if}
+      <hr class="popover-divider" />
       <button
         class="menu-item menu-item-danger"
         onclick={handleClear}
@@ -477,6 +512,53 @@
     margin: 4px 0;
   }
 
+  .menu-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--m-fg);
+  }
+  .menu-control-label {
+    color: var(--m-fg-muted);
+  }
+  .menu-segmented {
+    display: flex;
+    gap: 2px;
+    background: var(--m-bg-2);
+    border-radius: 6px;
+    padding: 2px;
+  }
+  .menu-seg-btn {
+    background: none;
+    border: none;
+    color: var(--m-fg-muted);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .menu-seg-btn:hover { background: var(--m-bg-1); }
+  .menu-seg-btn.active {
+    background: var(--m-accent);
+    color: var(--m-bg-0);
+  }
+  .menu-toggle-btn {
+    background: var(--m-bg-2);
+    border: 1px solid var(--m-border-light);
+    color: var(--m-fg-muted);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .menu-toggle-btn.active {
+    background: var(--m-accent);
+    color: var(--m-bg-0);
+    border-color: var(--m-accent);
+  }
+
   .m-chat-messages {
     flex: 1;
     overflow-y: auto;
@@ -550,6 +632,11 @@
   }
   :global(.marginalia-msg.assistant tr:nth-child(even)) {
     background: var(--m-bg-2);
+  }
+  :global(.marginalia-msg.assistant ol),
+  :global(.marginalia-msg.assistant ul) {
+    padding-left: 2em;
+    margin: 4px 0;
   }
   :global(.marginalia-msg.system) {
     background: var(--m-system-bg);

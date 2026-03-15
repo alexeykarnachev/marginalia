@@ -32,6 +32,8 @@
   let pageBeforeJump = $state<number | null>(null);
 
   let pageInputValue = $state('1');
+  let pageInputFocused = $state(false);
+  let chatResizing = $state(false);
 
   // Current book ID
   let bookId = $state('');
@@ -460,7 +462,9 @@
       if (!app) return;
       currentPage = app.page || 1;
       totalPages = app.pagesCount || 1;
-      pageInputValue = String(currentPage);
+      if (!pageInputFocused) {
+        pageInputValue = String(currentPage);
+      }
       updateContext();
     }, 500);
 
@@ -489,12 +493,6 @@
     };
   });
 
-  // Menu items for overflow menu
-  const FONT_SIZES = [
-    { label: 'S', size: 12 },
-    { label: 'M', size: 14 },
-    { label: 'L', size: 16 },
-  ];
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -503,7 +501,7 @@
   <div class="m-toolbar">
     <div class="m-toolbar-left">
       <button class="m-btn m-btn-text" title="Library" onclick={goBack}>&larr; Library</button>
-      <span class="m-toolbar-text" title="Marginalia v{MARGINALIA_VERSION}">{bookTitle}</span>
+      <span class="m-toolbar-text" title={bookTitle}>{bookTitle}</span>
     </div>
     <div class="m-toolbar-center">
       <button class="m-btn" title="Previous page" onclick={handlePrev}>&lsaquo;</button>
@@ -512,6 +510,8 @@
         class="m-page-input"
         bind:value={pageInputValue}
         onchange={handlePageInputChange}
+        onfocus={() => pageInputFocused = true}
+        onblur={() => pageInputFocused = false}
         min="1"
       />
       <span class="m-page-total">/ {totalPages}</span>
@@ -531,6 +531,7 @@
       src="/pdfjs/web/viewer.html?file="
       class="pdf-iframe"
       title="PDF Viewer"
+      style:pointer-events={chatResizing ? 'none' : 'auto'}
     ></iframe>
 
     {#if chatOpen}
@@ -547,15 +548,14 @@
         mono={chatMono}
         books={allBooks}
         onBookClick={(id) => handleBookChange(id)}
+        onResizeStart={() => chatResizing = true}
+        onResizeEnd={() => chatResizing = false}
+        onFontSizeChange={setFontSize}
+        onMonoToggle={toggleMono}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
           { label: 'Compact', onClick: handleCompact },
-          ...FONT_SIZES.map(fs => ({
-            label: `Font ${fs.label}${chatFontSize === fs.size ? ' *' : ''}`,
-            onClick: () => setFontSize(fs.size),
-          })),
-          { label: `Mono ${chatMono ? 'ON' : 'OFF'}`, onClick: toggleMono },
         ]}
       >
         {#snippet contextBar()}

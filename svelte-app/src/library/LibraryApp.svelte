@@ -14,8 +14,29 @@
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
   let currentFolderId = $state<string | null>(null);
-  let chatOpen = $state(false);
+  let chatOpen = $state(localStorage.getItem('marginalia_lib_chat_open') === '1');
   let settingsOpen = $state(false);
+
+  // Chat font/mono settings
+  let chatFontSize = $state(parseInt(localStorage.getItem('marginalia_lib_chat_font') || '14'));
+  let chatMono = $state(localStorage.getItem('marginalia_lib_chat_mono') === '1');
+  let chatWidth = $state(parseInt(localStorage.getItem('marginalia_lib_chat_width') || '380'));
+
+  const FONT_SIZES = [
+    { label: 'S', size: 12 },
+    { label: 'M', size: 14 },
+    { label: 'L', size: 16 },
+  ];
+
+  function setFontSize(size: number) {
+    chatFontSize = size;
+    localStorage.setItem('marginalia_lib_chat_font', String(size));
+  }
+
+  function toggleMono() {
+    chatMono = !chatMono;
+    localStorage.setItem('marginalia_lib_chat_mono', chatMono ? '1' : '0');
+  }
 
   const chatState = createChatState();
 
@@ -137,6 +158,7 @@
       return;
     }
     chatOpen = !chatOpen;
+    localStorage.setItem('marginalia_lib_chat_open', chatOpen ? '1' : '0');
   }
 
   async function handleChatSend(text: string) {
@@ -228,7 +250,7 @@ ${context.libraryTree}`;
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       if (settingsOpen) { settingsOpen = false; return; }
-      if (chatOpen) { chatOpen = false; return; }
+      if (chatOpen) { chatOpen = false; localStorage.setItem('marginalia_lib_chat_open', '0'); return; }
     }
   }
 
@@ -287,11 +309,21 @@ ${context.libraryTree}`;
         onSend={handleChatSend}
         onClear={handleChatClear}
         onClose={toggleChat}
+        width={chatWidth}
+        fontSize={chatFontSize}
+        mono={chatMono}
         books={books.map(b => ({ id: b.id, title: b.title }))}
         onBookClick={(id) => {
           sessionStorage.setItem('marginalia_book_id', id);
           window.location.href = '/viewer.html';
         }}
+        onResizeStart={() => {}}
+        onResizeEnd={(w) => {
+          chatWidth = w;
+          localStorage.setItem('marginalia_lib_chat_width', String(w));
+        }}
+        onFontSizeChange={setFontSize}
+        onMonoToggle={toggleMono}
       />
     {/if}
   </div>

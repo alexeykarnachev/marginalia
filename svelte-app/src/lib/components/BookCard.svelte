@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import * as pdfjsLib from 'pdfjs-dist';
   import type { Book } from '../types';
+
+  // Set worker source (required)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
 
   // Module-level cover cache: avoids re-rendering covers on re-mount
   const coverCache = new Map<string, string>();
@@ -59,19 +63,7 @@
   });
 
   async function renderCover() {
-    if (typeof globalThis.pdfjsLib === 'undefined') {
-      let attempts = 0;
-      while (typeof globalThis.pdfjsLib === 'undefined' && attempts < 50) {
-        await new Promise(r => setTimeout(r, 200));
-        attempts++;
-      }
-    }
-    if (typeof globalThis.pdfjsLib === 'undefined') return;
-
-    const pdfjsLib = (globalThis as any).pdfjsLib;
-    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdfjs/build/pdf.worker.mjs';
-    }
+    if (!book.data) return;
 
     try {
       const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });

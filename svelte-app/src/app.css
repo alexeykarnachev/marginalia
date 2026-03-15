@@ -139,7 +139,7 @@ html[data-theme="light"] {
 .m-toolbar-text {
   color: var(--m-fg-muted);
   font-size: 13px;
-  max-width: 300px;
+  max-width: 50vw;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
