@@ -6,8 +6,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #1a1a1a;
-    color: #e0e0e0;
+    background: var(--m-bg-0);
+    color: var(--m-fg);
     height: 100vh;
     overflow: hidden;
 }
@@ -26,20 +26,20 @@ body {
 }
 
 #library-header h1 { font-size: 24px; }
-#version-label { font-size: 11px; color: #555; font-weight: 400; vertical-align: middle; }
+#version-label { font-size: 11px; color: var(--m-border); font-weight: 400; vertical-align: middle; }
 #library-header-right { display: flex; gap: 8px; }
 
 #btn-settings, #btn-new-folder {
     background: none;
-    border: 1px solid #555;
-    color: #e0e0e0;
+    border: 1px solid var(--m-border);
+    color: var(--m-fg);
     font-size: 18px;
     width: 40px;
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
 }
-#btn-settings:hover, #btn-new-folder:hover { border-color: #4a9eff; }
+#btn-settings:hover, #btn-new-folder:hover { border-color: var(--m-accent); }
 
 #book-list {
     display: flex;
@@ -53,16 +53,16 @@ body {
     padding: 8px 0;
     margin-bottom: 10px;
     font-size: 14px;
-    color: #888;
+    color: var(--m-fg-muted);
 }
-.breadcrumb-item.clickable { color: #4a9eff; cursor: pointer; }
+.breadcrumb-item.clickable { color: var(--m-accent); cursor: pointer; }
 .breadcrumb-item.clickable:hover { text-decoration: underline; }
-.breadcrumb-item.current { color: #e0e0e0; }
-.breadcrumb-sep { color: #555; }
+.breadcrumb-item.current { color: var(--m-fg); }
+.breadcrumb-sep { color: var(--m-border); }
 
 /* Library items (folders + books) */
 .library-item {
-    background: #2a2a2a;
+    background: var(--m-bg-1);
     padding: 12px 14px;
     border-radius: 8px;
     cursor: pointer;
@@ -70,11 +70,11 @@ body {
     align-items: center;
     gap: 10px;
 }
-.library-item:hover { background: #333; }
+.library-item:hover { background: var(--m-bg-2); }
 
 .item-icon { font-size: 18px; flex-shrink: 0; }
 .item-title { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-meta { color: #888; font-size: 13px; flex-shrink: 0; }
+.item-meta { color: var(--m-fg-muted); font-size: 13px; flex-shrink: 0; }
 
 .item-actions {
     display: flex;
@@ -91,8 +91,8 @@ body {
 
 .item-btn {
     background: none;
-    border: 1px solid #555;
-    color: #888;
+    border: 1px solid var(--m-border);
+    color: var(--m-fg-muted);
     width: 28px;
     height: 28px;
     border-radius: 6px;
@@ -102,13 +102,13 @@ body {
     align-items: center;
     justify-content: center;
 }
-.item-btn:hover { border-color: #4a9eff; color: #4a9eff; }
-.item-btn-danger:hover { border-color: #e05555; color: #e05555; }
+.item-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
+.item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
 
-.folder-item { border-left: 3px solid #4a9eff; }
+.folder-item { border-left: 3px solid var(--m-accent); }
 
 .library-empty {
-    color: #666;
+    color: var(--m-fg-dim);
     font-size: 14px;
     padding: 20px 0;
     text-align: center;
@@ -116,8 +116,8 @@ body {
 
 .upload-btn {
     display: inline-block;
-    background: #4a9eff;
-    color: white;
+    background: var(--m-accent);
+    color: var(--m-fg);
     padding: 12px 24px;
     border-radius: 8px;
     cursor: pointer;
@@ -130,7 +130,7 @@ body {
     position: fixed;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--m-overlay-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -140,7 +140,7 @@ body {
 .overlay.hidden { display: none; }
 
 .modal {
-    background: #2a2a2a;
+    background: var(--m-bg-1);
     border-radius: 12px;
     padding: 24px;
     width: 90%;
@@ -153,7 +153,7 @@ body {
     display: block;
     margin-bottom: 12px;
     font-size: 14px;
-    color: #aaa;
+    color: var(--m-fg-muted);
 }
 
 .modal input[type="text"],
@@ -163,9 +163,9 @@ body {
     width: 100%;
     margin-top: 6px;
     padding: 10px;
-    background: #333;
-    color: #e0e0e0;
-    border: 1px solid #555;
+    background: var(--m-bg-2);
+    color: var(--m-fg);
+    border: 1px solid var(--m-border);
     border-radius: 6px;
     font-size: 14px;
     font-family: inherit;
@@ -173,7 +173,7 @@ body {
 
 .modal-divider {
     border: none;
-    border-top: 1px solid #444;
+    border-top: 1px solid var(--m-border-light);
     margin: 16px 0;
 }
 
@@ -187,7 +187,7 @@ body {
 .checkbox-label input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    accent-color: #4a9eff;
+    accent-color: var(--m-accent);
 }
 
 .modal-buttons {
@@ -205,5 +205,5 @@ body {
     cursor: pointer;
 }
 
-#btn-settings-save { background: #4a9eff; color: white; }
-#btn-settings-cancel { background: #444; color: #e0e0e0; }
+#btn-settings-save { background: var(--m-accent); color: var(--m-fg); }
+#btn-settings-cancel { background: var(--m-border-light); color: var(--m-fg); }

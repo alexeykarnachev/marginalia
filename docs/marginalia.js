@@ -102,11 +102,11 @@ function setChatModel(model) {
 // --- Theme ---
 
 const THEMES = [
-    { id: "light",  label: "☀",  ui: "light", filter: "none" },
-    { id: "sepia",  label: "🌅", ui: "dark",  filter: "sepia(0.4) brightness(0.75) contrast(0.9)" },
-    { id: "dim",    label: "🌙", ui: "dark",  filter: "invert(0.8) hue-rotate(180deg) contrast(0.8) brightness(0.85)" },
-    { id: "dark",   label: "🌑", ui: "dark",  filter: "invert(0.92) hue-rotate(180deg) contrast(0.8) brightness(0.8)" },
-    { id: "black",  label: "⬛", ui: "dark",  filter: "invert(1) hue-rotate(180deg) brightness(0.75)" },
+    { id: "light", label: "☀" },
+    { id: "sepia", label: "🌅" },
+    { id: "dim",   label: "🌙" },
+    { id: "dark",  label: "🌑" },
+    { id: "black", label: "⬛" },
 ];
 
 function getTheme() {
@@ -128,31 +128,24 @@ function cycleTheme() {
 function applyTheme() {
     const html = document.documentElement;
     const theme = THEMES.find(t => t.id === getTheme()) || THEMES[3];
-    const lightEls = [
-        document.getElementById("marginalia-chat"),
-        document.getElementById("marginalia-prompt-overlay"),
-        document.getElementById("marginalia-tools-overlay"),
-    ];
-
-    if (theme.ui === "light") {
+    html.dataset.theme = theme.id;
+    // pdf.js compat
+    if (theme.id === "light") {
         html.classList.remove("is-dark");
         html.classList.add("is-light");
-        lightEls.forEach(el => el?.classList.add("marginalia-light"));
     } else {
         html.classList.remove("is-light");
         html.classList.add("is-dark");
-        lightEls.forEach(el => el?.classList.remove("marginalia-light"));
     }
-
-    // Apply page filter
+    // Apply PDF page filter from CSS variable
     const pages = document.querySelector(".pdfViewer");
-    if (pages) pages.style.filter = theme.filter;
-
-    // Update theme button label
+    if (pages) {
+        pages.style.filter = getComputedStyle(html).getPropertyValue("--m-page-filter").trim();
+    }
     const btn = document.getElementById("marginaliaTheme");
     if (btn) {
         btn.textContent = theme.label;
-        btn.title = `Theme: ${theme.id}`;
+        btn.title = "Theme: " + theme.id;
     }
 }
 
@@ -349,29 +342,39 @@ function injectUI() {
         <div id="marginalia-chat-header">
             <span>Chat</span>
             <div id="marginalia-chat-header-right">
-                <div id="marginalia-font-size">
-                    <button class="marginalia-font-btn" data-size="s">S</button>
-                    <button class="marginalia-font-btn" data-size="m">M</button>
-                    <button class="marginalia-font-btn" data-size="l">L</button>
-                    <button id="marginalia-mono-btn" title="Toggle monospace font">Mono</button>
-                    <button id="marginalia-raw-btn" title="Toggle raw markdown view">Raw</button>
-                </div>
-                <button id="marginalia-chat-tools" title="Configure available tools">Tools</button>
-                <button id="marginalia-chat-prompt" title="Edit system prompt for this book">Prompt</button>
-                <button id="marginalia-chat-compact" title="Summarize and compact the conversation to save context">Compact</button>
-                <button id="marginalia-chat-clear" title="Clear all chat history for this book">Clear</button>
-                <button id="marginalia-chat-close">&times;</button>
+                <button class="marginalia-header-btn" id="marginalia-gear-btn" title="Settings">⚙</button>
+                <button class="marginalia-header-btn" id="marginalia-menu-btn" title="More">⋯</button>
+                <button class="marginalia-header-btn" id="marginalia-chat-close" title="Close">✕</button>
             </div>
+        </div>
+        <div id="marginalia-gear-popover" class="marginalia-popover hidden">
+            <div class="popover-row">
+                <span>Font</span>
+                <div class="popover-segmented">
+                    <button data-size="12" class="seg-btn">S</button>
+                    <button data-size="14" class="seg-btn active">M</button>
+                    <button data-size="16" class="seg-btn">L</button>
+                </div>
+            </div>
+            <div class="popover-row">
+                <span>Mono</span>
+                <input type="checkbox" id="popover-mono">
+            </div>
+            <hr class="popover-divider">
+            <div id="marginalia-popover-stats" class="popover-stats"></div>
+        </div>
+        <div id="marginalia-overflow-menu" class="marginalia-popover hidden">
+            <button class="menu-item" id="menu-prompt">Edit prompt</button>
+            <button class="menu-item" id="menu-tools">Configure tools</button>
+            <button class="menu-item" id="menu-compact">Compact conversation</button>
+            <hr class="popover-divider">
+            <button class="menu-item menu-item-danger" id="menu-clear">Clear conversation</button>
         </div>
         <div id="marginalia-context-bar">
             <div id="marginalia-context-progress"><div id="marginalia-context-fill"></div></div>
             <span id="marginalia-context-text"></span>
         </div>
         <div id="marginalia-chat-messages"></div>
-        <div id="marginalia-chat-stats">
-            <div id="marginalia-stats-bar"><div id="marginalia-stats-fill"></div></div>
-            <span class="marginalia-stats-text"></span>
-        </div>
         <div id="marginalia-chat-input-area">
             <textarea id="marginalia-chat-input" placeholder="Ask about this page..."></textarea>
             <button id="marginalia-chat-send">Send</button>
@@ -422,19 +425,60 @@ function injectUI() {
     document.getElementById("marginalia-chat-input").addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
-    document.querySelectorAll(".marginalia-font-btn").forEach(btn => {
-        btn.addEventListener("click", () => setChatFontSize(btn.dataset.size));
-    });
-    document.getElementById("marginalia-chat-clear").addEventListener("click", clearChat);
-    document.getElementById("marginalia-chat-compact").addEventListener("click", compactChat);
-    document.getElementById("marginalia-chat-tools").addEventListener("click", openToolsEditor);
     document.getElementById("marginalia-tools-close").addEventListener("click", closeToolsEditor);
-    document.getElementById("marginalia-chat-prompt").addEventListener("click", openPromptEditor);
     document.getElementById("marginalia-prompt-save").addEventListener("click", savePromptEditor);
     document.getElementById("marginalia-prompt-cancel").addEventListener("click", closePromptEditor);
     document.getElementById("marginalia-prompt-view").addEventListener("click", togglePromptViewer);
-    document.getElementById("marginalia-mono-btn").addEventListener("click", toggleMono);
-    document.getElementById("marginalia-raw-btn").addEventListener("click", toggleRaw);
+
+    // Gear popover
+    document.getElementById("marginalia-gear-btn").addEventListener("click", () => {
+        document.getElementById("marginalia-gear-popover").classList.toggle("hidden");
+        document.getElementById("marginalia-overflow-menu").classList.add("hidden");
+    });
+    document.querySelectorAll(".seg-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            setChatFontSize(btn.dataset.size);
+        });
+    });
+    document.getElementById("popover-mono").checked = isMono();
+    document.getElementById("popover-mono").addEventListener("change", toggleMono);
+
+    // Overflow menu
+    document.getElementById("marginalia-menu-btn").addEventListener("click", () => {
+        document.getElementById("marginalia-overflow-menu").classList.toggle("hidden");
+        document.getElementById("marginalia-gear-popover").classList.add("hidden");
+    });
+    document.getElementById("menu-prompt").addEventListener("click", () => { openPromptEditor(); closeAllPopovers(); });
+    document.getElementById("menu-tools").addEventListener("click", () => { openToolsEditor(); closeAllPopovers(); });
+    document.getElementById("menu-compact").addEventListener("click", () => { compactChat(); closeAllPopovers(); });
+    document.getElementById("menu-clear").addEventListener("click", () => { clearChat(); closeAllPopovers(); });
+
+    // Close popovers on outside click
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest("#marginalia-gear-btn") && !e.target.closest("#marginalia-gear-popover") &&
+            !e.target.closest("#marginalia-menu-btn") && !e.target.closest("#marginalia-overflow-menu")) {
+            closeAllPopovers();
+        }
+    });
+
+    // Close overlays on backdrop click and Escape
+    document.getElementById("marginalia-prompt-overlay").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) closePromptEditor();
+    });
+    document.getElementById("marginalia-prompt-modal").addEventListener("click", (e) => e.stopPropagation());
+    document.getElementById("marginalia-tools-overlay").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) closeToolsEditor();
+    });
+    document.getElementById("marginalia-tools-modal").addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            closePromptEditor();
+            closeToolsEditor();
+            closeAllPopovers();
+        }
+    });
 
     // Clickable page citations in chat + back button
     let _pageBeforeJump = null;
@@ -541,21 +585,25 @@ const chatState = {
 };
 
 function getChatFontSize() {
-    return localStorage.getItem("marginalia_chat_font") || "m";
+    return localStorage.getItem("marginalia_chat_font") || "14";
 }
 
 function setChatFontSize(size) {
-    localStorage.setItem("marginalia_chat_font", size);
+    localStorage.setItem("marginalia_chat_font", String(size));
     applyChatFontSize();
 }
 
 function applyChatFontSize() {
-    const sizes = { s: "12px", m: "14px", l: "17px" };
     const el = document.getElementById("marginalia-chat-messages");
-    if (el) el.style.fontSize = sizes[getChatFontSize()];
-    document.querySelectorAll(".marginalia-font-btn").forEach(btn => {
+    if (el) el.style.fontSize = getChatFontSize() + "px";
+    document.querySelectorAll(".seg-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.size === getChatFontSize());
     });
+}
+
+function closeAllPopovers() {
+    document.getElementById("marginalia-gear-popover")?.classList.add("hidden");
+    document.getElementById("marginalia-overflow-menu")?.classList.add("hidden");
 }
 
 function isMono() {
@@ -569,16 +617,15 @@ function toggleMono() {
 
 function applyMono() {
     const el = document.getElementById("marginalia-chat-messages");
-    const btn = document.getElementById("marginalia-mono-btn");
+    const cb = document.getElementById("popover-mono");
     if (el) el.classList.toggle("mono", isMono());
-    if (btn) btn.classList.toggle("active", isMono());
+    if (cb) cb.checked = isMono();
 }
 
 let rawMode = false;
 
 function toggleRaw() {
     rawMode = !rawMode;
-    document.getElementById("marginalia-raw-btn")?.classList.toggle("active", rawMode);
     renderChat();
 }
 
@@ -599,38 +646,36 @@ async function fetchContextLimit(modelId) {
 }
 
 function renderStats() {
-    const el = document.getElementById("marginalia-chat-stats");
-    const bar = document.getElementById("marginalia-stats-fill");
+    const el = document.getElementById("marginalia-popover-stats");
     if (!el) return;
 
-    const total = chatState.stats.inputTokens + chatState.stats.outputTokens;
     const ctx = chatState.stats.lastContextTokens;
-    const pct = Math.min(100, (ctx / contextLimit) * 100);
-
     const modelName = chatState.stats.model || getChatModel();
-    let parts = [];
-    if (ctx > 0) parts.push(`ctx: ${fmtTokens(ctx)}/${fmtTokens(contextLimit)}`);
-    if (total > 0) parts.push(`${fmtTokens(chatState.stats.inputTokens)} in / ${fmtTokens(chatState.stats.outputTokens)} out`);
-    if (chatState.stats.cost > 0) parts.push(`$${chatState.stats.cost.toFixed(4)}`);
 
-    const textEl = el.querySelector(".marginalia-stats-text");
-    textEl.innerHTML = "";
+    let line1 = "";
+    let line2Parts = [];
+    if (ctx > 0) line2Parts.push(`Context: ${fmtTokens(ctx)}/${fmtTokens(contextLimit)}`);
+    const totalIn = chatState.stats.inputTokens;
+    const totalOut = chatState.stats.outputTokens;
+    if (totalIn + totalOut > 0) line2Parts.push(`${fmtTokens(totalIn)} in / ${fmtTokens(totalOut)} out`);
+    if (chatState.stats.cost > 0) line2Parts.push(`$${chatState.stats.cost.toFixed(4)}`);
 
+    el.innerHTML = "";
+
+    const modelLine = document.createElement("div");
     const modelSpan = document.createElement("span");
     modelSpan.className = "marginalia-model-name";
     modelSpan.textContent = modelName;
     modelSpan.title = "Click to change model for this book";
     modelSpan.addEventListener("click", promptChangeModel);
-    textEl.appendChild(modelSpan);
+    modelLine.appendChild(document.createTextNode("Model: "));
+    modelLine.appendChild(modelSpan);
+    el.appendChild(modelLine);
 
-    if (parts.length) {
-        const rest = document.createTextNode(" | " + parts.join(" | "));
-        textEl.appendChild(rest);
-    }
-
-    if (bar) {
-        bar.style.width = pct + "%";
-        bar.style.background = pct > 80 ? "#e05555" : pct > 50 ? "#e0a055" : "#4a9eff";
+    if (line2Parts.length) {
+        const statsLine = document.createElement("div");
+        statsLine.textContent = line2Parts.join(" | ");
+        el.appendChild(statsLine);
     }
 }
 

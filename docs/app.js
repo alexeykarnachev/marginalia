@@ -268,6 +268,8 @@ function escapeHtml(text) {
 
 // --- Init ---
 
+document.documentElement.dataset.theme = localStorage.getItem("marginalia_theme") || "dark";
+
 const versionEl = document.getElementById("version-label");
 if (versionEl) versionEl.textContent = "v" + MARGINALIA_VERSION;
 

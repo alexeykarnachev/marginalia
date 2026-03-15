@@ -1,4 +1,4 @@
-const MARGINALIA_VERSION = 63;
+const MARGINALIA_VERSION = 64;
 
 // Marginalia — library data layer
 // In browser: backed by IndexedDB. In tests: backed by in-memory store.

@@ -1,0 +1,118 @@
+/* theme.css — Single source of truth for all colors in Marginalia.
+   Gruvbox-inspired palette with dark, light, sepia, dim, and black themes.
+   All variables use the --m- prefix. */
+
+/* ── Dark (default) ─────────────────────────────────────────────── */
+
+:root,
+html[data-theme="dark"] {
+  /* Backgrounds */
+  --m-bg-0: #282828;
+  --m-bg-1: #3c3836;
+  --m-bg-2: #504945;
+
+  /* Foregrounds */
+  --m-fg: #ebdbb2;
+  --m-fg-muted: #a89984;
+  --m-fg-dim: #928374;
+
+  /* Accent */
+  --m-accent: #d79921;
+  --m-accent-hover: #fabd2f;
+
+  /* Links */
+  --m-link: #83a598;
+  --m-link-hover: #8ec07c;
+
+  /* Semantic */
+  --m-error: #fb4934;
+  --m-success: #b8bb26;
+
+  /* Borders */
+  --m-border: #504945;
+  --m-border-light: #665c54;
+
+  /* Chat messages */
+  --m-user-bg: #4a3520;
+  --m-system-bg: #2e3828;
+  --m-system-fg: #b8bb26;
+  --m-tool-bg: #2e2e3a;
+  --m-tool-fg: #83a598;
+
+  /* Surfaces */
+  --m-code-bg: #1d2021;
+  --m-input-bg: #1d2021;
+
+  /* Overlays */
+  --m-overlay-bg: rgba(29, 32, 33, 0.75);
+  --m-shadow: rgba(0, 0, 0, 0.4);
+
+  /* Page filter */
+  --m-page-filter: invert(0.92) hue-rotate(180deg) contrast(0.8) brightness(0.8);
+}
+
+/* ── Light ───────────────────────────────────────────────────────── */
+
+html[data-theme="light"] {
+  /* Backgrounds */
+  --m-bg-0: #fbf1c7;
+  --m-bg-1: #ebdbb2;
+  --m-bg-2: #d5c4a1;
+
+  /* Foregrounds */
+  --m-fg: #3c3836;
+  --m-fg-muted: #7c6f64;
+  --m-fg-dim: #928374;
+
+  /* Accent */
+  --m-accent: #b57614;
+  --m-accent-hover: #d79921;
+
+  /* Links */
+  --m-link: #458588;
+  --m-link-hover: #689d6a;
+
+  /* Semantic */
+  --m-error: #cc241d;
+  --m-success: #98971a;
+
+  /* Borders */
+  --m-border: #d5c4a1;
+  --m-border-light: #bdae93;
+
+  /* Chat messages */
+  --m-user-bg: #d5c4a1;
+  --m-system-bg: #dce5c8;
+  --m-system-fg: #79740e;
+  --m-tool-bg: #d2d8cc;
+  --m-tool-fg: #076678;
+
+  /* Surfaces */
+  --m-code-bg: #d5c4a1;
+  --m-input-bg: #fbf1c7;
+
+  /* Overlays */
+  --m-overlay-bg: rgba(251, 241, 199, 0.75);
+  --m-shadow: rgba(0, 0, 0, 0.15);
+
+  /* Page filter */
+  --m-page-filter: none;
+}
+
+/* ── Sepia (dark base + warm page filter) ────────────────────────── */
+
+html[data-theme="sepia"] {
+  --m-page-filter: sepia(0.4) brightness(0.75) contrast(0.9);
+}
+
+/* ── Dim (dark base + softened invert) ───────────────────────────── */
+
+html[data-theme="dim"] {
+  --m-page-filter: invert(0.8) hue-rotate(180deg) contrast(0.8) brightness(0.85);
+}
+
+/* ── Black (dark base + full invert) ─────────────────────────────── */
+
+html[data-theme="black"] {
+  --m-page-filter: invert(1) hue-rotate(180deg) brightness(0.75);
+}
