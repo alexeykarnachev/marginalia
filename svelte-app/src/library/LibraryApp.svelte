@@ -9,6 +9,7 @@
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, getSettings, MARGINALIA_VERSION } from '../lib/core/db';
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { agentLoop } from '../lib/core/agent';
+  import { compactMessages } from '../lib/core/prompt';
   import type { Book, Folder, ChatMessage } from '../lib/types';
 
   let books = $state<Book[]>([]);
@@ -152,6 +153,23 @@
     }
   }
 
+  async function handleCompact() {
+    if (!settings.apiKey) return;
+    const convCount = chatState.messages.filter(
+      (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
+    ).length;
+    if (convCount < 6) return;
+    chatState.addMessage({ role: 'system', content: 'Compacting...' });
+    try {
+      const result = await compactMessages(settings.apiKey, settings.model, chatState.messages, chatState.summary);
+      chatState.setMessages(result.messages);
+      chatState.setSummary(result.summary);
+    } catch (err: any) {
+      chatState.setMessages(chatState.messages.filter((m: ChatMessage) => m.content !== 'Compacting...'));
+      chatState.addMessage({ role: 'system', content: `Compact failed: ${err.message}` });
+    }
+  }
+
   function toggleChat() {
     if (!chatOpen && !settings.apiKey) {
       alert('Set your OpenRouter API key in Settings first.');
@@ -205,7 +223,7 @@ ${context.libraryTree}`;
       if (result.content && (!last || last.role !== 'assistant')) {
         chatState.addMessage({ role: 'assistant', content: result.content });
       } else if (result.content && last?.role === 'assistant') {
-        last.content = result.content;
+        chatState.updateLastMessage(result.content);
       }
       await refreshLibrary();
     } catch (err: any) {
@@ -213,6 +231,7 @@ ${context.libraryTree}`;
     }
 
     chatState.setSending(false);
+    chatState.saveToStorage('_library');
   }
 
   function handleChatClear() {
@@ -256,6 +275,7 @@ ${context.libraryTree}`;
 
   onMount(async () => {
     applyTheme();
+    chatState.loadFromStorage('_library');
     await loadDefaultBook();
     await refreshLibrary();
   });
@@ -324,6 +344,9 @@ ${context.libraryTree}`;
         onFontSizeChange={setFontSize}
         onMonoToggle={toggleMono}
         stats={chatState.stats}
+        menuItems={[
+          { label: 'Compact', onClick: handleCompact },
+        ]}
       />
     {/if}
   </div>

@@ -135,16 +135,15 @@
   }
 
   .book-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 16px;
     margin-bottom: 20px;
     padding: 0 4px;
-    contain: content;
   }
 
   .library-breadcrumb {
-    grid-column: 1 / -1;
+    width: 100%;
     padding: 8px 0;
     margin-bottom: 10px;
     font-size: 14px;
@@ -156,7 +155,7 @@
   .breadcrumb-sep { color: var(--m-fg-dim); margin: 0 4px; }
 
   .folder-item {
-    grid-column: 1 / -1;
+    width: 100%;
     background: var(--m-bg-1);
     padding: 10px 14px;
     border-radius: 8px;
@@ -205,7 +204,7 @@
   .item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
 
   .library-empty {
-    grid-column: 1 / -1;
+    width: 100%;
     color: var(--m-fg-dim);
     font-size: 14px;
     padding: 40px 0;

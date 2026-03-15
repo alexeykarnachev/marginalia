@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import * as pdfjsLib from 'pdfjs-dist';
+  import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
   import type { Book } from '../types';
 
-  // Set worker source (required)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
+  // Set worker source using Vite URL import
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
   // Module-level cover cache: avoids re-rendering covers on re-mount
   const coverCache = new Map<string, string>();
@@ -127,6 +128,7 @@
 
 <style>
   .book-item {
+    width: 180px;
     background: var(--m-bg-1);
     border: 1px solid var(--m-border);
     border-radius: 8px;
@@ -135,6 +137,7 @@
     flex-direction: column;
     overflow: hidden;
     transition: box-shadow 0.15s;
+    flex-shrink: 0;
   }
   .book-item:hover { box-shadow: 0 2px 12px var(--m-shadow); }
 

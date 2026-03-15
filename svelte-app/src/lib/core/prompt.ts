@@ -60,7 +60,6 @@ If you need to re-read a page you read earlier in this turn, just call read_page
 - **PDF vs printed page numbers**: Page numbers printed inside a book (e.g. in its table of contents) often do NOT match PDF page numbers. NEVER use printed page numbers in [p.N] links. Use search_book to find the actual PDF page number first, then reference that.
 - **Book-specific instructions**: If a "Book-specific instructions" section appears below, follow it strictly — it overrides your default behavior for style, language, format, and tone.`;
 
-/**
 // getBookPrompt / setBookPrompt are in settings.svelte.ts — use those
 
 export const RECENT_MSG_COUNT = 12;
