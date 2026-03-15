@@ -1379,9 +1379,19 @@ function renderMarkdown(text) {
     result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, "");
     result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
 
-    // Clickable page links — model outputs [p.N] or [p.N-M] format
+    // Clickable page links — preferred [p.N] format
     result = result.replace(/\[p\.(\d+)[-–](\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1-$2</a>');
     result = result.replace(/\[p\.(\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
+
+    // Fallback — catch common patterns the model uses despite instructions
+    const _pl = (m, pre, n) => `${pre}<a class="marginalia-page-link" data-page="${n}" href="#">${n}</a>`;
+    result = result.replace(/\b(p\.)(\d+)\b/g, _pl);
+    result = result.replace(/\b(pp?\.\s*)(\d+)\b/g, _pl);
+    result = result.replace(/\b(page\s+)(\d+)\b/gi, _pl);
+    result = result.replace(/\b(pages?\s+)(\d+)\b/gi, _pl);
+    result = result.replace(/(стр\.\s*)(\d+)/g, _pl);
+    result = result.replace(/(с\.\s+)(\d+)/g, _pl);
+    result = result.replace(/(страниц[а-яё]*\s+)(\d+)/gi, _pl);
 
     return result;
 }
@@ -1744,4 +1754,9 @@ if (window.PDFViewerApplication) {
     init();
 } else {
     document.addEventListener("webviewerloaded", () => init(), { once: true });
+}
+
+// Auto-reload when SW updates
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
 }

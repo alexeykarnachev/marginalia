@@ -64,8 +64,12 @@
     <script>
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("sw.js").then((reg) => {
-                // Check for updates every 5 minutes
+                reg.update();
                 setInterval(() => reg.update(), 5 * 60 * 1000);
+            });
+            // Reload when a new SW takes over
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+                location.reload();
             });
         }
     </script>
