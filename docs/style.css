@@ -22,7 +22,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    height: 52px;
+    padding: 0;
+    margin-bottom: 16px;
 }
 
 #library-header h1 { font-size: 24px; }
@@ -263,11 +265,13 @@ body {
     background: none;
     border: 1px solid var(--m-border-light);
     color: var(--m-fg-muted);
-    font-size: 13px;
+    font-size: 14px;
     height: 40px;
     padding: 0 12px;
     border-radius: 8px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
 }
 #btn-chat:hover { border-color: var(--m-accent); color: var(--m-accent); }
 
