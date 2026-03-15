@@ -444,7 +444,6 @@
       bind:this={inputEl}
       bind:value={inputText}
       {placeholder}
-      readonly={sending}
       onkeydown={handleKeydown}
     ></textarea>
     <button
