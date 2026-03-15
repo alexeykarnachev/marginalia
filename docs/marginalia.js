@@ -1146,21 +1146,38 @@ function fmtTokens(n) {
 
 let contextInterval = null;
 
+let _viewerMarginObserver = null;
+
 function _updateViewerMargin() {
     const panel = document.getElementById("marginalia-chat");
     if (!panel) return;
-    let rule = document.getElementById("marginalia-viewer-margin");
-    if (!rule) {
-        rule = document.createElement("style");
-        rule.id = "marginalia-viewer-margin";
-        document.head.appendChild(rule);
-    }
     const outer = document.getElementById("outerContainer");
     if (!outer) return;
+
     if (panel.classList.contains("open")) {
         const w = parseInt(panel.style.width) || 380;
-        outer.style.width = (window.innerWidth - w) + "px";
+        const target = (window.innerWidth - w) + "px";
+        outer.style.setProperty("width", target, "important");
+
+        // Watch for pdf.js resetting the width and re-apply
+        if (!_viewerMarginObserver) {
+            _viewerMarginObserver = new MutationObserver(() => {
+                const p = document.getElementById("marginalia-chat");
+                if (p && p.classList.contains("open")) {
+                    const pw = parseInt(p.style.width) || 380;
+                    const t = (window.innerWidth - pw) + "px";
+                    if (outer.style.width !== t) {
+                        outer.style.setProperty("width", t, "important");
+                    }
+                }
+            });
+            _viewerMarginObserver.observe(outer, { attributes: true, attributeFilter: ["style"] });
+        }
     } else {
+        if (_viewerMarginObserver) {
+            _viewerMarginObserver.disconnect();
+            _viewerMarginObserver = null;
+        }
         outer.style.width = "";
     }
 }
