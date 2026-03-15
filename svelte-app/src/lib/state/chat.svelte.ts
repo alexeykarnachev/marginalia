@@ -3,6 +3,7 @@
 
 import type { ChatMessage, ChatStats } from '../types';
 import { compactMessages } from '../core/prompt';
+import { lsChatKey, lsStatsKey, MIN_CONV_COUNT_FOR_COMPACT } from '../core/constants';
 
 export interface ChatState {
   readonly messages: ChatMessage[];
@@ -92,16 +93,16 @@ export function createChatState(): ChatState {
     },
 
     saveToStorage(bookId: string) {
-      localStorage.setItem(`marginalia_chat_${bookId}`, JSON.stringify({
+      localStorage.setItem(lsChatKey(bookId), JSON.stringify({
         messages,
         summary,
       }));
-      localStorage.setItem(`marginalia_stats_${bookId}`, JSON.stringify(stats));
+      localStorage.setItem(lsStatsKey(bookId), JSON.stringify(stats));
     },
 
     loadFromStorage(bookId: string) {
       try {
-        const raw = JSON.parse(localStorage.getItem(`marginalia_chat_${bookId}`) || 'null');
+        const raw = JSON.parse(localStorage.getItem(lsChatKey(bookId)) || 'null');
         if (Array.isArray(raw)) {
           // Legacy format: bare array
           messages = raw;
@@ -112,7 +113,7 @@ export function createChatState(): ChatState {
         }
       } catch { /* ignore parse errors */ }
       try {
-        const stored = JSON.parse(localStorage.getItem(`marginalia_stats_${bookId}`) || 'null');
+        const stored = JSON.parse(localStorage.getItem(lsStatsKey(bookId)) || 'null');
         if (stored) stats = { ...defaultStats, ...stored };
       } catch { /* ignore parse errors */ }
     },
@@ -122,8 +123,9 @@ export function createChatState(): ChatState {
       const convCount = messages.filter(
         (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
       ).length;
-      if (convCount < 6) {
-        messages = [...messages, { role: 'system', content: 'Not enough messages to compact (need at least 6 user+assistant messages).' }];
+      // Need at least RECENT_MSG_COUNT + 2 older = MIN_CONV_COUNT_FOR_COMPACT user+assistant messages
+      if (convCount < MIN_CONV_COUNT_FOR_COMPACT) {
+        messages = [...messages, { role: 'system', content: `Not enough messages to compact (have ${convCount}, need ${MIN_CONV_COUNT_FOR_COMPACT}+).` }];
         return;
       }
       messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];

@@ -6,6 +6,26 @@
 
 import type { Book, Folder, ToolDefinition, LibraryContext } from '../types';
 import {
+  LS_DISABLED_TOOLS,
+  SS_BOOK_ID,
+  MAX_PAGE_HISTORY,
+  PAGE_HISTORY_DISPLAY_LIMIT,
+  READ_PAGES_MAX,
+  SEARCH_BOOK_DEFAULT_LIMIT,
+  SEARCH_BOOK_MAX_LIMIT,
+  SEARCH_ALL_BOOKS_DEFAULT_LIMIT,
+  SEARCH_ALL_BOOKS_MAX_LIMIT,
+  SEARCH_SNIPPET_CONTEXT_CHARS,
+  CROSS_BOOK_SNIPPET_CONTEXT_CHARS,
+  TOC_HEADING_MAX,
+  TOC_SCAN_FIRST_PAGES,
+  TOC_PAGE_TEXT_MAX_CHARS,
+  TOC_PREVIEW_PAGES,
+  TOC_PREVIEW_CHARS,
+  TOC_HEADING_CONTEXT_CHARS,
+  BOOK_DATA_PREFIXES,
+} from './constants';
+import {
   getAllBooks,
   getBook,
   saveBook,
@@ -71,14 +91,14 @@ function registerTool(def: ToolDefinition): void {
 
 function _getDisabledTools(): string[] {
   try {
-    return JSON.parse(localStorage.getItem('marginalia_disabled_tools') || '[]');
+    return JSON.parse(localStorage.getItem(LS_DISABLED_TOOLS) || '[]');
   } catch {
     return [];
   }
 }
 
 function _saveDisabledTools(list: string[]): void {
-  localStorage.setItem('marginalia_disabled_tools', JSON.stringify(list));
+  localStorage.setItem(LS_DISABLED_TOOLS, JSON.stringify(list));
 }
 
 export function isToolEnabled(name: string): boolean {
@@ -142,7 +162,7 @@ export function setBookPageProvider(provider: BookPageProvider | null): void {
 }
 
 async function _getCurrentBookId(): Promise<string | null> {
-  return sessionStorage.getItem('marginalia_book_id') || null;
+  return sessionStorage.getItem(SS_BOOK_ID) || null;
 }
 
 async function _getPageTextFromViewer(pageNum: number): Promise<string> {
@@ -302,7 +322,7 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
   // Page history
   const history = _getPageHistoryFn ? _getPageHistoryFn() : [];
   const pageHistoryStr = history.length
-    ? history.slice(-20).map((p) => `p.${p}`).join(' -> ') + ` -> p.${currentPage} (current)`
+    ? history.slice(-PAGE_HISTORY_DISPLAY_LIMIT).map((p) => `p.${p}`).join(' -> ') + ` -> p.${currentPage} (current)`
     : '';
 
   // Focus context
@@ -367,7 +387,7 @@ function _buildRegex(query: string): RegExp {
   }
 }
 
-function _extractSnippet(text: string, match: RegExpMatchArray, contextChars = 80): string {
+function _extractSnippet(text: string, match: RegExpMatchArray, contextChars = SEARCH_SNIPPET_CONTEXT_CHARS): string {
   const start = Math.max(0, match.index! - contextChars);
   const end = Math.min(text.length, match.index! + match[0].length + contextChars);
   return (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
@@ -416,7 +436,7 @@ registerTool({
     const total = await getBookPageCount(bid);
     if (from < 1 || to > total || from > to)
       return `Error: invalid range ${from}-${to} (book has ${total} pages)`;
-    const clamped = Math.min(to, from + 19); // max 20 pages
+    const clamped = Math.min(to, from + READ_PAGES_MAX - 1); // max 20 pages
     const title = await _resolveBookTitle(bid);
     const parts: string[] = [];
     for (let i = from; i <= clamped; i++) {
@@ -424,7 +444,7 @@ registerTool({
       parts.push(`--- p.${i} ---\n${text || '(no extractable text)'}`);
     }
     let header = `[${title}, p.${from}-${clamped}/${total}]`;
-    if (clamped < to) header += ` (capped at 20 pages, requested up to ${to})`;
+    if (clamped < to) header += ` (capped at ${READ_PAGES_MAX} pages, requested up to ${to})`;
     return header + '\n\n' + parts.join('\n\n');
   },
 });
@@ -476,7 +496,7 @@ registerTool({
     ];
 
     const chapters: string[] = [];
-    for (let i = 0; i < pages.length && chapters.length < 50; i++) {
+    for (let i = 0; i < pages.length && chapters.length < TOC_HEADING_MAX; i++) {
       const text = pages[i];
       for (const re of headingPatterns) {
         re.lastIndex = 0;
@@ -484,7 +504,7 @@ registerTool({
         if (m) {
           // Grab some context around the heading
           const start = Math.max(0, m.index);
-          const snippet = text.slice(start, start + 80).trim();
+          const snippet = text.slice(start, start + TOC_HEADING_CONTEXT_CHARS).trim();
           chapters.push(`p.${i + 1}: ${snippet}`);
           break;
         }
@@ -501,16 +521,16 @@ registerTool({
     // Last resort: scan first pages for a TOC-like page (dense with numbers + keywords)
     const tocKeywords =
       /contents|table of contents|\u043E\u0433\u043B\u0430\u0432\u043B\u0435\u043D\u0438\u0435|\u0441\u043E\u0434\u0435\u0440\u0436\u0430\u043D\u0438\u0435/i;
-    for (let i = 0; i < Math.min(15, pages.length); i++) {
+    for (let i = 0; i < Math.min(TOC_SCAN_FIRST_PAGES, pages.length); i++) {
       if (tocKeywords.test(pages[i])) {
-        return `[${title}] Table of Contents page found (p.${i + 1}/${total}):\n${pages[i].slice(0, 3000)}${TOC_WARNING}`;
+        return `[${title}] Table of Contents page found (p.${i + 1}/${total}):\n${pages[i].slice(0, TOC_PAGE_TEXT_MAX_CHARS)}${TOC_WARNING}`;
       }
     }
 
     // Nothing found — return first 3 page previews so the agent can orient
     const preview = pages
-      .slice(0, 3)
-      .map((t, i) => `p.${i + 1}: ${t.slice(0, 200)}`)
+      .slice(0, TOC_PREVIEW_PAGES)
+      .map((t, i) => `p.${i + 1}: ${t.slice(0, TOC_PREVIEW_CHARS)}`)
       .join('\n\n');
     return `[${title}] No structured TOC found (${total} pages). First pages:\n${preview}`;
   },
@@ -545,7 +565,7 @@ registerTool({
     const bid = await _resolveBookId(book_id);
     if (!bid) return 'Error: no book specified and no current book';
     if (!query) return 'Error: empty query';
-    const maxResults = Math.min(limit || 20, 50);
+    const maxResults = Math.min(limit || SEARCH_BOOK_DEFAULT_LIMIT, SEARCH_BOOK_MAX_LIMIT);
     const title = await _resolveBookTitle(bid);
     const pages = await _getAllPageTexts(bid);
     const re = _buildRegex(query);
@@ -603,7 +623,7 @@ registerTool({
     limit_per_book?: number;
   }) => {
     if (!query) return 'Error: empty query';
-    const maxPerBook = Math.min(limit_per_book || 5, 20);
+    const maxPerBook = Math.min(limit_per_book || SEARCH_ALL_BOOKS_DEFAULT_LIMIT, SEARCH_ALL_BOOKS_MAX_LIMIT);
     const re = _buildRegex(query);
     const books = await getAllBooks();
     const targets = book_ids ? books.filter((b) => book_ids.includes(b.id)) : books;
@@ -619,7 +639,7 @@ registerTool({
         if (matches.length > 0) {
           bookMatches += matches.length;
           if (results.length < maxPerBook) {
-            const snippet = _extractSnippet(pages[i], matches[0], 60);
+            const snippet = _extractSnippet(pages[i], matches[0], CROSS_BOOK_SNIPPET_CONTEXT_CHARS);
             results.push(`  p.${i + 1}: ${snippet}`);
           }
         }
@@ -691,7 +711,7 @@ registerTool({
     const book = await getBook(book_id);
     if (!book) return `Error: book "${book_id}" not found`;
     // In browser: navigate to viewer with this book
-    sessionStorage.setItem('marginalia_book_id', book_id);
+    sessionStorage.setItem(SS_BOOK_ID, book_id);
     // Signal to the UI that we need to reload (the actual navigation happens in the browser)
     if (_onBookChangeFn) _onBookChangeFn(book_id);
     return `Opened "${book.title}"`;
@@ -990,7 +1010,7 @@ registerTool({
 // --- Page navigation history ---
 
 const pageHistory: number[] = [];
-const MAX_HISTORY = 50;
+const MAX_HISTORY = MAX_PAGE_HISTORY;
 let _lastTrackedPage: number | null = null;
 
 export function trackPageChange(): void {

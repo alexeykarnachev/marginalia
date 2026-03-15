@@ -4,6 +4,17 @@
   import katex from 'katex';
   import DOMPurify from 'dompurify';
   import type { ChatMessage } from '../types';
+  import {
+    DEFAULT_CHAT_WIDTH,
+    DEFAULT_CHAT_FONT_SIZE,
+    CHAT_MIN_WIDTH,
+    CHAT_MAX_WIDTH_RATIO,
+    COPY_FEEDBACK_MS,
+    SEND_DONE_FEEDBACK_MS,
+    FONT_SIZE_SMALL,
+    FONT_SIZE_MEDIUM,
+    FONT_SIZE_LARGE,
+  } from '../core/constants';
 
   interface MenuItem {
     label: string;
@@ -19,12 +30,12 @@
     onClear,
     menuItems = [],
     onClose,
-    width = 380,
+    width = DEFAULT_CHAT_WIDTH,
     pageNavEnabled = false,
     onPageNav,
     contextBar,
     toolActivitySnippet,
-    fontSize = 14,
+    fontSize = DEFAULT_CHAT_FONT_SIZE,
     mono = false,
     books = [],
     onBookClick,
@@ -127,7 +138,7 @@
     const onMove = (ev: MouseEvent | TouchEvent) => {
       const cx = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
       if ('preventDefault' in ev && 'touches' in ev === false) ev.preventDefault();
-      const newW = Math.max(280, Math.min(startW + (startX - cx), window.innerWidth * 0.7));
+      const newW = Math.max(CHAT_MIN_WIDTH, Math.min(startW + (startX - cx), window.innerWidth * CHAT_MAX_WIDTH_RATIO));
       currentWidth = newW;
     };
 
@@ -244,7 +255,7 @@
     const raw = (msg as HTMLElement).dataset.raw || msg.textContent || '';
     navigator.clipboard.writeText(raw).catch(() => {});
     btn.textContent = 'Copied';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    setTimeout(() => { btn.textContent = 'Copy'; }, COPY_FEEDBACK_MS);
   }
 
   function handleMessagesClick(e: MouseEvent) {
@@ -275,7 +286,7 @@
   $effect(() => {
     if (prevSending && !sending) {
       sendDone = true;
-      setTimeout(() => { sendDone = false; }, 1500);
+      setTimeout(() => { sendDone = false; }, SEND_DONE_FEEDBACK_MS);
     }
     prevSending = sending;
   });
@@ -326,7 +337,7 @@
         <div class="menu-control-row">
           <span class="menu-control-label">Font</span>
           <div class="menu-segmented">
-            {#each [{l:'S',s:12},{l:'M',s:14},{l:'L',s:16}] as fs}
+            {#each [{l:'S',s:FONT_SIZE_SMALL},{l:'M',s:FONT_SIZE_MEDIUM},{l:'L',s:FONT_SIZE_LARGE}] as fs}
               <button
                 class="menu-seg-btn"
                 class:active={fontSize === fs.s}

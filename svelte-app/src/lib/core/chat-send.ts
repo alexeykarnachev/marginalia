@@ -7,6 +7,7 @@ import { buildLibraryContext } from './tools';
 import { agentLoop } from './agent';
 import { buildApiMessages } from './prompt';
 import { humanizeToolAction } from './ui-helpers';
+import { AUTO_COMPACT_MSG_LIMIT, AUTO_COMPACT_MSG_MIN } from './constants';
 
 export interface SendChatConfig {
   /** Build the system prompt from library context */
@@ -93,8 +94,8 @@ export async function sendChatMessage(
       (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
     ).length;
     const overTokens = chatState.stats.lastContextTokens > settings.compactThreshold;
-    const overMessages = convCount > 22;
-    if ((overTokens || overMessages) && convCount > 16) {
+    const overMessages = convCount > AUTO_COMPACT_MSG_LIMIT;
+    if ((overTokens || overMessages) && convCount > AUTO_COMPACT_MSG_MIN) {
       await chatState.compact(settings.apiKey, settings.model);
       chatState.saveToStorage(config.storageKey);
     }

@@ -2,6 +2,12 @@
 
 import type { ChatMessage } from '../types';
 import { simpleLLMCall } from './agent';
+import {
+  RECENT_MSG_COUNT,
+  MAX_OLD_ASSISTANT_CHARS,
+  MAX_OLD_USER_CHARS,
+  MIN_MESSAGES_FOR_COMPACT,
+} from './constants';
 
 export const SYSTEM_PROMPT = `You are Marginalia, an AI reading assistant.
 
@@ -62,9 +68,7 @@ If you need to re-read a page you read earlier in this turn, just call read_page
 
 // getBookPrompt / setBookPrompt are in settings.svelte.ts — use those
 
-export const RECENT_MSG_COUNT = 12;
-export const MAX_OLD_ASSISTANT_CHARS = 400;
-export const MAX_OLD_USER_CHARS = 200;
+export { RECENT_MSG_COUNT, MAX_OLD_ASSISTANT_CHARS, MAX_OLD_USER_CHARS } from './constants';
 
 /**
  * Render a Handlebars-style template with {{var}} and {{#block}}...{{/block}} syntax.
@@ -132,7 +136,7 @@ export async function compactMessages(
   existingSummary: string | null,
 ): Promise<{ messages: ChatMessage[]; summary: string }> {
   const convMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
-  if (convMessages.length < 6) {
+  if (convMessages.length < MIN_MESSAGES_FOR_COMPACT) {
     return { messages, summary: existingSummary || '' };
   }
 

@@ -6,8 +6,9 @@
 //   Folder: { id, name, parent_id? }
 
 import type { Book, Folder } from '../types';
+import { IDB_NAME, IDB_VERSION, BOOK_DATA_PREFIXES } from './constants';
 
-export const MARGINALIA_VERSION = 82;
+export const MARGINALIA_VERSION = 83;
 
 // --- Storage backend interface ---
 
@@ -44,7 +45,7 @@ const _db: {
   async _idb(): Promise<IDBDatabase> {
     if (this._cachedDb) return this._cachedDb;
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open('marginalia', 2);
+      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains('books')) {
@@ -146,7 +147,7 @@ export async function deleteFolder(id: string): Promise<void> {
 }
 
 export function deleteBookData(bookId: string): void {
-  ['chat', 'stats', 'model', 'prompt'].forEach((k) =>
+  BOOK_DATA_PREFIXES.forEach((k) =>
     localStorage.removeItem(`marginalia_${k}_${bookId}`)
   );
 }

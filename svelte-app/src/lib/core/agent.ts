@@ -4,9 +4,15 @@
 
 import type { ChatMessage, AgentCallbacks } from '../types';
 import { getToolDefinitions, executeTool } from './tools';
-
-export const MAX_AGENT_ITERATIONS = 10;
-export const MAX_INPUT_TOKENS_PER_TURN = 100000;
+import {
+  MAX_AGENT_ITERATIONS,
+  MAX_INPUT_TOKENS_PER_TURN,
+  OPENROUTER_URL,
+  SIMPLE_LLM_TIMEOUT_MS,
+  TOOL_RESULT_MIN_COMPRESS_LENGTH,
+  SEARCH_RESULT_BLOCKS_TO_KEEP,
+  GENERIC_COMPRESS_CHARS,
+} from './constants';
 
 // --- Intra-turn tool result compression ---
 // After the agent processes tool results, older results are compressed to stubs.
@@ -27,7 +33,7 @@ export function _compressOldToolResults(messages: ChatMessage[]): void {
   for (let i = 0; i < lastAssistantIdx; i++) {
     const msg = messages[i];
     if (msg.role !== 'tool' || msg._compressed) continue;
-    if (msg.content.length < 500) continue;
+    if (msg.content.length < TOOL_RESULT_MIN_COMPRESS_LENGTH) continue;
 
     msg.content = _compressToolContent(msg.content);
     msg._compressed = true;
@@ -53,7 +59,7 @@ export function _compressToolContent(content: string): string {
   const searchHeader = content.match(/^.+?grep .+/);
   if (searchHeader) {
     const blocks = content.split('\n\n');
-    const kept = blocks.slice(0, 4);
+    const kept = blocks.slice(0, SEARCH_RESULT_BLOCKS_TO_KEEP);
     const dropped = blocks.length - kept.length;
     if (dropped > 0) {
       return kept.join('\n\n') + `\n\n[${dropped} more results omitted]`;
@@ -61,13 +67,13 @@ export function _compressToolContent(content: string): string {
     return content;
   }
 
-  // Generic: keep first 200 chars
-  return content.slice(0, 200) + `\n[truncated — was ${content.length} chars]`;
+  // Generic: keep first N chars
+  return content.slice(0, GENERIC_COMPRESS_CHARS) + `\n[truncated — was ${content.length} chars]`;
 }
 
 // --- API helpers ---
 
-export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+export { OPENROUTER_URL } from './constants';
 
 export function _apiHeaders(apiKey: string): Record<string, string> {
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` };
@@ -311,7 +317,7 @@ export async function simpleLLMCall(
   messages: ChatMessage[]
 ): Promise<Record<string, unknown>> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), SIMPLE_LLM_TIMEOUT_MS);
   try {
     const res = await fetch(OPENROUTER_URL, {
       method: 'POST',

@@ -1,6 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Book } from '../types';
+  import {
+    BOOK_COVER_RENDER_WIDTH,
+    BOOK_COVER_JPEG_QUALITY,
+    PDFJS_LIB_POLL_MS,
+    PDFJS_LIB_TIMEOUT_MS,
+    lsStatsKey,
+  } from '../core/constants';
 
   // Load pdf.js dynamically from public directory via script tag
   async function getPdfjsLib(): Promise<any> {
@@ -17,8 +24,8 @@
             (globalThis as any).pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
             resolve((globalThis as any).pdfjsLib);
           }
-        }, 50);
-        setTimeout(() => { clearInterval(check); resolve(null); }, 5000);
+        }, PDFJS_LIB_POLL_MS);
+        setTimeout(() => { clearInterval(check); resolve(null); }, PDFJS_LIB_TIMEOUT_MS);
       };
       script.onerror = () => resolve(null);
       document.head.appendChild(script);
@@ -52,7 +59,7 @@
   // Read per-book spending from localStorage
   let bookCost = $derived.by(() => {
     try {
-      const raw = localStorage.getItem(`marginalia_stats_${book.id}`);
+      const raw = localStorage.getItem(lsStatsKey(book.id));
       if (!raw) return '';
       const stats = JSON.parse(raw);
       if (stats.cost > 0) return `$${stats.cost.toFixed(3)}`;
@@ -104,7 +111,7 @@
 
       const viewport = page.getViewport({ scale: 1 });
       const canvas = document.createElement('canvas');
-      const scale = 300 / viewport.width;
+      const scale = BOOK_COVER_RENDER_WIDTH / viewport.width;
       canvas.width = Math.round(viewport.width * scale);
       canvas.height = Math.round(viewport.height * scale);
 
@@ -113,7 +120,7 @@
         viewport: page.getViewport({ scale }),
       }).promise;
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      const dataUrl = canvas.toDataURL('image/jpeg', BOOK_COVER_JPEG_QUALITY);
       coverUrl = dataUrl;
       coverCache.set(book.id, dataUrl);
     } catch (err) {

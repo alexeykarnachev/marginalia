@@ -22,6 +22,22 @@
     renderPrompt,
   } from '../lib/core/prompt';
   import { sendChatMessage } from '../lib/core/chat-send';
+  import {
+    DEFAULT_CHAT_WIDTH,
+    LS_VIEWER_CHAT_WIDTH,
+    LS_CHAT_OPEN,
+    SS_BOOK_ID,
+    PDF_INIT_POLL_MS,
+    PDF_INIT_TIMEOUT_MS,
+    PAGE_SYNC_INTERVAL_MS,
+    PDF_DOC_POLL_MS,
+    PDF_DOC_TIMEOUT_MS,
+    INDEXING_STATUS_CLEAR_MS,
+    INDEXING_FAIL_CLEAR_MS,
+    INDEXING_PROGRESS_INTERVAL,
+    BOOK_TITLE_TRUNCATE_LENGTH,
+    SELECTION_PREVIEW_LENGTH,
+  } from '../lib/core/constants';
 
   let bookTitle = $state('');
   let currentPage = $state(1);
@@ -32,7 +48,7 @@
   let pageInputValue = $state('1');
   let pageInputFocused = $state(false);
   let chatResizing = $state(false);
-  let chatWidth = $state(parseInt(localStorage.getItem('marginalia_viewer_chat_width') || '380'));
+  let chatWidth = $state(parseInt(localStorage.getItem(LS_VIEWER_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
   let _lastAppliedTheme = '';
 
   // Current book ID
@@ -48,7 +64,7 @@
   }
 
   function getBookId(): string {
-    return sessionStorage.getItem('marginalia_book_id') || '';
+    return sessionStorage.getItem(SS_BOOK_ID) || '';
   }
 
   // Context bar state
@@ -69,11 +85,11 @@
   function updateContext() {
     const pct = totalPages > 1 ? ((currentPage - 1) / (totalPages - 1)) * 100 : 100;
     contextPct = pct;
-    const shortTitle = bookTitle.length > 30 ? bookTitle.slice(0, 28) + '...' : bookTitle;
+    const shortTitle = bookTitle.length > BOOK_TITLE_TRUNCATE_LENGTH ? bookTitle.slice(0, BOOK_TITLE_TRUNCATE_LENGTH - 2) + '...' : bookTitle;
     let info = `${shortTitle} -- p.${currentPage}/${totalPages}`;
     if (cachedSelection) {
-      const preview = cachedSelection.length > 40
-        ? cachedSelection.slice(0, 38) + '...'
+      const preview = cachedSelection.length > SELECTION_PREVIEW_LENGTH
+        ? cachedSelection.slice(0, SELECTION_PREVIEW_LENGTH - 2) + '...'
         : cachedSelection;
       info += ` | "${preview}"`;
     }
@@ -130,7 +146,7 @@
       return;
     }
     chatOpen = !chatOpen;
-    localStorage.setItem('marginalia_chat_open', chatOpen ? '1' : '0');
+    localStorage.setItem(LS_CHAT_OPEN, chatOpen ? '1' : '0');
   }
 
   async function handleChatSend(text: string) {
@@ -188,8 +204,8 @@
       await new Promise<void>((resolve) => {
         const check = setInterval(() => {
           if (app?.pdfDocument) { clearInterval(check); resolve(); }
-        }, 500);
-        setTimeout(() => { clearInterval(check); resolve(); }, 30000);
+        }, PDF_DOC_POLL_MS);
+        setTimeout(() => { clearInterval(check); resolve(); }, PDF_DOC_TIMEOUT_MS);
       });
     }
     if (!app?.pdfDocument) { indexingStatus = ''; return; }
@@ -198,7 +214,7 @@
       const total = app.pagesCount;
       const pages: string[] = [];
       for (let i = 1; i <= total; i++) {
-        if (i === 1 || i % 10 === 0) {
+        if (i === 1 || i % INDEXING_PROGRESS_INTERVAL === 0) {
           indexingStatus = `Indexing ${i}/${total}...`;
         }
         const page = await app.pdfDocument.getPage(i);
@@ -211,11 +227,11 @@
         await saveBook(book);
       }
       indexingStatus = `Indexed ${total} pages`;
-      setTimeout(() => { indexingStatus = ''; }, 2000);
+      setTimeout(() => { indexingStatus = ''; }, INDEXING_STATUS_CLEAR_MS);
     } catch (err: any) {
       console.warn('Indexing failed:', err);
       indexingStatus = 'Indexing failed';
-      setTimeout(() => { indexingStatus = ''; }, 3000);
+      setTimeout(() => { indexingStatus = ''; }, INDEXING_FAIL_CLEAR_MS);
     }
   }
 
@@ -243,7 +259,7 @@
 
     // Switch to new book
     bookId = newBookId;
-    sessionStorage.setItem('marginalia_book_id', newBookId);
+    sessionStorage.setItem(SS_BOOK_ID, newBookId);
 
     // Load new book's chat state
     chatState.clearMessages();
@@ -278,8 +294,8 @@
           clearInterval(check);
           resolve();
         }
-      }, 100);
-      setTimeout(() => { clearInterval(check); resolve(); }, 15000);
+      }, PDF_INIT_POLL_MS);
+      setTimeout(() => { clearInterval(check); resolve(); }, PDF_INIT_TIMEOUT_MS);
     });
 
     const app = getPdfApp();
@@ -339,7 +355,7 @@
     if (e.key === 'Escape') {
       if (promptEditorOpen) { promptEditorOpen = false; return; }
       if (toolsEditorOpen) { toolsEditorOpen = false; return; }
-      if (chatOpen) { chatOpen = false; localStorage.setItem('marginalia_chat_open', '0'); return; }
+      if (chatOpen) { chatOpen = false; localStorage.setItem(LS_CHAT_OPEN, '0'); return; }
     }
   }
 
@@ -379,10 +395,10 @@
         applyThemeToIframe();
         _lastAppliedTheme = settings.theme;
       }
-    }, 500);
+    }, PAGE_SYNC_INTERVAL_MS);
 
     // Restore chat open state
-    if (localStorage.getItem('marginalia_chat_open') === '1' && settings.apiKey) {
+    if (localStorage.getItem(LS_CHAT_OPEN) === '1' && settings.apiKey) {
       chatOpen = true;
     }
 
@@ -468,7 +484,7 @@
         onResizeStart={() => chatResizing = true}
         onResizeEnd={(w) => {
           chatResizing = false;
-          localStorage.setItem('marginalia_viewer_chat_width', String(w));
+          localStorage.setItem(LS_VIEWER_CHAT_WIDTH, String(w));
         }}
         onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
         onMonoToggle={() => chatDisplay.toggleMono()}

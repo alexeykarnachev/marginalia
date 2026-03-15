@@ -12,16 +12,23 @@
   import { setOnBookChangeFn } from '../lib/core/tools';
   import { sendChatMessage } from '../lib/core/chat-send';
   import type { Book, Folder } from '../lib/types';
+  import {
+    DEFAULT_CHAT_WIDTH,
+    LS_LIB_CHAT_OPEN,
+    LS_LIB_CHAT_WIDTH,
+    SS_BOOK_ID,
+    LIBRARY_CHAT_STORAGE_KEY,
+  } from '../lib/core/constants';
 
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
   let currentFolderId = $state<string | null>(null);
-  let chatOpen = $state(localStorage.getItem('marginalia_lib_chat_open') === '1');
+  let chatOpen = $state(localStorage.getItem(LS_LIB_CHAT_OPEN) === '1');
   let settingsOpen = $state(false);
   let promptEditorOpen = $state(false);
   let toolsEditorOpen = $state(false);
 
-  let chatWidth = $state(parseInt(localStorage.getItem('marginalia_lib_chat_width') || '380'));
+  let chatWidth = $state(parseInt(localStorage.getItem(LS_LIB_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
 
   const chatState = createChatState();
 
@@ -33,7 +40,7 @@
   }
 
   function openBook(book: Book) {
-    sessionStorage.setItem('marginalia_book_id', book.id);
+    sessionStorage.setItem(SS_BOOK_ID, book.id);
     window.location.href = '/viewer.html';
   }
 
@@ -147,7 +154,7 @@
       return;
     }
     chatOpen = !chatOpen;
-    localStorage.setItem('marginalia_lib_chat_open', chatOpen ? '1' : '0');
+    localStorage.setItem(LS_LIB_CHAT_OPEN, chatOpen ? '1' : '0');
   }
 
   async function handleChatSend(text: string) {
@@ -159,7 +166,7 @@ Respond in the user's language. Be concise.
 
 ## Library
 ${context.libraryTree}`,
-      storageKey: '_library',
+      storageKey: LIBRARY_CHAT_STORAGE_KEY,
       onAfterSend: () => { refreshLibrary(); },
     });
   }
@@ -173,7 +180,7 @@ ${context.libraryTree}`,
 
   // Handle open_book from chat agent
   setOnBookChangeFn((bookId: string) => {
-    sessionStorage.setItem('marginalia_book_id', bookId);
+    sessionStorage.setItem(SS_BOOK_ID, bookId);
     window.location.href = '/viewer.html';
   });
 
@@ -201,15 +208,15 @@ ${context.libraryTree}`,
       if (promptEditorOpen) { promptEditorOpen = false; return; }
       if (toolsEditorOpen) { toolsEditorOpen = false; return; }
       if (settingsOpen) { settingsOpen = false; return; }
-      if (chatOpen) { chatOpen = false; localStorage.setItem('marginalia_lib_chat_open', '0'); return; }
+      if (chatOpen) { chatOpen = false; localStorage.setItem(LS_LIB_CHAT_OPEN, '0'); return; }
     }
   }
 
   onMount(async () => {
     applyTheme();
     // Clear current book context — library page has no "current book"
-    sessionStorage.removeItem('marginalia_book_id');
-    chatState.loadFromStorage('_library');
+    sessionStorage.removeItem(SS_BOOK_ID);
+    chatState.loadFromStorage(LIBRARY_CHAT_STORAGE_KEY);
     await loadDefaultBook();
     await refreshLibrary();
   });
@@ -267,13 +274,13 @@ ${context.libraryTree}`,
         mono={chatDisplay.mono}
         books={books.map(b => ({ id: b.id, title: b.title }))}
         onBookClick={(id) => {
-          sessionStorage.setItem('marginalia_book_id', id);
+          sessionStorage.setItem(SS_BOOK_ID, id);
           window.location.href = '/viewer.html';
         }}
         onResizeStart={() => {}}
         onResizeEnd={(w) => {
           chatWidth = w;
-          localStorage.setItem('marginalia_lib_chat_width', String(w));
+          localStorage.setItem(LS_LIB_CHAT_WIDTH, String(w));
         }}
         onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
         onMonoToggle={() => chatDisplay.toggleMono()}
@@ -298,7 +305,7 @@ ${context.libraryTree}`,
   </div>
 
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
-  <PromptEditor open={promptEditorOpen} bookId="_library" onClose={() => { promptEditorOpen = false; }} />
+  <PromptEditor open={promptEditorOpen} bookId={LIBRARY_CHAT_STORAGE_KEY} onClose={() => { promptEditorOpen = false; }} />
   <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
 
   {#if !chatOpen}
