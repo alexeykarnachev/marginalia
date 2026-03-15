@@ -9,6 +9,7 @@ export interface ChatState {
   readonly summary: string | null;
   readonly stats: ChatStats;
   readonly sending: boolean;
+  readonly toolActivity: string[];
   addMessage: (msg: ChatMessage) => void;
   updateLastMessage: (content: string) => void;
   setMessages: (msgs: ChatMessage[]) => void;
@@ -17,6 +18,8 @@ export interface ChatState {
   setSending: (v: boolean) => void;
   updateStats: (partial: Partial<ChatStats>) => void;
   resetStats: () => void;
+  resetToolActivity: () => void;
+  addToolActivity: (action: string) => void;
   saveToStorage: (bookId: string) => void;
   loadFromStorage: (bookId: string) => void;
   compact: (apiKey: string, model: string) => Promise<void>;
@@ -37,12 +40,14 @@ export function createChatState(): ChatState {
   let summary = $state<string | null>(null);
   let stats = $state<ChatStats>({ ...defaultStats });
   let sending = $state(false);
+  let toolActivity = $state<string[]>([]);
 
   return {
     get messages() { return messages; },
     get summary() { return summary; },
     get stats() { return stats; },
     get sending() { return sending; },
+    get toolActivity() { return toolActivity; },
 
     addMessage(msg: ChatMessage) {
       messages = [...messages, msg];
@@ -78,6 +83,14 @@ export function createChatState(): ChatState {
       stats = { ...defaultStats };
     },
 
+    resetToolActivity() {
+      toolActivity = [];
+    },
+
+    addToolActivity(action: string) {
+      toolActivity = [...toolActivity, action];
+    },
+
     saveToStorage(bookId: string) {
       localStorage.setItem(`marginalia_chat_${bookId}`, JSON.stringify({
         messages,
@@ -109,15 +122,18 @@ export function createChatState(): ChatState {
       const convCount = messages.filter(
         (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
       ).length;
-      if (convCount < 6) return;
-      const compactMsg: ChatMessage = { role: 'system', content: 'Compacting...' };
-      messages = [...messages, compactMsg];
+      if (convCount < 6) {
+        messages = [...messages, { role: 'system', content: 'Not enough messages to compact (need at least 6 user+assistant messages).' }];
+        return;
+      }
+      messages = [...messages, { role: 'system', content: 'Compacting...' }];
       try {
-        const result = await compactMessages(apiKey, model, messages, summary);
+        const msgsForCompact = messages.filter(m => m.content !== 'Compacting...');
+        const result = await compactMessages(apiKey, model, msgsForCompact, summary);
         messages = result.messages;
         summary = result.summary;
       } catch (err: any) {
-        messages = messages.filter(m => m !== compactMsg);
+        messages = messages.filter(m => m.content !== 'Compacting...');
         messages = [...messages, { role: 'system', content: `Compact failed: ${(err as Error).message}` }];
       }
     },

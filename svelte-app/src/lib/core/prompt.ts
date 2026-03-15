@@ -80,13 +80,6 @@ export function renderPrompt(template: string, context: Record<string, string>):
 }
 
 /**
- * Rough token estimate (~3.5 chars per token for English, ~2 for mixed).
- */
-export function estimateTokens(text: string): number {
-  return Math.ceil((text || '').length / 3.5);
-}
-
-/**
  * Build API messages with context management:
  * 1. System prompt (always)
  * 2. Compacted summary of old conversation (if exists)

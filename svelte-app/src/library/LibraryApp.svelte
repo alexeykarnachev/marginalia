@@ -6,14 +6,12 @@
   import Settings from '../lib/components/Settings.svelte';
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
-  import { settings, applyTheme } from '../lib/state/settings.svelte';
+  import { settings, applyTheme, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
-  import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
-  import { agentLoop } from '../lib/core/agent';
-  import { buildApiMessages } from '../lib/core/prompt';
-  import { humanizeToolAction } from '../lib/core/ui-helpers';
-  import type { Book, Folder, ChatMessage } from '../lib/types';
+  import { setOnBookChangeFn } from '../lib/core/tools';
+  import { sendChatMessage } from '../lib/core/chat-send';
+  import type { Book, Folder } from '../lib/types';
 
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
@@ -23,25 +21,9 @@
   let promptEditorOpen = $state(false);
   let toolsEditorOpen = $state(false);
 
-  // Chat font/mono settings
-  let chatFontSize = $state(parseInt(localStorage.getItem('marginalia_lib_chat_font') || '14'));
-  let chatMono = $state(localStorage.getItem('marginalia_lib_chat_mono') === '1');
   let chatWidth = $state(parseInt(localStorage.getItem('marginalia_lib_chat_width') || '380'));
 
-  function setFontSize(size: number) {
-    chatFontSize = size;
-    localStorage.setItem('marginalia_lib_chat_font', String(size));
-  }
-
-  function toggleMono() {
-    chatMono = !chatMono;
-    localStorage.setItem('marginalia_lib_chat_mono', chatMono ? '1' : '0');
-  }
-
   const chatState = createChatState();
-
-  // Tool activity state
-  let toolActivity = $state<string[]>([]);
 
   let uploadInput: HTMLInputElement;
 
@@ -169,55 +151,17 @@
   }
 
   async function handleChatSend(text: string) {
-    if (!settings.apiKey) {
-      alert('Set your OpenRouter API key in Settings first.');
-      return;
-    }
-    chatState.addMessage({ role: 'user', content: text });
-    chatState.setSending(true);
-    toolActivity = [];
-
-    try {
-      const context = await buildLibraryContext();
-      const system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
+    await sendChatMessage(chatState, text, {
+      buildSystemPrompt: (context: any) =>
+        `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
 You have access to tools for searching, organizing, and reading books.
 Respond in the user's language. Be concise.
 
 ## Library
-${context.libraryTree}`;
-
-      const apiMessages = buildApiMessages(system, chatState.messages, chatState.summary);
-
-      const result = await agentLoop(settings.apiKey, settings.model, apiMessages, {
-        onDelta: (_delta: string, full: string) => {
-          toolActivity = [];
-          chatState.handleDelta(full);
-        },
-        onToolCall: (name: string, args: any) => {
-          toolActivity = [...toolActivity, humanizeToolAction(name, args)];
-        },
-        onToolResult: () => {},
-        onThinking: () => {},
-        onUsage: (usage: any, model: string) => {
-          chatState.trackUsage(usage, model);
-        },
-      });
-
-      // Ensure final content
-      const msgs = chatState.messages;
-      const last = msgs[msgs.length - 1];
-      if (result.content && (!last || last.role !== 'assistant')) {
-        chatState.addMessage({ role: 'assistant', content: result.content });
-      } else if (result.content && last?.role === 'assistant') {
-        chatState.updateLastMessage(result.content);
-      }
-      await refreshLibrary();
-    } catch (err: any) {
-      chatState.addMessage({ role: 'system', content: 'Error: ' + err.message });
-    }
-
-    chatState.setSending(false);
-    chatState.saveToStorage('_library');
+${context.libraryTree}`,
+      storageKey: '_library',
+      onAfterSend: () => { refreshLibrary(); },
+    });
   }
 
   function handleChatClear() {
@@ -319,8 +263,8 @@ ${context.libraryTree}`;
         onClear={handleChatClear}
         onClose={toggleChat}
         width={chatWidth}
-        fontSize={chatFontSize}
-        mono={chatMono}
+        fontSize={chatDisplay.fontSize}
+        mono={chatDisplay.mono}
         books={books.map(b => ({ id: b.id, title: b.title }))}
         onBookClick={(id) => {
           sessionStorage.setItem('marginalia_book_id', id);
@@ -331,8 +275,8 @@ ${context.libraryTree}`;
           chatWidth = w;
           localStorage.setItem('marginalia_lib_chat_width', String(w));
         }}
-        onFontSizeChange={setFontSize}
-        onMonoToggle={toggleMono}
+        onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
+        onMonoToggle={() => chatDisplay.toggleMono()}
         stats={chatState.stats}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
@@ -341,9 +285,9 @@ ${context.libraryTree}`;
         ]}
       >
         {#snippet toolActivitySnippet()}
-          {#if toolActivity.length > 0}
+          {#if chatState.toolActivity.length > 0}
             <div class="tool-activity">
-              {#each toolActivity as activity}
+              {#each chatState.toolActivity as activity}
                 <div>{activity}</div>
               {/each}
             </div>

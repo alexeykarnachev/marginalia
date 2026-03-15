@@ -42,6 +42,18 @@ export function applyTheme(): void {
   html.classList.toggle('is-dark', settings.theme !== 'light');
 }
 
+// --- Shared chat display settings ---
+
+let _chatFontSize = $state(parseInt(localStorage.getItem('marginalia_chat_font') || '14'));
+let _chatMono = $state(localStorage.getItem('marginalia_chat_mono') === '1');
+
+export const chatDisplay = {
+  get fontSize() { return _chatFontSize; },
+  set fontSize(v: number) { _chatFontSize = v; localStorage.setItem('marginalia_chat_font', String(v)); },
+  get mono() { return _chatMono; },
+  toggleMono() { _chatMono = !_chatMono; localStorage.setItem('marginalia_chat_mono', _chatMono ? '1' : '0'); },
+};
+
 // --- Per-book settings ---
 
 export function getBookPrompt(bookId: string): string {
@@ -50,12 +62,4 @@ export function getBookPrompt(bookId: string): string {
 
 export function setBookPrompt(bookId: string, prompt: string): void {
   localStorage.setItem(`marginalia_prompt_${bookId}`, prompt);
-}
-
-export function getBookModel(bookId: string): string {
-  return localStorage.getItem(`marginalia_model_${bookId}`) || settings.model;
-}
-
-export function setBookModel(bookId: string, model: string): void {
-  localStorage.setItem(`marginalia_model_${bookId}`, model);
 }

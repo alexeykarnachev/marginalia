@@ -206,31 +206,5 @@
     color: var(--m-fg-dim);
   }
 
-  .item-actions {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.15s;
-  }
-  .book-item:hover .item-actions { opacity: 1; }
-  @media (hover: none) {
-    .item-actions { opacity: 0.7; }
-  }
-
-  .item-btn {
-    background: none;
-    border: 1px solid var(--m-border-light);
-    color: var(--m-fg-muted);
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .item-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
-  .item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
+  .book-item:hover :global(.item-actions) { opacity: 1; }
 </style>

@@ -656,14 +656,6 @@
     font-size: 0.85em;
     font-style: italic;
   }
-  :global(.marginalia-msg.tool-status) {
-    background: var(--m-tool-bg);
-    color: var(--m-tool-fg);
-    font-size: 0.8em;
-    font-style: italic;
-    padding: 4px 12px;
-  }
-
   .marginalia-copy-btn {
     position: absolute;
     top: 6px;

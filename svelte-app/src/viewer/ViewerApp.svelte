@@ -1,13 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Toolbar from '../lib/components/Toolbar.svelte';
   import ChatPanel from '../lib/components/ChatPanel.svelte';
   import ThemeToggle from '../lib/components/ThemeToggle.svelte';
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
-  import { settings, applyTheme, getBookPrompt } from '../lib/state/settings.svelte';
+  import { settings, applyTheme, getBookPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
-  import { getBook, saveBook, getAllBooks, MARGINALIA_VERSION } from '../lib/core/db';
+  import { getBook, saveBook, getAllBooks } from '../lib/core/db';
   import {
     buildLibraryContext,
     setCachedSelection,
@@ -18,14 +17,11 @@
     getPageHistory,
     clearPageHistory,
   } from '../lib/core/tools';
-  import { agentLoop } from '../lib/core/agent';
   import {
     SYSTEM_PROMPT,
     renderPrompt,
-    buildApiMessages,
   } from '../lib/core/prompt';
-  import { humanizeToolAction } from '../lib/core/ui-helpers';
-  import type { ChatMessage } from '../lib/types';
+  import { sendChatMessage } from '../lib/core/chat-send';
 
   let bookTitle = $state('');
   let currentPage = $state(1);
@@ -60,9 +56,6 @@
   let contextPct = $state(0);
   let cachedSelection = $state('');
 
-  // Tool activity state
-  let toolActivity = $state<string[]>([]);
-
   // Indexing status
   let indexingStatus = $state('');
 
@@ -72,20 +65,6 @@
   // Modal states
   let promptEditorOpen = $state(false);
   let toolsEditorOpen = $state(false);
-
-  // Font size and mono toggle
-  let chatFontSize = $state(parseInt(localStorage.getItem('marginalia_chat_font') || '14'));
-  let chatMono = $state(localStorage.getItem('marginalia_chat_mono') === '1');
-
-  function setFontSize(size: number) {
-    chatFontSize = size;
-    localStorage.setItem('marginalia_chat_font', String(size));
-  }
-
-  function toggleMono() {
-    chatMono = !chatMono;
-    localStorage.setItem('marginalia_chat_mono', chatMono ? '1' : '0');
-  }
 
   function updateContext() {
     const pct = totalPages > 1 ? ((currentPage - 1) / (totalPages - 1)) * 100 : 100;
@@ -155,79 +134,21 @@
   }
 
   async function handleChatSend(text: string) {
-    if (!settings.apiKey) {
-      alert('Set your OpenRouter API key in Settings first.');
-      return;
-    }
-    chatState.addMessage({ role: 'user', content: text });
-    chatState.setSending(true);
-    toolActivity = [];
-
-    try {
-      const context = await buildLibraryContext();
-      // Clear cached selection after consuming it
-      cachedSelection = '';
-      setCachedSelection('');
-
-      let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
-      const bp = getBookPrompt(bookId);
-      if (bp) system += '\n\n## Book-specific instructions (MUST FOLLOW)\n' + bp;
-
-      const apiMessages = buildApiMessages(system, chatState.messages, chatState.summary);
-
-      const result = await agentLoop(settings.apiKey, settings.model, apiMessages as ChatMessage[], {
-        onDelta: (_delta: string, full: string) => {
-          // Clear tool activity when text starts streaming
-          toolActivity = [];
-          chatState.handleDelta(full);
-        },
-        onToolCall: (name: string, args: any) => {
-          toolActivity = [...toolActivity, humanizeToolAction(name, args)];
-        },
-        onToolResult: () => {},
-        onThinking: () => {},
-        onUsage: (usage: any, model: string) => {
-          chatState.trackUsage(usage, model);
-        },
-      });
-
-      // Finalize tool activity as a system message if there were tool calls
-      if (toolActivity.length > 0) {
-        const summary = toolActivity.length <= 2
-          ? toolActivity.join(' -> ')
-          : `${toolActivity[0]} -> ... -> ${toolActivity[toolActivity.length - 1]} (${toolActivity.length} steps)`;
-        chatState.addMessage({ role: 'system', content: summary });
-      }
-      toolActivity = [];
-
-      const msgs = chatState.messages;
-      const last = msgs[msgs.length - 1];
-      if (result.content && (!last || last.role !== 'assistant')) {
-        chatState.addMessage({ role: 'assistant', content: result.content });
-      } else if (result.content && last?.role === 'assistant') {
-        last.content = result.content;
-      }
-    } catch (err: any) {
-      chatState.addMessage({ role: 'system', content: 'Error: ' + err.message });
-    }
-
-    chatState.setSending(false);
-    toolActivity = [];
-
-    // Save chat after turn
-    if (bookId) chatState.saveToStorage(bookId);
-
-    // Auto-compact if enabled and over threshold
-    if (settings.autoCompact) {
-      const convCount = chatState.messages.filter(
-        (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
-      ).length;
-      const overTokens = chatState.stats.lastContextTokens > settings.compactThreshold;
-      const overMessages = convCount > 22; // RECENT_MSG_COUNT + 10
-      if ((overTokens || overMessages) && convCount > 16) { // RECENT_MSG_COUNT + 4
-        handleCompact();
-      }
-    }
+    await sendChatMessage(chatState, text, {
+      buildSystemPrompt: (context: any) => {
+        let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
+        const bp = getBookPrompt(bookId);
+        if (bp) system += '\n\n## Book-specific instructions (MUST FOLLOW)\n' + bp;
+        return system;
+      },
+      storageKey: bookId,
+      onBeforeSend: () => {
+        cachedSelection = '';
+        setCachedSelection('');
+      },
+      addToolSummary: true,
+      autoCompact: true,
+    });
   }
 
   function handleChatClear() {
@@ -539,8 +460,8 @@
         onClose={toggleChat}
         pageNavEnabled={true}
         onPageNav={handlePageNav}
-        fontSize={chatFontSize}
-        mono={chatMono}
+        fontSize={chatDisplay.fontSize}
+        mono={chatDisplay.mono}
         books={allBooks}
         onBookClick={(id) => handleBookChange(id)}
         width={chatWidth}
@@ -549,8 +470,8 @@
           chatResizing = false;
           localStorage.setItem('marginalia_viewer_chat_width', String(w));
         }}
-        onFontSizeChange={setFontSize}
-        onMonoToggle={toggleMono}
+        onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
+        onMonoToggle={() => chatDisplay.toggleMono()}
         stats={chatState.stats}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
@@ -567,9 +488,9 @@
           </div>
         {/snippet}
         {#snippet toolActivitySnippet()}
-          {#if toolActivity.length > 0}
+          {#if chatState.toolActivity.length > 0}
             <div class="tool-activity">
-              {#each toolActivity as activity}
+              {#each chatState.toolActivity as activity}
                 <div>{activity}</div>
               {/each}
             </div>

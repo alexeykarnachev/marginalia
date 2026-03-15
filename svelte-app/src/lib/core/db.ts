@@ -5,9 +5,9 @@
 //   Book:   { id, title, filename, data, size, folder_id? }
 //   Folder: { id, name, parent_id? }
 
-import type { Book, Folder, Settings } from '../types';
+import type { Book, Folder } from '../types';
 
-export const MARGINALIA_VERSION = 80;
+export const MARGINALIA_VERSION = 81;
 
 // --- Storage backend interface ---
 
@@ -149,20 +149,6 @@ export function deleteBookData(bookId: string): void {
   ['chat', 'stats', 'model', 'prompt'].forEach((k) =>
     localStorage.removeItem(`marginalia_${k}_${bookId}`)
   );
-}
-
-// --- Settings (shared by app and chat) ---
-
-export function getSettings(): Settings {
-  return {
-    apiKey: localStorage.getItem('openrouter_api_key') || '',
-    model: localStorage.getItem('openrouter_model') || 'x-ai/grok-4.1-fast',
-  };
-}
-
-export function saveSettings(apiKey: string, model: string): void {
-  localStorage.setItem('openrouter_api_key', apiKey);
-  localStorage.setItem('openrouter_model', model);
 }
 
 // --- In-memory backend (for tests and Node.js) ---
