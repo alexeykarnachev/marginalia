@@ -345,7 +345,12 @@ async function renderBookCover(book, coverEl) {
 // --- Library Chat ---
 
 const libChatMessages = [];
-let libChatSending = false;
+
+// Handle open_book from library chat — navigate to viewer
+var _onBookChange = function(bookId) {
+    sessionStorage.setItem("marginalia_book_id", bookId);
+    window.location.href = "pdfjs/web/viewer.html?file=";
+};
 
 function toggleLibChat() {
     const s = getSettings();
@@ -356,132 +361,28 @@ function toggleLibChat() {
     }
     panel.classList.toggle("open");
     if (panel.classList.contains("open")) {
-        document.getElementById("library-chat-input").focus();
+        document.getElementById("library-chat-input")?.focus();
     }
 }
 
-function renderLibMarkdown(text) {
-    if (typeof marked === "undefined") return text;
-    let result = text;
-    // Strip UUIDs and IDs
-    result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, "");
-    result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
-    result = result.replace(/,?\s*id:\s*[^\s,)]+/gi, ""); // strip any id: value
-    result = result.replace(/,\s*\)/g, ")"); // clean trailing commas
-    result = result.replace(/\(\s*\)/g, ""); // clean empty parens
-    result = marked.parse(result);
-    return result;
-}
-
-function renderLibChat() {
-    const el = document.getElementById("library-chat-messages");
-    el.innerHTML = "";
-    for (const msg of libChatMessages) {
-        if (msg.role === "tool") continue;
-        const div = document.createElement("div");
-        div.className = "marginalia-msg " + msg.role;
-        if (msg.role === "assistant") {
-            div.innerHTML = renderLibMarkdown(msg.content);
-        } else {
-            div.textContent = msg.content;
-        }
-        el.appendChild(div);
-    }
-    el.scrollTop = el.scrollHeight;
-}
-
-async function sendLibChat() {
-    const input = document.getElementById("library-chat-input");
-    const text = input.value.trim();
-    if (!text || libChatSending) return;
-
-    const s = getSettings();
-    if (!s.apiKey) {
-        alert("Set your OpenRouter API key in Settings first.");
-        return;
-    }
-
-    libChatMessages.push({ role: "user", content: text });
-    input.value = "";
-    renderLibChat();
-
-    const sendBtn = document.getElementById("library-chat-send");
-    libChatSending = true;
-    sendBtn.disabled = true;
-    sendBtn.textContent = "...";
-
-    try {
+const libChat = initChat("library-chat", {
+    placeholder: "Ask about your library...",
+    onClose: toggleLibChat,
+    getSystemPrompt: async () => {
         const context = await buildLibraryContext();
-        const system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
+        return `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
 You have access to tools for searching, organizing, and reading books.
 Respond in the user's language. Be concise.
 
 ## Library
 ${context.libraryTree}`;
-
-        const apiMessages = [
-            { role: "system", content: system },
-            ...libChatMessages.filter(m => m.role !== "system"),
-        ];
-
-        // Show thinking (same class as viewer chat)
-        const thinkingEl = document.createElement("div");
-        thinkingEl.className = "marginalia-msg system marginalia-thinking";
-        thinkingEl.textContent = "Thinking...";
-        document.getElementById("library-chat-messages").appendChild(thinkingEl);
-        document.getElementById("library-chat-messages").scrollTop = document.getElementById("library-chat-messages").scrollHeight;
-
-        const result = await agentLoop(s.apiKey, s.model, apiMessages, {
-            onDelta: (delta, full) => {
-                // Remove thinking indicator
-                const thinking = document.querySelector(".marginalia-thinking");
-                if (thinking) thinking.remove();
-                // Update or create assistant message
-                const last = libChatMessages[libChatMessages.length - 1];
-                if (last?.role === "assistant") {
-                    last.content = full;
-                } else {
-                    libChatMessages.push({ role: "assistant", content: full });
-                }
-                renderLibChat();
-            },
-            onToolCall: (name, args) => {
-                const thinking = document.querySelector(".marginalia-thinking");
-                if (thinking) thinking.remove();
-            },
-            onToolResult: () => {},
-            onThinking: () => {},
-            onUsage: () => {},
-        });
-
-        // Ensure final content is stored
-        const thinking = document.querySelector(".marginalia-thinking");
-        if (thinking) thinking.remove();
-        const last = libChatMessages[libChatMessages.length - 1];
-        if (result.content && (!last || last.role !== "assistant")) {
-            libChatMessages.push({ role: "assistant", content: result.content });
-        } else if (result.content && last?.role === "assistant") {
-            last.content = result.content;
-        }
-
-        // Refresh library in case tools changed it
-        renderLibrary();
-    } catch (err) {
-        libChatMessages.push({ role: "system", content: "Error: " + err.message });
-    }
-
-    libChatSending = false;
-    sendBtn.disabled = false;
-    sendBtn.textContent = "Send";
-    renderLibChat();
-    input.focus();
-}
-
-// Handle open_book from library chat — navigate to viewer
-var _onBookChange = function(bookId) {
-    sessionStorage.setItem("marginalia_book_id", bookId);
-    window.location.href = "pdfjs/web/viewer.html?file=";
-};
+    },
+    getMessages: () => libChatMessages,
+    setMessages: () => {},
+    getSummary: () => null,
+    setSummary: () => {},
+    onSendDone: () => renderLibrary(),
+});
 
 // Wire up theme toggle
 document.getElementById("btn-theme").addEventListener("click", () => {
@@ -491,47 +392,8 @@ document.getElementById("btn-theme").addEventListener("click", () => {
     document.documentElement.dataset.theme = next;
 });
 
-// Wire up library chat
+// Wire up library chat toggle
 document.getElementById("btn-chat").addEventListener("click", toggleLibChat);
-document.getElementById("library-chat-close").addEventListener("click", toggleLibChat);
-document.getElementById("library-chat-send").addEventListener("click", sendLibChat);
-document.getElementById("library-chat-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendLibChat(); }
-});
-document.getElementById("library-chat-clear").addEventListener("click", () => {
-    if (libChatMessages.length === 0 || confirm("Clear conversation?")) {
-        libChatMessages.length = 0;
-        renderLibChat();
-    }
-});
-
-// Library chat resize
-(function() {
-    const panel = document.getElementById("library-chat");
-    const handle = document.getElementById("library-chat-resize");
-    let startX = null, startW = null;
-
-    handle.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        startX = e.clientX; startW = panel.offsetWidth;
-        document.body.style.userSelect = "none";
-    });
-    handle.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        startX = e.touches[0].clientX; startW = panel.offsetWidth;
-    });
-    document.addEventListener("mousemove", (e) => {
-        if (startX == null) return;
-        e.preventDefault();
-        panel.style.width = Math.max(280, startW + (startX - e.clientX)) + "px";
-    });
-    document.addEventListener("touchmove", (e) => {
-        if (startX == null) return;
-        panel.style.width = Math.max(280, startW + (startX - e.touches[0].clientX)) + "px";
-    });
-    document.addEventListener("mouseup", () => { startX = null; document.body.style.userSelect = ""; });
-    document.addEventListener("touchend", () => { startX = null; });
-})();
 
 async function loadDefaultBook() {
     const books = await getAllBooks();

@@ -355,53 +355,81 @@ function injectUI() {
         setInterval(syncPage, 500);
     }
 
-    // --- Chat panel ---
+    // --- Chat panel (via shared chat-ui.js) ---
     const chatPanel = document.createElement("div");
     chatPanel.id = "marginalia-chat";
-    chatPanel.innerHTML = `
-        <div id="marginalia-chat-resize"></div>
-        <div class="m-chat-header">
-            <span>Chat</span>
-            <div class="m-chat-header-right">
-                <button class="m-chat-header-btn" id="marginalia-gear-btn" title="Settings">⚙</button>
-                <button class="m-chat-header-btn" id="marginalia-menu-btn" title="More">⋯</button>
-                <button class="m-chat-header-btn" id="marginalia-chat-close" title="Close">✕</button>
-            </div>
-        </div>
-        <div id="marginalia-gear-popover" class="marginalia-popover hidden">
-            <div class="popover-row">
-                <span>Font</span>
-                <div class="popover-segmented">
-                    <button data-size="12" class="seg-btn">S</button>
-                    <button data-size="14" class="seg-btn active">M</button>
-                    <button data-size="16" class="seg-btn">L</button>
-                </div>
-            </div>
-            <div class="popover-row">
-                <span>Mono</span>
-                <input type="checkbox" id="popover-mono">
-            </div>
-            <hr class="popover-divider">
-            <div id="marginalia-popover-stats" class="popover-stats"></div>
-        </div>
-        <div id="marginalia-overflow-menu" class="marginalia-popover hidden">
-            <button class="menu-item" id="menu-prompt">Edit prompt</button>
-            <button class="menu-item" id="menu-tools">Configure tools</button>
-            <button class="menu-item" id="menu-compact">Compact conversation</button>
-            <hr class="popover-divider">
-            <button class="menu-item menu-item-danger" id="menu-clear">Clear conversation</button>
-        </div>
-        <div id="marginalia-context-bar">
-            <div id="marginalia-context-progress"><div id="marginalia-context-fill"></div></div>
-            <span id="marginalia-context-text"></span>
-        </div>
-        <div class="m-chat-messages" id="marginalia-chat-messages"></div>
-        <div class="m-chat-input-area">
-            <textarea class="m-chat-input" id="marginalia-chat-input" placeholder="Ask about this page..."></textarea>
-            <button class="m-chat-send" id="marginalia-chat-send">Send</button>
-        </div>
-    `;
     (document.getElementById("outerContainer") || document.body).appendChild(chatPanel);
+
+    const outer = document.getElementById("outerContainer");
+
+    viewerChat = initChat("marginalia-chat", {
+        placeholder: "Ask about this page...",
+        onClose: toggleChat,
+        getSystemPrompt: async () => {
+            const context = await getContext();
+            updateContextBar(context);
+            _cachedSelection = "";
+            let system = renderPrompt(SYSTEM_PROMPT, context);
+            const bookPrompt = getBookPrompt();
+            if (bookPrompt) system += "\n\n## Book-specific instructions (MUST FOLLOW)\n" + bookPrompt;
+            return system;
+        },
+        getMessages: () => chatState.messages,
+        setMessages: (msgs) => { saveChatState(); },
+        getSummary: () => chatState.summary,
+        setSummary: (s) => { chatState.summary = s; saveChatState(); },
+        getModel: () => getChatModel(),
+        buildApiMessages: (system, messages, summary) => buildApiMessages(system, messages, summary),
+        onSendDone: () => {
+            saveChatState();
+            renderStats();
+            // Auto-compact
+            if (getAutoCompactEnabled()) {
+                const convCount = chatState.messages.filter(m => m.role === "user" || m.role === "assistant").length;
+                const overTokens = chatState.stats.lastContextTokens > getAutoCompactThreshold();
+                const overMessages = convCount > RECENT_MSG_COUNT + 10;
+                if ((overTokens || overMessages) && convCount > RECENT_MSG_COUNT + 4) {
+                    compactChat();
+                }
+            }
+        },
+        onUsage: (usage, model) => {
+            chatState.stats.inputTokens += usage.prompt_tokens || 0;
+            chatState.stats.outputTokens += usage.completion_tokens || 0;
+            chatState.stats.cost += usage.cost || 0;
+            chatState.stats.lastContextTokens = usage.prompt_tokens || 0;
+            if (model) {
+                chatState.stats.model = model;
+                fetchContextLimit(model);
+            }
+        },
+        onClear: () => clearChat(),
+        extraMenuItems: [
+            { id: "prompt", label: "Edit prompt", onClick: () => openPromptEditor() },
+            { id: "tools", label: "Configure tools", onClick: () => openToolsEditor() },
+            { id: "compact", label: "Compact", onClick: () => compactChat() },
+        ],
+        persistKey: "marginalia_chat_width",
+        resizeContainer: outer,
+        cssWidthVar: "--chat-panel-width",
+        pageNavEnabled: true,
+        onPageNav: (page) => {
+            const app = window.PDFViewerApplication;
+            if (page && app) {
+                _pageBeforeJump = app.page;
+                _goToPage(app, page);
+                backBtn.textContent = `\u2190 Back to p.${_pageBeforeJump}`;
+                backBtn.classList.remove("hidden");
+            }
+        },
+    });
+
+    // Inject context bar before messages container
+    const contextBar = document.createElement("div");
+    contextBar.id = "marginalia-context-bar";
+    contextBar.innerHTML = `<div id="marginalia-context-progress"><div id="marginalia-context-fill"></div></div><span id="marginalia-context-text"></span>`;
+    const messagesEl = viewerChat.getMessagesEl();
+    messagesEl.parentNode.insertBefore(contextBar, messagesEl);
 
     // Prompt editor overlay
     const promptOverlay = document.createElement("div");
@@ -440,49 +468,11 @@ function injectUI() {
     `;
     document.body.appendChild(toolsOverlay);
 
-    // --- Event wiring ---
-    document.getElementById("marginalia-chat-close").addEventListener("click", toggleChat);
-    document.getElementById("marginalia-chat-send").addEventListener("click", sendMessage);
-    document.getElementById("marginalia-chat-input").addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
+    // --- Event wiring (viewer-specific) ---
     document.getElementById("marginalia-tools-close").addEventListener("click", closeToolsEditor);
     document.getElementById("marginalia-prompt-save").addEventListener("click", savePromptEditor);
     document.getElementById("marginalia-prompt-cancel").addEventListener("click", closePromptEditor);
     document.getElementById("marginalia-prompt-view").addEventListener("click", togglePromptViewer);
-
-    // Gear popover
-    document.getElementById("marginalia-gear-btn").addEventListener("click", () => {
-        document.getElementById("marginalia-gear-popover").classList.toggle("hidden");
-        document.getElementById("marginalia-overflow-menu").classList.add("hidden");
-    });
-    document.querySelectorAll(".seg-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            setChatFontSize(btn.dataset.size);
-        });
-    });
-    document.getElementById("popover-mono").checked = isMono();
-    document.getElementById("popover-mono").addEventListener("change", toggleMono);
-
-    // Overflow menu
-    document.getElementById("marginalia-menu-btn").addEventListener("click", () => {
-        document.getElementById("marginalia-overflow-menu").classList.toggle("hidden");
-        document.getElementById("marginalia-gear-popover").classList.add("hidden");
-    });
-    document.getElementById("menu-prompt").addEventListener("click", () => { openPromptEditor(); closeAllPopovers(); });
-    document.getElementById("menu-tools").addEventListener("click", () => { openToolsEditor(); closeAllPopovers(); });
-    document.getElementById("menu-compact").addEventListener("click", () => { compactChat(); closeAllPopovers(); });
-    document.getElementById("menu-clear").addEventListener("click", () => { clearChat(); closeAllPopovers(); });
-
-    // Close popovers on outside click
-    document.addEventListener("click", (e) => {
-        if (!e.target.closest("#marginalia-gear-btn") && !e.target.closest("#marginalia-gear-popover") &&
-            !e.target.closest("#marginalia-menu-btn") && !e.target.closest("#marginalia-overflow-menu")) {
-            closeAllPopovers();
-        }
-    });
 
     // Close overlays on backdrop click and Escape
     document.getElementById("marginalia-prompt-overlay").addEventListener("click", (e) => {
@@ -497,11 +487,10 @@ function injectUI() {
         if (e.key === "Escape") {
             closePromptEditor();
             closeToolsEditor();
-            closeAllPopovers();
         }
     });
 
-    // Clickable page citations in chat + back button
+    // Clickable page citations — back button
     let _pageBeforeJump = null;
     const backBtn = document.createElement("button");
     backBtn.id = "marginalia-page-back";
@@ -516,78 +505,14 @@ function injectUI() {
     });
     document.body.appendChild(backBtn);
 
-    document.getElementById("marginalia-chat-messages").addEventListener("click", (e) => {
-        const link = e.target.closest(".marginalia-page-link");
-        if (link) {
-            e.preventDefault();
-            const page = parseInt(link.dataset.page);
-            const app = window.PDFViewerApplication;
-            if (page && app) {
-                _pageBeforeJump = app.page;
-                _goToPage(app, page);
-                backBtn.textContent = `\u2190 Back to p.${_pageBeforeJump}`;
-                backBtn.classList.remove("hidden");
-            }
-        }
-    });
-
-    initResize(chatPanel);
     injectStyles();
     applyChatFontSize();
     applyMono();
-    renderChat();
+    viewerChat.renderChat();
     renderStats();
 }
 
-function initResize(panel) {
-    const handle = document.getElementById("marginalia-chat-resize");
-    let startX = null;
-    let startW = null;
-
-    const outer = document.getElementById("outerContainer");
-
-    function _setChatWidth(w) {
-        const clamped = Math.max(280, Math.min(w, window.innerWidth * 0.7));
-        panel.style.width = clamped + "px";
-        document.documentElement.style.setProperty("--chat-panel-width", clamped + "px");
-    }
-
-    function onMove(x) {
-        if (startX == null) return;
-        _setChatWidth(startW - (x - startX));
-    }
-
-    function onDragEnd() {
-        if (startX != null) {
-            localStorage.setItem("marginalia_chat_width", panel.offsetWidth);
-            outer.classList.remove("chatResizing");
-        }
-        startX = null;
-        document.body.style.userSelect = "";
-        document.body.style.webkitUserSelect = "";
-    }
-
-    handle.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        startX = e.clientX; startW = panel.offsetWidth;
-        outer.classList.add("chatResizing");
-        document.body.style.userSelect = "none";
-        document.body.style.webkitUserSelect = "none";
-    });
-    document.addEventListener("mousemove", (e) => { if (startX != null) { e.preventDefault(); onMove(e.clientX); } });
-    document.addEventListener("mouseup", onDragEnd);
-
-    handle.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        startX = e.touches[0].clientX; startW = panel.offsetWidth;
-        outer.classList.add("chatResizing");
-    });
-    document.addEventListener("touchmove", (e) => { if (startX != null) onMove(e.touches[0].clientX); });
-    document.addEventListener("touchend", onDragEnd);
-
-    const saved = localStorage.getItem("marginalia_chat_width");
-    if (saved) _setChatWidth(parseInt(saved));
-}
+// initResize is now handled by chat-ui.js
 
 function injectStyles() {
     const link = document.createElement("link");
@@ -604,6 +529,8 @@ const chatState = {
     stats: { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" },
     sending: false,
 };
+
+let viewerChat = null; // set by injectUI -> initChat
 
 function getChatFontSize() {
     return localStorage.getItem("marginalia_chat_font") || "14";
@@ -623,8 +550,7 @@ function applyChatFontSize() {
 }
 
 function closeAllPopovers() {
-    document.getElementById("marginalia-gear-popover")?.classList.add("hidden");
-    document.getElementById("marginalia-overflow-menu")?.classList.add("hidden");
+    document.getElementById("marginalia-chat-overflow-menu")?.classList.add("hidden");
 }
 
 function isMono() {
@@ -641,13 +567,6 @@ function applyMono() {
     const cb = document.getElementById("popover-mono");
     if (el) el.classList.toggle("mono", isMono());
     if (cb) cb.checked = isMono();
-}
-
-let rawMode = false;
-
-function toggleRaw() {
-    rawMode = !rawMode;
-    renderChat();
 }
 
 let contextLimit = 200000;
@@ -800,11 +719,11 @@ function closeToolsEditor() {
 function clearChat() {
     if (chatState.messages.length === 0) return;
     if (!confirm("Clear chat history for this book?")) return;
-    chatState.messages = [];
+    chatState.messages.length = 0;
     chatState.summary = null;
     chatState.stats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
     saveChatState();
-    renderChat();
+    if (viewerChat) viewerChat.renderChat();
     renderStats();
 }
 
@@ -861,7 +780,7 @@ async function compactChat() {
     if (!s.apiKey) return;
 
     chatState.messages.push({ role: "system", content: "Compacting conversation..." });
-    renderChat();
+    if (viewerChat) viewerChat.renderChat();
 
     // Split: summarize the older portion, keep recent verbatim
     const recent = convMessages.slice(-RECENT_MSG_COUNT);
@@ -916,115 +835,11 @@ ${previousSummary}Conversation to summarize:` },
     }
 
     saveChatState();
-    renderChat();
+    if (viewerChat) viewerChat.renderChat();
     renderStats();
 }
 
-function renderMarkdown(text) {
-    const blocks = [];
-    const inlines = [];
-
-    // Protect [p.N] page links from markdown parser
-    const pageLinks = [];
-    let result = text.replace(/\[p\.(\d+(?:[-–]\d+)?)\]/g, (m) => {
-        const id = `%%PAGE${pageLinks.length}%%`;
-        pageLinks.push(m);
-        return id;
-    });
-
-    result = result.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (_, a, b) => {
-        const id = `%%BLOCK${blocks.length}%%`;
-        blocks.push(a || b);
-        return id;
-    });
-
-    result = result.replace(/\\\((.*?)\\\)|\$([^\s$](?:[^$]*?[^\s$])?)\$/g, (_, a, b) => {
-        const id = `%%INLINE${inlines.length}%%`;
-        inlines.push(a || b);
-        return id;
-    });
-
-    if (typeof marked !== "undefined") {
-        result = marked.parse(result);
-    }
-
-    if (typeof katex !== "undefined") {
-        blocks.forEach((tex, i) => {
-            try {
-                result = result.replace(`%%BLOCK${i}%%`,
-                    katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false }));
-            } catch {}
-        });
-        inlines.forEach((tex, i) => {
-            try {
-                result = result.replace(`%%INLINE${i}%%`,
-                    katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false }));
-            } catch {}
-        });
-    }
-
-    // Strip UUIDs from display — user doesn't need them
-    result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, "");
-    result = result.replace(/\bid:\s*`[0-9a-f-]{36}`/gi, "");
-    result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
-
-    // Restore [p.N] page links
-    pageLinks.forEach((pl, i) => { result = result.replace(`%%PAGE${i}%%`, pl); });
-
-    // Clickable page links — preferred [p.N] format
-    result = result.replace(/\[p\.(\d+)[-–](\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1-$2</a>');
-    result = result.replace(/\[p\.(\d+)\]/g, '<a class="marginalia-page-link" data-page="$1" href="#">p.$1</a>');
-
-    // Fallback — catch common patterns the model uses despite instructions
-    const _pl = (m, pre, n) => `${pre}<a class="marginalia-page-link" data-page="${n}" href="#">${n}</a>`;
-    result = result.replace(/\b(p\.)(\d+)\b/g, _pl);
-    result = result.replace(/\b(pp?\.\s*)(\d+)\b/g, _pl);
-    result = result.replace(/\b(page\s+)(\d+)\b/gi, _pl);
-    result = result.replace(/\b(pages?\s+)(\d+)\b/gi, _pl);
-    result = result.replace(/(стр\.\s*)(\d+)/g, _pl);
-    result = result.replace(/(с\.\s+)(\d+)/g, _pl);
-    result = result.replace(/(страниц[а-яё]*\s+)(\d+)/gi, _pl);
-
-    return result;
-}
-
-function renderChat() {
-    const el = document.getElementById("marginalia-chat-messages");
-    el.innerHTML = "";
-    for (const msg of chatState.messages) {
-        el.appendChild(createMsgEl(msg));
-    }
-    el.scrollTop = el.scrollHeight;
-}
-
-function createMsgEl(msg) {
-    const div = document.createElement("div");
-    div.className = `marginalia-msg ${msg.role}`;
-    if (msg.role === "assistant") {
-        if (rawMode) {
-            div.textContent = msg.content;
-            div.style.whiteSpace = "pre-wrap";
-            div.style.fontFamily = "monospace";
-            div.style.fontSize = "0.9em";
-        } else {
-            div.innerHTML = renderMarkdown(msg.content);
-        }
-        div.dataset.raw = msg.content;
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "marginalia-copy-btn";
-        copyBtn.textContent = "Copy";
-        copyBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            navigator.clipboard.writeText(div.dataset.raw).catch(() => {});
-            copyBtn.textContent = "Copied";
-            setTimeout(() => copyBtn.textContent = "Copy", 1500);
-        });
-        div.appendChild(copyBtn);
-    } else {
-        div.textContent = msg.content;
-    }
-    return div;
-}
+// renderMarkdown, renderChat, createMsgEl — now in chat-ui.js
 
 async function getContext() {
     try {
@@ -1053,221 +868,7 @@ async function getContext() {
     }
 }
 
-function setSending(val) {
-    chatState.sending = val;
-    const btn = document.getElementById("marginalia-chat-send");
-    const input = document.getElementById("marginalia-chat-input");
-    if (btn) {
-        btn.disabled = val;
-        if (!val && btn._wasSending) {
-            // Flash a done indicator
-            btn.textContent = "✓";
-            btn.classList.add("done");
-            setTimeout(() => { btn.textContent = "Send"; btn.classList.remove("done"); }, 1500);
-        }
-        btn._wasSending = val;
-    }
-    if (input) {
-        input.disabled = val;
-        if (!val) input.focus();
-    }
-}
-
-function showThinking() {
-    const el = document.getElementById("marginalia-chat-messages");
-    const div = document.createElement("div");
-    div.className = "marginalia-msg assistant marginalia-thinking";
-    div.innerHTML = '<span class="thinking-dots">Thinking<span>.</span><span>.</span><span>.</span></span>';
-    el.appendChild(div);
-    el.scrollTop = el.scrollHeight;
-}
-
-function hideThinking() {
-    document.querySelectorAll(".marginalia-thinking").forEach(el => el.remove());
-}
-
-function _humanizeToolAction(name, args) {
-    // Friendly descriptions — never show UUIDs
-    switch (name) {
-        case "read_page": return `Reading page ${args.page}...`;
-        case "read_pages": return `Reading pages ${args.from}-${args.to}...`;
-        case "search_book": return `Searching for "${args.query}"...`;
-        case "search_all_books": return `Searching all books for "${args.query}"...`;
-        case "go_to_page": return `Going to page ${args.page}...`;
-        case "go_back": return "Going back...";
-        case "open_book": return "Opening book...";
-        case "get_table_of_contents": return "Getting table of contents...";
-        case "rename_book": return `Renaming to "${args.new_title}"...`;
-        case "move_book": return "Moving book...";
-        case "delete_book": return "Deleting book...";
-        case "create_folder": return `Creating folder "${args.name}"...`;
-        case "rename_folder": return `Renaming folder to "${args.new_name}"...`;
-        case "delete_folder": return "Deleting folder...";
-        case "move_folder": return "Moving folder...";
-        case "batch_move_books": return `Moving ${args.book_ids?.length || "?"} books...`;
-        case "batch_rename_books": return `Renaming ${args.renames?.length || "?"} books...`;
-        default: return `${name}...`;
-    }
-}
-
-// Tool activity is shown as ephemeral UI, not stored in chatState.messages.
-// After the turn, a compact summary replaces the individual tool lines.
-let _toolActivity = []; // accumulates during a turn
-
-function _showToolActivity(name, args) {
-    _toolActivity.push(_humanizeToolAction(name, args));
-
-    // Update or create the tool activity element
-    const messagesEl = document.getElementById("marginalia-chat-messages");
-    let actEl = document.getElementById("marginalia-tool-activity");
-    if (!actEl) {
-        actEl = document.createElement("div");
-        actEl.id = "marginalia-tool-activity";
-        actEl.className = "marginalia-msg tool-activity";
-        messagesEl.appendChild(actEl);
-    }
-    actEl.textContent = _toolActivity.join("\n");
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-function _clearToolActivity() {
-    const actEl = document.getElementById("marginalia-tool-activity");
-    if (actEl) actEl.remove();
-}
-
-function _finalizeToolActivity() {
-    _clearToolActivity();
-    if (_toolActivity.length > 0) {
-        // Store a compact one-line summary in chat history
-        const summary = _toolActivity.length <= 2
-            ? _toolActivity.join(" → ")
-            : `${_toolActivity[0]} → ... → ${_toolActivity[_toolActivity.length - 1]} (${_toolActivity.length} steps)`;
-        chatState.messages.push({ role: "system", content: summary });
-    }
-    _toolActivity = [];
-}
-
-async function sendMessage() {
-    const input = document.getElementById("marginalia-chat-input");
-    const text = input.value.trim();
-    if (!text || chatState.sending) return;
-
-    const s = getSettings();
-    if (!s.apiKey) return;
-
-    const context = await getContext();
-    updateContextBar(context);
-    _cachedSelection = ""; // consumed — clear for next turn
-
-    chatState.messages.push({ role: "user", content: text });
-    input.value = "";
-    renderChat();
-    setSending(true);
-    showThinking();
-    _toolActivity = [];
-
-    // Build system prompt
-    let system = renderPrompt(SYSTEM_PROMPT, context);
-    const bookPrompt = getBookPrompt();
-    if (bookPrompt) {
-        system += "\n\n## Book-specific instructions (MUST FOLLOW)\n" + bookPrompt;
-    }
-
-    // Build API messages with context management (trimming + summary)
-    const apiMessages = buildApiMessages(system, chatState.messages, chatState.summary);
-
-    // Prepare streaming message element
-    let streamingMsgEl = null;
-    let streamingContent = "";
-
-    try {
-        const result = await agentLoop(s.apiKey, getChatModel(), apiMessages, {
-            onThinking: (iteration) => {
-                if (iteration > 0) {
-                    // Agent is doing another LLM call after tool execution
-                    showThinking();
-                }
-            },
-            onDelta: (delta, fullContent) => {
-                // First delta — finalize tool activity and start streaming
-                if (!streamingMsgEl) {
-                    hideThinking();
-                    _finalizeToolActivity();
-                    renderChat(); // re-render to show tool summary
-                    streamingContent = "";
-                    chatState.messages.push({ role: "assistant", content: "" });
-                    streamingMsgEl = createMsgEl(chatState.messages[chatState.messages.length - 1]);
-                    document.getElementById("marginalia-chat-messages").appendChild(streamingMsgEl);
-                }
-                streamingContent = fullContent;
-                chatState.messages[chatState.messages.length - 1].content = fullContent;
-                if (rawMode) {
-                    streamingMsgEl.textContent = fullContent;
-                } else {
-                    streamingMsgEl.innerHTML = renderMarkdown(fullContent);
-                }
-                streamingMsgEl.dataset.raw = fullContent;
-                const el = document.getElementById("marginalia-chat-messages");
-                el.scrollTop = el.scrollHeight;
-            },
-            onToolCall: (name, args) => {
-                hideThinking();
-                _showToolActivity(name, args);
-            },
-            onToolResult: (name, args, toolResult) => {
-                // Activity already shown by onToolCall
-            },
-            onUsage: (usage, model) => {
-                chatState.stats.inputTokens += usage.prompt_tokens || 0;
-                chatState.stats.outputTokens += usage.completion_tokens || 0;
-                chatState.stats.cost += usage.cost || 0;
-                chatState.stats.lastContextTokens = usage.prompt_tokens || 0;
-                if (model) {
-                    chatState.stats.model = model;
-                    fetchContextLimit(model);
-                }
-            },
-        });
-
-        hideThinking();
-
-        // If we streamed, the message is already in chatState.messages; just add copy button
-        if (streamingMsgEl) {
-            const copyBtn = document.createElement("button");
-            copyBtn.className = "marginalia-copy-btn";
-            copyBtn.textContent = "Copy";
-            copyBtn.addEventListener("click", (e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(streamingMsgEl.dataset.raw).catch(() => {});
-                copyBtn.textContent = "Copied";
-                setTimeout(() => copyBtn.textContent = "Copy", 1500);
-            });
-            streamingMsgEl.appendChild(copyBtn);
-        } else {
-            // No streaming happened (edge case) — add result normally
-            chatState.messages.push({ role: "assistant", content: result.content });
-        }
-        renderStats();
-    } catch (err) {
-        hideThinking();
-        _finalizeToolActivity();
-        chatState.messages.push({ role: "assistant", content: `Error: ${err.message}` });
-    }
-    _clearToolActivity();
-    setSending(false);
-    saveChatState();
-    if (!streamingMsgEl) renderChat();
-
-    // Auto-compact: trigger on token threshold OR message count
-    if (getAutoCompactEnabled()) {
-        const convCount = chatState.messages.filter(m => m.role === "user" || m.role === "assistant").length;
-        const overTokens = chatState.stats.lastContextTokens > getAutoCompactThreshold();
-        const overMessages = convCount > RECENT_MSG_COUNT + 10; // ~11+ exchanges beyond the recent window
-        if ((overTokens || overMessages) && convCount > RECENT_MSG_COUNT + 4) {
-            await compactChat();
-        }
-    }
-}
+// setSending, showThinking, hideThinking, tool activity, sendMessage — now in chat-ui.js
 
 function updateContextBar(context) {
     const fill = document.getElementById("marginalia-context-fill");
@@ -1304,7 +905,7 @@ var _onBookChange = function(bookId) {
     chatState.summary = null;
     chatState.stats = { inputTokens: 0, outputTokens: 0, cost: 0, lastContextTokens: 0, model: "" };
     loadChatState();
-    renderChat();
+    if (viewerChat) viewerChat.renderChat();
     renderStats();
     // Reload PDF
     loadPdfFromDB();

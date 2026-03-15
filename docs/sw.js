@@ -10,6 +10,7 @@ const SHELL = [
     "./app.js",
     "./tools.js",
     "./agent.js",
+    "./chat-ui.js",
     "./marginalia.js",
     "./theme.css",
     "./style.css",

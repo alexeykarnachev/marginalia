@@ -257,29 +257,4 @@ body {
 }
 .library-chat.open { display: flex; }
 
-/* Library chat resize handle (same as viewer) */
-#library-chat-resize {
-    position: absolute;
-    left: -4px;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    cursor: col-resize;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: none;
-}
-#library-chat-resize::after {
-    content: "";
-    width: 3px;
-    height: 36px;
-    border-radius: 2px;
-    background: var(--m-border-light);
-    transition: background 0.15s;
-}
-#library-chat-resize:hover::after,
-#library-chat-resize:active::after {
-    background: var(--m-accent);
-}
+/* Library chat resize handle — styles now in chat.css (.chat-resize-handle) */

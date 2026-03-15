@@ -8,7 +8,7 @@
     font-size: 14px;
     overflow: hidden;
 }
-#marginalia-chat-resize {
+.chat-resize-handle {
     position: absolute;
     left: -4px;
     top: 0;
@@ -21,7 +21,7 @@
     justify-content: center;
     touch-action: none;
 }
-#marginalia-chat-resize::after {
+.chat-resize-handle::after {
     content: "";
     width: 3px;
     height: 36px;
@@ -29,8 +29,8 @@
     background: var(--m-border-light);
     transition: background 0.15s;
 }
-#marginalia-chat-resize:hover::after,
-#marginalia-chat-resize:active::after {
+.chat-resize-handle:hover::after,
+.chat-resize-handle:active::after {
     background: var(--m-accent);
 }
 .m-chat-header {

@@ -37,22 +37,8 @@
             <div id="book-list"></div>
         </div>
 
-        <!-- Chat panel (identical to viewer chat) -->
-        <div id="library-chat" class="library-chat">
-            <div id="library-chat-resize"></div>
-            <div class="m-chat-header">
-                <span>Chat</span>
-                <div class="m-chat-header-right">
-                    <button class="m-chat-header-btn" id="library-chat-clear" title="Clear">Clear</button>
-                    <button class="m-chat-header-btn" id="library-chat-close" title="Close">✕</button>
-                </div>
-            </div>
-            <div class="m-chat-messages" id="library-chat-messages"></div>
-            <div class="m-chat-input-area">
-                <textarea class="m-chat-input" id="library-chat-input" placeholder="Ask about your library..."></textarea>
-                <button class="m-chat-send" id="library-chat-send">Send</button>
-            </div>
-        </div>
+        <!-- Chat panel (injected by chat-ui.js) -->
+        <div id="library-chat" class="library-chat"></div>
         </div> <!-- app-body -->
 
         <!-- Settings modal -->
@@ -92,6 +78,7 @@
     <script src="db.js" defer></script>
     <script src="tools.js" defer></script>
     <script src="agent.js" defer></script>
+    <script src="chat-ui.js" defer></script>
     <script src="app.js" defer></script>
     <script>
         if ("serviceWorker" in navigator) {
