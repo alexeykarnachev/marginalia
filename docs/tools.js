@@ -381,15 +381,17 @@ registerTool({
             }
         }
 
+        const TOC_WARNING = "\n\nWARNING: Page numbers printed in the book's TOC may NOT match PDF page numbers. To navigate, use search_book to find the actual PDF page, or use the p.N numbers shown above (those ARE PDF page numbers).";
+
         if (chapters.length > 0) {
-            return `[${title}] Chapter/section headings found (${total} pages):\n${chapters.join("\n")}`;
+            return `[${title}] Chapter/section headings found (${total} pages):\n${chapters.join("\n")}${TOC_WARNING}`;
         }
 
         // Last resort: scan first pages for a TOC-like page (dense with numbers + keywords)
         const tocKeywords = /contents|table of contents|оглавление|содержание/i;
         for (let i = 0; i < Math.min(15, pages.length); i++) {
             if (tocKeywords.test(pages[i])) {
-                return `[${title}] Table of Contents page found (p.${i + 1}/${total}):\n${pages[i].slice(0, 3000)}`;
+                return `[${title}] Table of Contents page found (p.${i + 1}/${total}):\n${pages[i].slice(0, 3000)}${TOC_WARNING}`;
             }
         }
 
