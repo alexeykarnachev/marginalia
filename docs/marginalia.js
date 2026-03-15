@@ -493,19 +493,31 @@ function initResize(panel) {
         _updateViewerMargin();
     }
 
-    handle.addEventListener("mousedown", (e) => { startX = e.clientX; startW = panel.offsetWidth; });
-    document.addEventListener("mousemove", (e) => onMove(e.clientX));
-    document.addEventListener("mouseup", () => {
-        if (startX != null) { localStorage.setItem("marginalia_chat_width", panel.offsetWidth); _updateViewerMargin(); }
+    function onDragEnd() {
+        if (startX != null) {
+            localStorage.setItem("marginalia_chat_width", panel.offsetWidth);
+            _updateViewerMargin();
+        }
         startX = null;
-    });
+        document.body.style.userSelect = "";
+        document.body.style.webkitUserSelect = "";
+    }
 
-    handle.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; startW = panel.offsetWidth; });
-    document.addEventListener("touchmove", (e) => { if (startX != null) onMove(e.touches[0].clientX); });
-    document.addEventListener("touchend", () => {
-        if (startX != null) { localStorage.setItem("marginalia_chat_width", panel.offsetWidth); _updateViewerMargin(); }
-        startX = null;
+    handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        startX = e.clientX; startW = panel.offsetWidth;
+        document.body.style.userSelect = "none";
+        document.body.style.webkitUserSelect = "none";
     });
+    document.addEventListener("mousemove", (e) => { if (startX != null) { e.preventDefault(); onMove(e.clientX); } });
+    document.addEventListener("mouseup", onDragEnd);
+
+    handle.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        startX = e.touches[0].clientX; startW = panel.offsetWidth;
+    });
+    document.addEventListener("touchmove", (e) => { if (startX != null) onMove(e.touches[0].clientX); });
+    document.addEventListener("touchend", onDragEnd);
 
     const saved = localStorage.getItem("marginalia_chat_width");
     if (saved) panel.style.width = saved + "px";
