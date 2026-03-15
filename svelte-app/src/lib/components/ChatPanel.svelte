@@ -7,14 +7,17 @@
   import {
     DEFAULT_CHAT_WIDTH,
     DEFAULT_CHAT_FONT_SIZE,
-    CHAT_MIN_WIDTH,
-    CHAT_MAX_WIDTH_RATIO,
-    COPY_FEEDBACK_MS,
-    SEND_DONE_FEEDBACK_MS,
-    FONT_SIZE_SMALL,
-    FONT_SIZE_MEDIUM,
-    FONT_SIZE_LARGE,
   } from '../core/constants';
+
+  const CHAT_MIN_WIDTH = 280;
+  const CHAT_MAX_WIDTH_RATIO = 0.7;
+  const COPY_FEEDBACK_MS = 1500;
+  const SEND_DONE_FEEDBACK_MS = 1500;
+  const FONT_SIZES = [
+    { label: 'S', value: 12 },
+    { label: 'M', value: 14 },
+    { label: 'L', value: 16 },
+  ] as const;
 
   interface MenuItem {
     label: string;
@@ -337,12 +340,12 @@
         <div class="menu-control-row">
           <span class="menu-control-label">Font</span>
           <div class="menu-segmented">
-            {#each [{l:'S',s:FONT_SIZE_SMALL},{l:'M',s:FONT_SIZE_MEDIUM},{l:'L',s:FONT_SIZE_LARGE}] as fs}
+            {#each FONT_SIZES as fs}
               <button
                 class="menu-seg-btn"
-                class:active={fontSize === fs.s}
-                onclick={() => { onFontSizeChange(fs.s); }}
-              >{fs.l}</button>
+                class:active={fontSize === fs.value}
+                onclick={() => { onFontSizeChange(fs.value); }}
+              >{fs.label}</button>
             {/each}
           </div>
         </div>

@@ -4,14 +4,12 @@ import {
   LS_THEME,
   LS_API_KEY,
   LS_MODEL,
-  LS_AUTO_COMPACT,
-  LS_COMPACT_THRESHOLD,
   LS_CHAT_FONT,
   LS_CHAT_MONO,
   DEFAULT_MODEL,
-  DEFAULT_COMPACT_THRESHOLD,
   DEFAULT_CHAT_FONT_SIZE,
   lsPromptKey,
+  lsCompactPromptKey,
 } from '../core/constants';
 
 function loadValue<T>(key: string, defaultValue: T): T {
@@ -25,9 +23,6 @@ function loadValue<T>(key: string, defaultValue: T): T {
 let _theme = $state(loadValue(LS_THEME, 'dark'));
 let _apiKey = $state(loadValue(LS_API_KEY, ''));
 let _model = $state(loadValue(LS_MODEL, DEFAULT_MODEL));
-let _autoCompact = $state(loadValue(LS_AUTO_COMPACT, true));
-let _compactThreshold = $state(loadValue(LS_COMPACT_THRESHOLD, DEFAULT_COMPACT_THRESHOLD));
-
 export const settings = {
   get theme() { return _theme; },
   set theme(v: string) { _theme = v; localStorage.setItem(LS_THEME, v); applyTheme(); },
@@ -37,12 +32,6 @@ export const settings = {
 
   get model() { return _model; },
   set model(v: string) { _model = v; localStorage.setItem(LS_MODEL, v); },
-
-  get autoCompact() { return _autoCompact; },
-  set autoCompact(v: boolean) { _autoCompact = v; localStorage.setItem(LS_AUTO_COMPACT, v ? '1' : '0'); },
-
-  get compactThreshold() { return _compactThreshold; },
-  set compactThreshold(v: number) { _compactThreshold = v; localStorage.setItem(LS_COMPACT_THRESHOLD, String(v)); },
 };
 
 export function toggleTheme(): void {
@@ -75,5 +64,23 @@ export function getBookPrompt(bookId: string): string {
 }
 
 export function setBookPrompt(bookId: string, prompt: string): void {
-  localStorage.setItem(lsPromptKey(bookId), prompt);
+  if (prompt.trim()) {
+    localStorage.setItem(lsPromptKey(bookId), prompt.trim());
+  } else {
+    localStorage.removeItem(lsPromptKey(bookId));
+  }
+}
+
+// --- Per-book compact prompt ---
+
+export function getCompactPrompt(bookId: string): string {
+  return localStorage.getItem(lsCompactPromptKey(bookId)) || '';
+}
+
+export function setCompactPrompt(bookId: string, prompt: string): void {
+  if (prompt.trim()) {
+    localStorage.setItem(lsCompactPromptKey(bookId), prompt.trim());
+  } else {
+    localStorage.removeItem(lsCompactPromptKey(bookId));
+  }
 }

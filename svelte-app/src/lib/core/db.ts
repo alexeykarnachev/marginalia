@@ -6,9 +6,11 @@
 //   Folder: { id, name, parent_id? }
 
 import type { Book, Folder } from '../types';
-import { IDB_NAME, IDB_VERSION, BOOK_DATA_PREFIXES } from './constants';
+import { IDB_NAME, IDB_VERSION } from './constants';
 
-export const MARGINALIA_VERSION = 83;
+const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
+
+export const MARGINALIA_VERSION = 84;
 
 // --- Storage backend interface ---
 

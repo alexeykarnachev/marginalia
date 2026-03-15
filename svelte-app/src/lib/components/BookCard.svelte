@@ -1,13 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Book } from '../types';
-  import {
-    BOOK_COVER_RENDER_WIDTH,
-    BOOK_COVER_JPEG_QUALITY,
-    PDFJS_LIB_POLL_MS,
-    PDFJS_LIB_TIMEOUT_MS,
-    lsStatsKey,
-  } from '../core/constants';
+  import { lsStatsKey } from '../core/constants';
+
+  const COVER_RENDER_WIDTH = 300;
+  const COVER_JPEG_QUALITY = 0.8;
+  const PDFJS_LIB_POLL_MS = 50;
+  const PDFJS_LIB_TIMEOUT_MS = 5000;
 
   // Load pdf.js dynamically from public directory via script tag
   async function getPdfjsLib(): Promise<any> {
@@ -111,7 +110,7 @@
 
       const viewport = page.getViewport({ scale: 1 });
       const canvas = document.createElement('canvas');
-      const scale = BOOK_COVER_RENDER_WIDTH / viewport.width;
+      const scale = COVER_RENDER_WIDTH / viewport.width;
       canvas.width = Math.round(viewport.width * scale);
       canvas.height = Math.round(viewport.height * scale);
 
@@ -120,7 +119,7 @@
         viewport: page.getViewport({ scale }),
       }).promise;
 
-      const dataUrl = canvas.toDataURL('image/jpeg', BOOK_COVER_JPEG_QUALITY);
+      const dataUrl = canvas.toDataURL('image/jpeg', COVER_JPEG_QUALITY);
       coverUrl = dataUrl;
       coverCache.set(book.id, dataUrl);
     } catch (err) {

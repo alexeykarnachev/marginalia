@@ -2,8 +2,8 @@
 // Export a createChatState() factory that returns reactive chat state
 
 import type { ChatMessage, ChatStats } from '../types';
-import { compactMessages } from '../core/prompt';
-import { lsChatKey, lsStatsKey, MIN_CONV_COUNT_FOR_COMPACT } from '../core/constants';
+import { compactConversation } from '../core/compact';
+import { lsChatKey, lsStatsKey } from '../core/constants';
 
 export interface ChatState {
   readonly messages: ChatMessage[];
@@ -23,7 +23,7 @@ export interface ChatState {
   addToolActivity: (action: string) => void;
   saveToStorage: (bookId: string) => void;
   loadFromStorage: (bookId: string) => void;
-  compact: (apiKey: string, model: string) => Promise<void>;
+  compact: (apiKey: string, model: string, bookId: string) => Promise<void>;
   handleDelta: (full: string) => void;
   trackUsage: (usage: any, model: string) => void;
 }
@@ -118,24 +118,15 @@ export function createChatState(): ChatState {
       } catch { /* ignore parse errors */ }
     },
 
-    async compact(apiKey: string, model: string) {
+    async compact(apiKey: string, model: string, bookId: string) {
       if (!apiKey) return;
-      const convCount = messages.filter(
-        (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
-      ).length;
-      // Need at least RECENT_MSG_COUNT + 2 older = MIN_CONV_COUNT_FOR_COMPACT user+assistant messages
-      if (convCount < MIN_CONV_COUNT_FOR_COMPACT) {
-        messages = [...messages, { role: 'system', content: `Not enough messages to compact (have ${convCount}, need ${MIN_CONV_COUNT_FOR_COMPACT}+).` }];
-        return;
-      }
       messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];
       try {
         const msgsForCompact = messages.filter(m => m.content !== 'Compacting conversation...');
-        const result = await compactMessages(apiKey, model, msgsForCompact, summary);
-        // Remove compacting indicator and replace with result
-        messages = result.messages;
-        summary = result.summary;
-        messages = [...messages, { role: 'system', content: `Compacted (${result.summary.length} char summary)` }];
+        const newSummary = await compactConversation(apiKey, model, bookId, msgsForCompact, summary);
+        messages = [];
+        summary = newSummary;
+        messages = [{ role: 'system', content: `Compacted (${newSummary.length} char summary)` }];
       } catch (err: any) {
         messages = messages.filter(m => m.content !== 'Compacting conversation...');
         const msg = (err as Error).name === 'AbortError'

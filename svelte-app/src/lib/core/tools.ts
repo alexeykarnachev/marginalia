@@ -23,7 +23,6 @@ import {
   TOC_PREVIEW_PAGES,
   TOC_PREVIEW_CHARS,
   TOC_HEADING_CONTEXT_CHARS,
-  BOOK_DATA_PREFIXES,
 } from './constants';
 import {
   getAllBooks,

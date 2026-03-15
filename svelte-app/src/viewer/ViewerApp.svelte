@@ -4,6 +4,7 @@
   import ThemeToggle from '../lib/components/ThemeToggle.svelte';
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
+  import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, applyTheme, getBookPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { getBook, saveBook, getAllBooks } from '../lib/core/db';
@@ -27,17 +28,18 @@
     LS_VIEWER_CHAT_WIDTH,
     LS_CHAT_OPEN,
     SS_BOOK_ID,
-    PDF_INIT_POLL_MS,
-    PDF_INIT_TIMEOUT_MS,
-    PAGE_SYNC_INTERVAL_MS,
-    PDF_DOC_POLL_MS,
-    PDF_DOC_TIMEOUT_MS,
-    INDEXING_STATUS_CLEAR_MS,
-    INDEXING_FAIL_CLEAR_MS,
-    INDEXING_PROGRESS_INTERVAL,
-    BOOK_TITLE_TRUNCATE_LENGTH,
-    SELECTION_PREVIEW_LENGTH,
   } from '../lib/core/constants';
+
+  const PDF_INIT_POLL_MS = 100;
+  const PDF_INIT_TIMEOUT_MS = 15000;
+  const PAGE_SYNC_INTERVAL_MS = 500;
+  const PDF_DOC_POLL_MS = 500;
+  const PDF_DOC_TIMEOUT_MS = 30000;
+  const INDEXING_STATUS_CLEAR_MS = 2000;
+  const INDEXING_FAIL_CLEAR_MS = 3000;
+  const INDEXING_PROGRESS_INTERVAL = 10;
+  const TITLE_TRUNCATE = 30;
+  const SELECTION_PREVIEW = 40;
 
   let bookTitle = $state('');
   let currentPage = $state(1);
@@ -81,15 +83,16 @@
   // Modal states
   let promptEditorOpen = $state(false);
   let toolsEditorOpen = $state(false);
+  let compactEditorOpen = $state(false);
 
   function updateContext() {
     const pct = totalPages > 1 ? ((currentPage - 1) / (totalPages - 1)) * 100 : 100;
     contextPct = pct;
-    const shortTitle = bookTitle.length > BOOK_TITLE_TRUNCATE_LENGTH ? bookTitle.slice(0, BOOK_TITLE_TRUNCATE_LENGTH - 2) + '...' : bookTitle;
+    const shortTitle = bookTitle.length > TITLE_TRUNCATE ? bookTitle.slice(0, TITLE_TRUNCATE - 2) + '...' : bookTitle;
     let info = `${shortTitle} -- p.${currentPage}/${totalPages}`;
     if (cachedSelection) {
-      const preview = cachedSelection.length > SELECTION_PREVIEW_LENGTH
-        ? cachedSelection.slice(0, SELECTION_PREVIEW_LENGTH - 2) + '...'
+      const preview = cachedSelection.length > SELECTION_PREVIEW
+        ? cachedSelection.slice(0, SELECTION_PREVIEW - 2) + '...'
         : cachedSelection;
       info += ` | "${preview}"`;
     }
@@ -163,7 +166,6 @@
         setCachedSelection('');
       },
       addToolSummary: true,
-      autoCompact: true,
     });
   }
 
@@ -192,8 +194,12 @@
   }
 
   async function handleCompact() {
-    await chatState.compact(settings.apiKey, settings.model);
+    await chatState.compact(settings.apiKey, settings.model, bookId);
     if (bookId) chatState.saveToStorage(bookId);
+  }
+
+  function openCompactEditor() {
+    compactEditorOpen = true;
   }
 
   // Book indexing
@@ -353,6 +359,7 @@
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      if (compactEditorOpen) { compactEditorOpen = false; return; }
       if (promptEditorOpen) { promptEditorOpen = false; return; }
       if (toolsEditorOpen) { toolsEditorOpen = false; return; }
       if (chatOpen) { chatOpen = false; localStorage.setItem(LS_CHAT_OPEN, '0'); return; }
@@ -492,7 +499,7 @@
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
-          { label: 'Compact', onClick: handleCompact },
+          { label: 'Compact', onClick: openCompactEditor },
         ]}
       >
         {#snippet contextBar()}
@@ -536,6 +543,13 @@
 <ToolsEditor
   open={toolsEditorOpen}
   onClose={() => { toolsEditorOpen = false; }}
+/>
+
+<CompactEditor
+  open={compactEditorOpen}
+  {bookId}
+  onClose={() => { compactEditorOpen = false; }}
+  onCompact={handleCompact}
 />
 
 {#if !chatOpen}

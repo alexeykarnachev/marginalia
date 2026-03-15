@@ -6,6 +6,7 @@
   import Settings from '../lib/components/Settings.svelte';
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
+  import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, applyTheme, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
@@ -27,6 +28,7 @@
   let settingsOpen = $state(false);
   let promptEditorOpen = $state(false);
   let toolsEditorOpen = $state(false);
+  let compactEditorOpen = $state(false);
 
   let chatWidth = $state(parseInt(localStorage.getItem(LS_LIB_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
 
@@ -145,7 +147,8 @@
   }
 
   async function handleCompact() {
-    await chatState.compact(settings.apiKey, settings.model);
+    await chatState.compact(settings.apiKey, settings.model, LIBRARY_CHAT_STORAGE_KEY);
+    chatState.saveToStorage(LIBRARY_CHAT_STORAGE_KEY);
   }
 
   function toggleChat() {
@@ -205,6 +208,7 @@ ${context.libraryTree}`,
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      if (compactEditorOpen) { compactEditorOpen = false; return; }
       if (promptEditorOpen) { promptEditorOpen = false; return; }
       if (toolsEditorOpen) { toolsEditorOpen = false; return; }
       if (settingsOpen) { settingsOpen = false; return; }
@@ -288,7 +292,7 @@ ${context.libraryTree}`,
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
-          { label: 'Compact', onClick: handleCompact },
+          { label: 'Compact', onClick: () => { compactEditorOpen = true; } },
         ]}
       >
         {#snippet toolActivitySnippet()}
@@ -307,6 +311,7 @@ ${context.libraryTree}`,
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
   <PromptEditor open={promptEditorOpen} bookId={LIBRARY_CHAT_STORAGE_KEY} onClose={() => { promptEditorOpen = false; }} />
   <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
+  <CompactEditor open={compactEditorOpen} bookId={LIBRARY_CHAT_STORAGE_KEY} onClose={() => { compactEditorOpen = false; }} onCompact={handleCompact} />
 
   {#if !chatOpen}
     <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>

@@ -1,13 +1,6 @@
-// Prompt rendering, API message building, token estimation, and auto-compaction
+// Prompt rendering and API message building
 
 import type { ChatMessage } from '../types';
-import { simpleLLMCall } from './agent';
-import {
-  RECENT_MSG_COUNT,
-  MAX_OLD_ASSISTANT_CHARS,
-  MAX_OLD_USER_CHARS,
-  MIN_MESSAGES_FOR_COMPACT,
-} from './constants';
 
 export const SYSTEM_PROMPT = `You are Marginalia, an AI reading assistant.
 
@@ -68,8 +61,6 @@ If you need to re-read a page you read earlier in this turn, just call read_page
 
 // getBookPrompt / setBookPrompt are in settings.svelte.ts — use those
 
-export { RECENT_MSG_COUNT, MAX_OLD_ASSISTANT_CHARS, MAX_OLD_USER_CHARS } from './constants';
-
 /**
  * Render a Handlebars-style template with {{var}} and {{#block}}...{{/block}} syntax.
  */
@@ -84,11 +75,12 @@ export function renderPrompt(template: string, context: Record<string, string>):
 }
 
 /**
- * Build API messages with context management:
- * 1. System prompt (always)
- * 2. Compacted summary of old conversation (if exists)
- * 3. Older messages with trimmed assistant responses
- * 4. Recent messages in full (last RECENT_MSG_COUNT)
+ * Build API messages:
+ * 1. System prompt
+ * 2. Summary of compacted history (if exists)
+ * 3. All conversation messages in full
+ *
+ * No trimming — if context is too long, user should compact manually.
  */
 export function buildApiMessages(
   systemPrompt: string,
@@ -98,88 +90,13 @@ export function buildApiMessages(
   const convMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
   const result: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
 
-  // Inject summary of compacted history
   if (summary) {
     result.push({ role: 'assistant', content: 'Previous conversation summary:\n' + summary });
   }
 
-  // Split into recent (full) and older (trimmed)
-  const recent = convMessages.slice(-RECENT_MSG_COUNT);
-  const older = convMessages.slice(0, -RECENT_MSG_COUNT);
-
-  // Trim older messages (both user and assistant)
-  for (const m of older) {
-    const limit = m.role === 'user' ? MAX_OLD_USER_CHARS : MAX_OLD_ASSISTANT_CHARS;
-    if (m.content && m.content.length > limit) {
-      result.push({ role: m.role, content: m.content.slice(0, limit) + '\n...[trimmed]' });
-    } else {
-      result.push({ role: m.role, content: m.content });
-    }
-  }
-
-  // Recent messages in full
-  for (const m of recent) {
+  for (const m of convMessages) {
     result.push({ role: m.role, content: m.content });
   }
 
   return result;
-}
-
-/**
- * Compact older messages into a summary via LLM call.
- * Returns new messages array and summary string.
- */
-export async function compactMessages(
-  apiKey: string,
-  model: string,
-  messages: ChatMessage[],
-  existingSummary: string | null,
-): Promise<{ messages: ChatMessage[]; summary: string }> {
-  const convMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
-  if (convMessages.length < MIN_MESSAGES_FOR_COMPACT) {
-    return { messages, summary: existingSummary || '' };
-  }
-
-  // Split: summarize the older portion, keep recent verbatim
-  const recent = convMessages.slice(-RECENT_MSG_COUNT);
-  const older = convMessages.slice(0, -RECENT_MSG_COUNT);
-
-  if (older.length < 2) {
-    return { messages, summary: existingSummary || '' };
-  }
-
-  // Build summarization prompt
-  const previousSummary = existingSummary
-    ? `Previous summary:\n${existingSummary}\n\n`
-    : '';
-  const historyText = older.map(m => `${m.role}: ${m.content}`).join('\n\n');
-
-  const compactPrompt: ChatMessage[] = [
-    {
-      role: 'system',
-      content: `Summarize this reading assistant conversation into a structured reference.
-Preserve ALL of:
-- Page numbers and citations mentioned
-- Key conclusions and analysis
-- Book titles and IDs referenced
-- Folder/library changes made
-- Any specific facts or arguments discussed
-Format as a bulleted list grouped by topic. Be specific, cite pages.
-${previousSummary}Conversation to summarize:`,
-    },
-    { role: 'user', content: historyText },
-  ];
-
-  const data = await simpleLLMCall(apiKey, model, compactPrompt);
-  const summary = data.choices?.[0]?.message?.content || '';
-  if (!summary) throw new Error('Empty summary');
-
-  // Keep only recent messages + a compaction notice
-  const nonSystemRecent = convMessages.slice(-RECENT_MSG_COUNT);
-  const newMessages: ChatMessage[] = [
-    { role: 'system', content: `Conversation compacted (${older.length} messages summarized)` },
-    ...nonSystemRecent,
-  ];
-
-  return { messages: newMessages, summary };
 }

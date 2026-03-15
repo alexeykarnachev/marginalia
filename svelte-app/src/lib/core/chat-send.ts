@@ -7,7 +7,6 @@ import { buildLibraryContext } from './tools';
 import { agentLoop } from './agent';
 import { buildApiMessages } from './prompt';
 import { humanizeToolAction } from './ui-helpers';
-import { AUTO_COMPACT_MSG_LIMIT, AUTO_COMPACT_MSG_MIN } from './constants';
 
 export interface SendChatConfig {
   /** Build the system prompt from library context */
@@ -20,8 +19,6 @@ export interface SendChatConfig {
   onAfterSend?: () => void;
   /** Whether to add a tool activity summary message after tool calls */
   addToolSummary?: boolean;
-  /** Whether to auto-compact after send */
-  autoCompact?: boolean;
 }
 
 export async function sendChatMessage(
@@ -87,17 +84,4 @@ export async function sendChatMessage(
   chatState.setSending(false);
   chatState.resetToolActivity();
   chatState.saveToStorage(config.storageKey);
-
-  // Auto-compact if enabled
-  if (config.autoCompact && settings.autoCompact) {
-    const convCount = chatState.messages.filter(
-      (m: ChatMessage) => m.role === 'user' || m.role === 'assistant'
-    ).length;
-    const overTokens = chatState.stats.lastContextTokens > settings.compactThreshold;
-    const overMessages = convCount > AUTO_COMPACT_MSG_LIMIT;
-    if ((overTokens || overMessages) && convCount > AUTO_COMPACT_MSG_MIN) {
-      await chatState.compact(settings.apiKey, settings.model);
-      chatState.saveToStorage(config.storageKey);
-    }
-  }
 }
