@@ -22,9 +22,9 @@ uploadInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const uploadBtn = document.querySelector(".upload-btn");
-    const origText = uploadBtn.textContent;
-    uploadBtn.textContent = "Uploading...";
+    const uploadBtn = document.getElementById("btn-upload");
+    const origText = uploadBtn.childNodes[0].textContent;
+    uploadBtn.childNodes[0].textContent = "...";
 
     try {
         const data = await file.arrayBuffer();
@@ -44,7 +44,7 @@ uploadInput.addEventListener("change", async (e) => {
     } catch (err) {
         console.error("Upload failed:", err);
     }
-    uploadBtn.textContent = origText;
+    uploadBtn.childNodes[0].textContent = origText;
 });
 
 // --- Settings ---
@@ -279,16 +279,34 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Cache covers in memory to avoid re-rendering on every renderLibrary call
+const _coverCache = {};
+
 async function renderBookCover(book, coverEl) {
-    // Wait for pdfjsLib to be available
+    // Use cached image if available
+    if (_coverCache[book.id]) {
+        coverEl.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = _coverCache[book.id];
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;";
+        coverEl.appendChild(img);
+        return;
+    }
+
+    // Wait for pdfjsLib to be available (module script loads after defer)
     if (typeof globalThis.pdfjsLib === "undefined") {
         let attempts = 0;
-        while (typeof globalThis.pdfjsLib === "undefined" && attempts < 30) {
+        while (typeof globalThis.pdfjsLib === "undefined" && attempts < 50) {
             await new Promise(r => setTimeout(r, 200));
             attempts++;
         }
     }
     if (typeof globalThis.pdfjsLib === "undefined") return;
+
+    // Set worker path (pdf.mjs defaults to ./pdf.worker.mjs which is wrong from index.html)
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "pdfjs/build/pdf.worker.mjs";
+    }
 
     try {
         const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: "application/pdf" });
@@ -298,18 +316,28 @@ async function renderBookCover(book, coverEl) {
 
         const viewport = page.getViewport({ scale: 1 });
         const canvas = document.createElement("canvas");
-        const scale = 200 / viewport.width;
-        canvas.width = viewport.width * scale;
-        canvas.height = viewport.height * scale;
+        // Render at 300px width for crisp covers
+        const scale = 300 / viewport.width;
+        canvas.width = Math.round(viewport.width * scale);
+        canvas.height = Math.round(viewport.height * scale);
 
         await page.render({
             canvasContext: canvas.getContext("2d"),
             viewport: page.getViewport({ scale }),
         }).promise;
 
+        // Cache as data URL and display as img (more reliable than canvas in grid)
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+        _coverCache[book.id] = dataUrl;
+
         coverEl.innerHTML = "";
-        coverEl.appendChild(canvas);
-    } catch {}
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;";
+        coverEl.appendChild(img);
+    } catch (err) {
+        console.warn("Cover render failed for", book.title, err);
+    }
 }
 
 // --- Init ---

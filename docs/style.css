@@ -29,7 +29,7 @@ body {
 #version-label { font-size: 11px; color: var(--m-fg-dim); font-weight: 400; margin-left: 8px; }
 #library-header-right { display: flex; gap: 8px; }
 
-#btn-settings, #btn-new-folder {
+#btn-settings, #btn-new-folder, #btn-upload {
     background: none;
     border: 1px solid var(--m-border-light);
     color: var(--m-fg-muted);
@@ -38,8 +38,12 @@ body {
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-#btn-settings:hover, #btn-new-folder:hover { border-color: var(--m-accent); color: var(--m-accent); }
+#btn-upload { font-size: 22px; font-weight: 300; }
+#btn-settings:hover, #btn-new-folder:hover, #btn-upload:hover { border-color: var(--m-accent); color: var(--m-accent); }
 
 /* Breadcrumb */
 .library-breadcrumb {
@@ -56,9 +60,10 @@ body {
 /* Book grid */
 #book-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 16px;
     margin-bottom: 20px;
+    padding: 0 4px;
 }
 
 /* Folder items — full width row above books */
@@ -166,19 +171,7 @@ body {
     text-align: center;
 }
 
-.upload-btn {
-    grid-column: 1 / -1;
-    display: block;
-    background: var(--m-bg-1);
-    color: var(--m-accent);
-    border: 1px dashed var(--m-border-light);
-    padding: 14px 24px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    text-align: center;
-}
-.upload-btn:hover { border-color: var(--m-accent); }
+/* Empty state when library has no books */
 
 /* Settings modal */
 .overlay {

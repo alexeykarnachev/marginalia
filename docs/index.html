@@ -20,15 +20,15 @@
             <div id="library-header">
                 <h1>Marginalia <span id="version-label"></span></h1>
                 <div id="library-header-right">
-                    <button id="btn-new-folder" title="New folder">📁+</button>
-                    <button id="btn-settings" title="Settings">&#9881;</button>
+                    <label id="btn-upload" title="Upload PDF">
+                        +
+                        <input type="file" accept=".pdf" id="upload-input" hidden>
+                    </label>
+                    <button id="btn-new-folder" title="New folder">📁</button>
+                    <button id="btn-settings" title="Settings">⚙</button>
                 </div>
             </div>
             <div id="book-list"></div>
-            <label class="upload-btn">
-                Upload PDF
-                <input type="file" accept=".pdf" id="upload-input" hidden>
-            </label>
         </div>
 
         <!-- Settings modal -->
@@ -60,8 +60,11 @@
         </div>
     </div>
 
+    <link rel="stylesheet" href="chat.css">
     <script src="pdfjs/build/pdf.mjs" type="module"></script>
     <script src="db.js" defer></script>
+    <script src="tools.js" defer></script>
+    <script src="agent.js" defer></script>
     <script src="app.js" defer></script>
     <script>
         if ("serviceWorker" in navigator) {
