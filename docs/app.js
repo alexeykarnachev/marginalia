@@ -363,10 +363,12 @@ function toggleLibChat() {
 function renderLibMarkdown(text) {
     if (typeof marked === "undefined") return text;
     let result = text;
-    // Strip UUIDs
+    // Strip UUIDs and IDs
     result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, "");
     result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
-    result = result.replace(/\bid:\s*[0-9a-f-]{36}/gi, "");
+    result = result.replace(/,?\s*id:\s*[^\s,)]+/gi, ""); // strip any id: value
+    result = result.replace(/,\s*\)/g, ")"); // clean trailing commas
+    result = result.replace(/\(\s*\)/g, ""); // clean empty parens
     result = marked.parse(result);
     return result;
 }
@@ -496,6 +498,40 @@ document.getElementById("library-chat-send").addEventListener("click", sendLibCh
 document.getElementById("library-chat-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendLibChat(); }
 });
+document.getElementById("library-chat-clear").addEventListener("click", () => {
+    if (libChatMessages.length === 0 || confirm("Clear conversation?")) {
+        libChatMessages.length = 0;
+        renderLibChat();
+    }
+});
+
+// Library chat resize
+(function() {
+    const panel = document.getElementById("library-chat");
+    const handle = document.getElementById("library-chat-resize");
+    let startX = null, startW = null;
+
+    handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        startX = e.clientX; startW = panel.offsetWidth;
+        document.body.style.userSelect = "none";
+    });
+    handle.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        startX = e.touches[0].clientX; startW = panel.offsetWidth;
+    });
+    document.addEventListener("mousemove", (e) => {
+        if (startX == null) return;
+        e.preventDefault();
+        panel.style.width = Math.max(280, startW + (startX - e.clientX)) + "px";
+    });
+    document.addEventListener("touchmove", (e) => {
+        if (startX == null) return;
+        panel.style.width = Math.max(280, startW + (startX - e.touches[0].clientX)) + "px";
+    });
+    document.addEventListener("mouseup", () => { startX = null; document.body.style.userSelect = ""; });
+    document.addEventListener("touchend", () => { startX = null; });
+})();
 
 async function loadDefaultBook() {
     const books = await getAllBooks();
