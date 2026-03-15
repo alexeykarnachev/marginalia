@@ -517,9 +517,8 @@ registerTool({
         const current = app.page;
         if (current !== page) {
             pageHistory.push(current);
-            // Use pdf.js eventBus for reliable cross-platform navigation
-            if (app.eventBus) {
-                app.eventBus.dispatch("pagenumberchanged", { source: null, value: String(page) });
+            if (app.pdfLinkService) {
+                app.pdfLinkService.goToPage(page);
             } else {
                 app.page = page;
             }

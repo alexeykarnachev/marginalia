@@ -302,6 +302,14 @@ async function indexBookInBackground(bookId) {
 
 // --- Inject UI ---
 
+function _goToPage(app, page) {
+    if (app.pdfLinkService) {
+        app.pdfLinkService.goToPage(page);
+    } else {
+        app.page = page;
+    }
+}
+
 function injectUI() {
     // --- Back button in pdf.js toolbar ---
     const toolbar = document.getElementById("toolbarViewerLeft");
@@ -444,11 +452,7 @@ function injectUI() {
     backBtn.addEventListener("click", () => {
         const app = window.PDFViewerApplication;
         if (_pageBeforeJump && app) {
-            if (app.eventBus) {
-                app.eventBus.dispatch("pagenumberchanged", { source: null, value: String(_pageBeforeJump) });
-            } else {
-                app.page = _pageBeforeJump;
-            }
+            _goToPage(app, _pageBeforeJump);
             _pageBeforeJump = null;
             backBtn.classList.add("hidden");
         }
@@ -463,11 +467,7 @@ function injectUI() {
             const app = window.PDFViewerApplication;
             if (page && app) {
                 _pageBeforeJump = app.page;
-                if (app.eventBus) {
-                    app.eventBus.dispatch("pagenumberchanged", { source: null, value: String(page) });
-                } else {
-                    app.page = page;
-                }
+                _goToPage(app, page);
                 backBtn.textContent = `\u2190 Back to p.${_pageBeforeJump}`;
                 backBtn.classList.remove("hidden");
             }
