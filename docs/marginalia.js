@@ -1158,8 +1158,10 @@ function _updateViewerMargin() {
     if (panel.classList.contains("open")) {
         const w = parseInt(panel.style.width) || 380;
         rule.textContent = `
-            #outerContainer { width: calc(100% - ${w}px) !important; }
-            body { overflow-x: hidden; }
+            html, body { overflow-x: hidden !important; }
+            body { display: flex !important; flex-direction: row !important; }
+            #outerContainer { flex: 1 !important; min-width: 0 !important; width: auto !important; }
+            #marginalia-chat { position: relative !important; transform: none !important; flex-shrink: 0 !important; }
         `;
     } else {
         rule.textContent = "";
