@@ -126,15 +126,20 @@ export function createChatState(): ChatState {
         messages = [...messages, { role: 'system', content: 'Not enough messages to compact (need at least 6 user+assistant messages).' }];
         return;
       }
-      messages = [...messages, { role: 'system', content: 'Compacting...' }];
+      messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];
       try {
-        const msgsForCompact = messages.filter(m => m.content !== 'Compacting...');
+        const msgsForCompact = messages.filter(m => m.content !== 'Compacting conversation...');
         const result = await compactMessages(apiKey, model, msgsForCompact, summary);
+        // Remove compacting indicator and replace with result
         messages = result.messages;
         summary = result.summary;
+        messages = [...messages, { role: 'system', content: `Compacted (${result.summary.length} char summary)` }];
       } catch (err: any) {
-        messages = messages.filter(m => m.content !== 'Compacting...');
-        messages = [...messages, { role: 'system', content: `Compact failed: ${(err as Error).message}` }];
+        messages = messages.filter(m => m.content !== 'Compacting conversation...');
+        const msg = (err as Error).name === 'AbortError'
+          ? 'Compact timed out (30s). Try again or reduce conversation length.'
+          : `Compact failed: ${(err as Error).message}`;
+        messages = [...messages, { role: 'system', content: msg }];
       }
     },
 

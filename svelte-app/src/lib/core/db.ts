@@ -7,7 +7,7 @@
 
 import type { Book, Folder } from '../types';
 
-export const MARGINALIA_VERSION = 81;
+export const MARGINALIA_VERSION = 82;
 
 // --- Storage backend interface ---
 
