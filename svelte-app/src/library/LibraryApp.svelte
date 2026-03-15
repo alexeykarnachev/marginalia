@@ -281,6 +281,8 @@ ${context.libraryTree}`;
 
   onMount(async () => {
     applyTheme();
+    // Clear current book context — library page has no "current book"
+    sessionStorage.removeItem('marginalia_book_id');
     chatState.loadFromStorage('_library');
     await loadDefaultBook();
     await refreshLibrary();

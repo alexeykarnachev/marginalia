@@ -447,8 +447,7 @@ registerTool({
 
     // Try PDF outline (structured TOC from PDF metadata)
     try {
-      const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp })
-        .PDFViewerApplication;
+      const app = _getPdfApp();
       const currentId = await _getCurrentBookId();
       if (bid === currentId && app?.pdfDocument) {
         const outline = await app.pdfDocument.getOutline();
@@ -648,17 +647,16 @@ registerTool({
     required: ['page'],
   },
   handler: async ({ page }: { page: number }) => {
-    const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp })
-      .PDFViewerApplication;
+    const app = _getPdfApp();
     const total = app?.pagesCount || 0;
     if (page < 1 || page > total) return `Error: page ${page} out of range (1-${total})`;
-    const current = app!.page!;
+    const current = app?.page || 1;
     if (current !== page) {
       pageHistory.push(current);
-      if (app!.pdfLinkService) {
-        app!.pdfLinkService.goToPage(page);
-      } else {
-        app!.page = page;
+      if (app?.pdfLinkService) {
+        app.pdfLinkService.goToPage(page);
+      } else if (app) {
+        (app as any).page = page;
       }
     }
     return `Navigated to page ${page}` + (current !== page ? ` (was on page ${current})` : '');
@@ -670,8 +668,7 @@ registerTool({
   description: 'Navigate back to the previous page in history.',
   parameters: { type: 'object', properties: {} },
   handler: async () => {
-    const app = (window as unknown as { PDFViewerApplication?: PDFViewerApp })
-      .PDFViewerApplication;
+    const app = _getPdfApp();
     const current = app?.page || '?';
     if (pageHistory.length === 0)
       return `No previous page in history (currently on page ${current})`;

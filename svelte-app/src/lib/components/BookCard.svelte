@@ -2,13 +2,27 @@
   import { onMount } from 'svelte';
   import type { Book } from '../types';
 
-  // Use pdf.js from public directory (same as the viewer iframe uses)
-  async function getPdfjsLib() {
-    if ((globalThis as any)._pdfjsLib) return (globalThis as any)._pdfjsLib;
-    const lib = await import('pdfjs-dist');
-    lib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
-    (globalThis as any)._pdfjsLib = lib;
-    return lib;
+  // Load pdf.js dynamically from public directory via script tag
+  async function getPdfjsLib(): Promise<any> {
+    if ((globalThis as any).pdfjsLib) return (globalThis as any).pdfjsLib;
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = '/pdfjs/build/pdf.mjs';
+      script.type = 'module';
+      script.onload = () => {
+        // pdf.mjs sets globalThis.pdfjsLib
+        const check = setInterval(() => {
+          if ((globalThis as any).pdfjsLib) {
+            clearInterval(check);
+            (globalThis as any).pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
+            resolve((globalThis as any).pdfjsLib);
+          }
+        }, 50);
+        setTimeout(() => { clearInterval(check); resolve(null); }, 5000);
+      };
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
   }
 
   // Module-level cover cache: avoids re-rendering covers on re-mount
@@ -82,6 +96,7 @@
 
     try {
       const pdfjsLib = await getPdfjsLib();
+      if (!pdfjsLib) return;
       const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
       const buf = await blob.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
