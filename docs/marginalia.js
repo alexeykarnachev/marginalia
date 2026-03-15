@@ -102,11 +102,8 @@ function setChatModel(model) {
 // --- Theme ---
 
 const THEMES = [
-    { id: "light", label: "☀" },
-    { id: "sepia", label: "🌅" },
-    { id: "dim",   label: "🌙" },
     { id: "dark",  label: "🌑" },
-    { id: "black", label: "⬛" },
+    { id: "light", label: "☀" },
 ];
 
 function getTheme() {
@@ -127,26 +124,10 @@ function cycleTheme() {
 
 function applyTheme() {
     const html = document.documentElement;
-    const theme = THEMES.find(t => t.id === getTheme()) || THEMES[3];
+    const theme = THEMES.find(t => t.id === getTheme()) || THEMES[0];
     html.dataset.theme = theme.id;
-    // pdf.js compat
-    if (theme.id === "light") {
-        html.classList.remove("is-dark");
-        html.classList.add("is-light");
-    } else {
-        html.classList.remove("is-light");
-        html.classList.add("is-dark");
-    }
-    // Apply PDF page filter from CSS variable
-    const pages = document.querySelector(".pdfViewer");
-    if (pages) {
-        pages.style.filter = getComputedStyle(html).getPropertyValue("--m-page-filter").trim();
-    }
-    const btn = document.getElementById("marginaliaTheme");
-    if (btn) {
-        btn.textContent = theme.label;
-        btn.title = "Theme: " + theme.id;
-    }
+    html.classList.toggle("is-light", theme.id === "light");
+    html.classList.toggle("is-dark", theme.id !== "light");
 }
 
 function getBookId() {
@@ -220,7 +201,16 @@ async function loadPdfFromDB() {
     const url = URL.createObjectURL(blob);
 
     await app.initializedPromise;
+
+    // Force single-page layout before opening
+    if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
+    // Also listen for document init to enforce it
+    app.eventBus?.on("documentinit", () => {
+        if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
+    });
+
     app.open({ url });
+
     document.title = book.title + " - Marginalia";
     const titleEl = document.getElementById("m-book-title");
     if (titleEl) titleEl.textContent = book.title;
@@ -318,7 +308,7 @@ function injectUI() {
             <div class="m-toolbar-right">
                 <button class="m-btn" id="m-zoom-out" title="Zoom out">−</button>
                 <button class="m-btn" id="m-zoom-in" title="Zoom in">+</button>
-                <button class="m-btn" id="marginaliaTheme" title="Theme">🌑</button>
+                <button class="m-theme-toggle" id="marginaliaTheme" title="Toggle theme"></button>
                 <button class="m-btn m-btn-text" id="marginaliaChatToggle" title="Chat">Chat</button>
             </div>
         `;

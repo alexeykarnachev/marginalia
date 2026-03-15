@@ -171,8 +171,8 @@ async function renderLibrary() {
         // Move button (dropdown with folder targets)
         const moveBtn = document.createElement("button");
         moveBtn.className = "item-btn";
-        moveBtn.title = "Move to folder";
-        moveBtn.textContent = "→";
+        moveBtn.title = "Move";
+        moveBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
         moveBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
             await showMoveDialog(book, folders);
@@ -181,7 +181,7 @@ async function renderLibrary() {
         const renameBtn = document.createElement("button");
         renameBtn.className = "item-btn";
         renameBtn.title = "Rename";
-        renameBtn.textContent = "✏";
+        renameBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
         renameBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
             const name = prompt("Rename book:", book.title);
@@ -195,7 +195,7 @@ async function renderLibrary() {
         const deleteBtn = document.createElement("button");
         deleteBtn.className = "item-btn item-btn-danger";
         deleteBtn.title = "Delete";
-        deleteBtn.textContent = "✕";
+        deleteBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
         deleteBtn.addEventListener("click", async (e) => {
             e.stopPropagation();
             if (!confirm(`Delete "${book.title}"?`)) return;
@@ -360,6 +360,17 @@ function toggleLibChat() {
     }
 }
 
+function renderLibMarkdown(text) {
+    if (typeof marked === "undefined") return text;
+    let result = text;
+    // Strip UUIDs
+    result = result.replace(/\s*\(id:\s*`?[0-9a-f-]{36}`?\)/gi, "");
+    result = result.replace(/`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`/g, "");
+    result = result.replace(/\bid:\s*[0-9a-f-]{36}/gi, "");
+    result = marked.parse(result);
+    return result;
+}
+
 function renderLibChat() {
     const el = document.getElementById("library-chat-messages");
     el.innerHTML = "";
@@ -367,7 +378,11 @@ function renderLibChat() {
         if (msg.role === "tool") continue;
         const div = document.createElement("div");
         div.className = "marginalia-msg " + msg.role;
-        div.textContent = msg.content;
+        if (msg.role === "assistant") {
+            div.innerHTML = renderLibMarkdown(msg.content);
+        } else {
+            div.textContent = msg.content;
+        }
         el.appendChild(div);
     }
     el.scrollTop = el.scrollHeight;
@@ -407,27 +422,30 @@ ${context.libraryTree}`;
             ...libChatMessages.filter(m => m.role !== "system"),
         ];
 
-        // Show thinking
-        libChatMessages.push({ role: "system", content: "Thinking..." });
-        renderLibChat();
+        // Show thinking (same class as viewer chat)
+        const thinkingEl = document.createElement("div");
+        thinkingEl.className = "marginalia-msg system marginalia-thinking";
+        thinkingEl.textContent = "Thinking...";
+        document.getElementById("library-chat-messages").appendChild(thinkingEl);
+        document.getElementById("library-chat-messages").scrollTop = document.getElementById("library-chat-messages").scrollHeight;
 
         const result = await agentLoop(s.apiKey, s.model, apiMessages, {
             onDelta: (delta, full) => {
-                // Update last assistant message in place
+                // Remove thinking indicator
+                const thinking = document.querySelector(".marginalia-thinking");
+                if (thinking) thinking.remove();
+                // Update or create assistant message
                 const last = libChatMessages[libChatMessages.length - 1];
-                if (last.role === "system" && last.content === "Thinking...") {
-                    libChatMessages.pop();
-                    libChatMessages.push({ role: "assistant", content: full });
-                } else if (last.role === "assistant") {
+                if (last?.role === "assistant") {
                     last.content = full;
+                } else {
+                    libChatMessages.push({ role: "assistant", content: full });
                 }
                 renderLibChat();
             },
             onToolCall: (name, args) => {
-                const last = libChatMessages[libChatMessages.length - 1];
-                if (last.role === "system" && last.content === "Thinking...") {
-                    libChatMessages.pop();
-                }
+                const thinking = document.querySelector(".marginalia-thinking");
+                if (thinking) thinking.remove();
             },
             onToolResult: () => {},
             onThinking: () => {},
@@ -435,13 +453,13 @@ ${context.libraryTree}`;
         });
 
         // Ensure final content is stored
-        const hasAssistant = libChatMessages.some(m => m.role === "assistant" && m.content === result.content);
-        if (!hasAssistant && result.content) {
-            // Remove thinking msg if still there
-            if (libChatMessages.length && libChatMessages[libChatMessages.length - 1].role === "system") {
-                libChatMessages.pop();
-            }
+        const thinking = document.querySelector(".marginalia-thinking");
+        if (thinking) thinking.remove();
+        const last = libChatMessages[libChatMessages.length - 1];
+        if (result.content && (!last || last.role !== "assistant")) {
             libChatMessages.push({ role: "assistant", content: result.content });
+        } else if (result.content && last?.role === "assistant") {
+            last.content = result.content;
         }
 
         // Refresh library in case tools changed it
@@ -457,6 +475,20 @@ ${context.libraryTree}`;
     input.focus();
 }
 
+// Handle open_book from library chat — navigate to viewer
+var _onBookChange = function(bookId) {
+    sessionStorage.setItem("marginalia_book_id", bookId);
+    window.location.href = "pdfjs/web/viewer.html?file=";
+};
+
+// Wire up theme toggle
+document.getElementById("btn-theme").addEventListener("click", () => {
+    const current = localStorage.getItem("marginalia_theme") || "dark";
+    const next = current === "dark" ? "light" : "dark";
+    localStorage.setItem("marginalia_theme", next);
+    document.documentElement.dataset.theme = next;
+});
+
 // Wire up library chat
 document.getElementById("btn-chat").addEventListener("click", toggleLibChat);
 document.getElementById("library-chat-close").addEventListener("click", toggleLibChat);
@@ -465,6 +497,26 @@ document.getElementById("library-chat-input").addEventListener("keydown", (e) =>
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendLibChat(); }
 });
 
+async function loadDefaultBook() {
+    const books = await getAllBooks();
+    if (books.length > 0) return;
+    try {
+        const res = await fetch("default-book.pdf");
+        if (!res.ok) return;
+        const data = await res.arrayBuffer();
+        await saveBook({
+            id: "1984",
+            title: "1984",
+            filename: "1984.pdf",
+            data,
+            size: data.byteLength,
+            pages: null,
+            folder_id: null,
+        });
+        renderLibrary();
+    } catch {}
+}
+
 // --- Init ---
 
 document.documentElement.dataset.theme = localStorage.getItem("marginalia_theme") || "dark";
@@ -472,4 +524,4 @@ document.documentElement.dataset.theme = localStorage.getItem("marginalia_theme"
 const versionEl = document.getElementById("version-label");
 if (versionEl) versionEl.textContent = "v" + MARGINALIA_VERSION;
 
-renderLibrary().catch((e) => console.error("Failed to load library:", e));
+loadDefaultBook().then(() => renderLibrary()).catch((e) => console.error("Failed to load library:", e));

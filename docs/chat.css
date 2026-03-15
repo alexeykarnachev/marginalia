@@ -184,6 +184,7 @@
 }
 .marginalia-msg.assistant {
     background: var(--m-bg-1);
+    border: 1px solid var(--m-border);
 }
 .marginalia-msg.assistant code {
     background: var(--m-code-bg);
@@ -356,12 +357,13 @@
 }
 .m-chat-send {
     background: var(--m-accent);
-    color: var(--m-fg);
+    color: var(--m-bg-0);
     border: none;
     border-radius: 6px;
     padding: 8px 16px;
     cursor: pointer;
     font-size: 13px;
+    font-weight: 600;
     align-self: flex-end;
 }
 .m-chat-send:disabled {

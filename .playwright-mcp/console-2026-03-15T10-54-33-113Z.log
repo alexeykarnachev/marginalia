@@ -1,0 +1,4 @@
+[     118ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8228/:0
+[  355960ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8228/favicon.ico:0
+[  470881ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8228/:0
+[  478647ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:8228/:0

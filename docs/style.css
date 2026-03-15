@@ -12,13 +12,8 @@ body {
     overflow: hidden;
 }
 
-.view { display: none; height: 100vh; flex-direction: column; }
-.view.active { display: flex; }
-
 /* Library */
-#library { padding: 20px; overflow-y: auto; }
-
-/* Library toolbar uses shared .m-toolbar from theme.css */
+#library { padding: 16px; overflow-y: auto; flex: 1; min-height: 0; }
 
 /* Breadcrumb */
 .library-breadcrumb {
@@ -59,6 +54,7 @@ body {
 /* Book cards */
 .book-item {
     background: var(--m-bg-1);
+    border: 1px solid var(--m-border);
     border-radius: 8px;
     cursor: pointer;
     display: flex;
@@ -235,15 +231,21 @@ body {
 
 /* Chat button uses shared .m-btn .m-btn-text from theme.css */
 
-/* Library layout: flex row with chat panel */
+/* App layout: toolbar at top, content + chat side by side below */
 #app {
     display: flex;
+    flex-direction: column;
     height: 100vh;
     overflow: hidden;
 }
-#app > .view { flex: 1; min-width: 0; }
+#app-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
 
-/* Library chat panel — positioned via flex, styled via shared .m-chat-* in chat.css */
+/* Library chat panel — inside #app-body flex row */
 .library-chat {
     width: 380px;
     flex-shrink: 0;
@@ -251,6 +253,5 @@ body {
     border-left: 1px solid var(--m-border);
     display: none;
     flex-direction: column;
-    height: 100vh;
 }
 .library-chat.open { display: flex; }

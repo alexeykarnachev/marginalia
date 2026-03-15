@@ -1,77 +1,90 @@
-/* theme.css — Single source of truth for all colors in Marginalia.
-   Gruvbox palette: https://github.com/morhetz/gruvbox */
+/* theme.css — Gruvbox color system for Marginalia
+   https://github.com/morhetz/gruvbox
+   Surface layering: darker = deeper, lighter = elevated */
 
-/* ── Dark (default) ─────────────────────────────────────────────── */
+/* ── Dark ────────────────────────────────────────────────────────── */
 
 :root,
 html[data-theme="dark"] {
-  /* Backgrounds: bg0_h -> bg0 -> bg1 -> bg2 */
-  --m-bg-0: #1d2021;
-  --m-bg-1: #282828;
-  --m-bg-2: #3c3836;
+  /* Surfaces: page < cards < toolbar < hover */
+  --m-bg-0: #1d2021;   /* bg0_h — page canvas */
+  --m-bg-1: #282828;   /* bg0   — cards, panels */
+  --m-bg-2: #3c3836;   /* bg1   — toolbar, inputs */
+  --m-bg-3: #504945;   /* bg2   — hover, active */
 
-  /* Foregrounds: fg -> fg1 -> gray */
-  --m-fg: #ebdbb2;
-  --m-fg-muted: #a89984;
-  --m-fg-dim: #928374;
+  /* Text: primary > secondary > dim */
+  --m-fg: #ebdbb2;     /* fg    — primary text (11.9:1 on bg0_h) */
+  --m-fg-muted: #bdae93; /* fg2 — secondary text (7.5:1 on bg0_h) */
+  --m-fg-dim: #a89984; /* fg3   — hints, labels (5.9:1 on bg0_h) */
 
-  /* Accent: yellow */
-  --m-accent: #d79921;
-  --m-accent-hover: #fabd2f;
+  /* Accents */
+  --m-accent: #fabd2f;      /* bright yellow — primary action */
+  --m-accent-hover: #d79921; /* dark yellow — hover */
+  --m-link: #83a598;         /* bright blue — links */
+  --m-link-hover: #8ec07c;   /* bright aqua — link hover */
+  --m-error: #fb4934;        /* bright red */
+  --m-success: #b8bb26;      /* bright green */
 
-  /* Links: blue */
-  --m-link: #83a598;
-  --m-link-hover: #fabd2f;
+  /* Borders */
+  --m-border: #3c3836;   /* bg1 */
+  --m-border-light: #504945; /* bg2 */
 
-  /* Semantic */
-  --m-error: #fb4934;
-  --m-success: #b8bb26;
-
-  /* Borders: bg2 -> bg3 */
-  --m-border: #3c3836;
-  --m-border-light: #504945;
-
-  /* Chat messages — subtle tints of the base, not separate hues */
+  /* Chat messages */
   --m-user-bg: #32302f;
-  --m-system-bg: #282828;
+  --m-system-bg: #1d2021;
   --m-system-fg: #a89984;
-  --m-tool-bg: #282828;
+  --m-tool-bg: #1d2021;
   --m-tool-fg: #83a598;
 
   /* Surfaces */
-  --m-code-bg: #282828;
-  --m-input-bg: #282828;
+  --m-code-bg: #1d2021;
+  --m-input-bg: #3c3836;
 
   /* Overlays */
-  --m-overlay-bg: rgba(29, 32, 33, 0.8);
+  --m-overlay-bg: rgba(29, 32, 33, 0.85);
   --m-shadow: rgba(0, 0, 0, 0.5);
-
-  /* Page filter */
-  --m-page-filter: invert(0.92) hue-rotate(180deg) contrast(0.8) brightness(0.8);
 }
 
-/* ── Light (dark UI + no page filter — original PDF colors) ──────── */
+/* ── Light ───────────────────────────────────────────────────────── */
 
 html[data-theme="light"] {
-  --m-page-filter: none;
-}
+  /* Surfaces: page < cards < toolbar < hover */
+  --m-bg-0: #f9f5d7;   /* bg0_h — page canvas */
+  --m-bg-1: #fbf1c7;   /* bg0   — cards, panels */
+  --m-bg-2: #ebdbb2;   /* bg1   — toolbar, inputs */
+  --m-bg-3: #d5c4a1;   /* bg2   — hover, active */
 
-/* ── Sepia (dark base + warm page filter) ────────────────────────── */
+  /* Text: primary > secondary > dim */
+  --m-fg: #3c3836;     /* fg    — primary text (10.5:1 on bg0_h) */
+  --m-fg-muted: #504945; /* fg1 — secondary text (8.0:1 on bg0_h) */
+  --m-fg-dim: #665c54; /* fg2   — hints, labels (5.9:1 on bg0_h) */
 
-html[data-theme="sepia"] {
-  --m-page-filter: sepia(0.4) brightness(0.75) contrast(0.9);
-}
+  /* Accents — use dark variants for text contrast */
+  --m-accent: #b57614;      /* dark yellow */
+  --m-accent-hover: #d79921; /* bright yellow */
+  --m-link: #076678;         /* dark blue */
+  --m-link-hover: #458588;   /* blue */
+  --m-error: #cc241d;        /* dark red */
+  --m-success: #98971a;      /* dark green */
 
-/* ── Dim (dark base + softened invert) ───────────────────────────── */
+  /* Borders */
+  --m-border: #ebdbb2;   /* bg1 */
+  --m-border-light: #d5c4a1; /* bg2 */
 
-html[data-theme="dim"] {
-  --m-page-filter: invert(0.8) hue-rotate(180deg) contrast(0.8) brightness(0.85);
-}
+  /* Chat messages */
+  --m-user-bg: #ebdbb2;
+  --m-system-bg: #f9f5d7;
+  --m-system-fg: #665c54;
+  --m-tool-bg: #f9f5d7;
+  --m-tool-fg: #076678;
 
-/* ── Black (dark base + full invert) ─────────────────────────────── */
+  /* Surfaces */
+  --m-code-bg: #ebdbb2;
+  --m-input-bg: #ebdbb2;
 
-html[data-theme="black"] {
-  --m-page-filter: invert(1) hue-rotate(180deg) brightness(0.75);
+  /* Overlays */
+  --m-overlay-bg: rgba(60, 56, 54, 0.5);
+  --m-shadow: rgba(0, 0, 0, 0.15);
 }
 
 /* ── Shared toolbar component ───────────────────────────────────── */
@@ -82,8 +95,8 @@ html[data-theme="black"] {
   justify-content: space-between;
   height: 52px;
   padding: 0 12px;
-  background: var(--m-bg-1);
-  border-bottom: 1px solid var(--m-border);
+  background: var(--m-bg-2);
+  border-bottom: 1px solid var(--m-border-light);
   flex-shrink: 0;
 }
 .m-toolbar-left,
@@ -115,6 +128,8 @@ html[data-theme="black"] {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Buttons */
 .m-btn {
   background: none;
   border: 1px solid var(--m-border-light);
@@ -136,6 +151,36 @@ html[data-theme="black"] {
   font-size: 14px;
 }
 .m-btn-lg { font-size: 22px; font-weight: 300; }
+
+/* Theme toggle */
+.m-theme-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--m-bg-3);
+  border: 1px solid var(--m-border-light);
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.m-theme-toggle::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--m-fg-muted);
+  transition: left 0.2s;
+}
+html[data-theme="light"] .m-theme-toggle::after {
+  left: 21px;
+  background: var(--m-accent);
+}
+
+/* Page navigation */
 .m-page-input {
   width: 52px;
   height: 40px;

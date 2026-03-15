@@ -15,23 +15,25 @@
 </head>
 <body>
     <div id="app">
-        <!-- Library view -->
-        <div id="library" class="view active">
-            <div class="m-toolbar">
-                <div class="m-toolbar-left">
-                    <span class="m-toolbar-title">Marginalia</span>
-                    <span class="m-toolbar-subtitle" id="version-label"></span>
-                </div>
-                <div class="m-toolbar-right">
-                    <label class="m-btn m-btn-lg" title="Upload PDF">
-                        +
-                        <input type="file" accept=".pdf" id="upload-input" hidden>
-                    </label>
-                    <button class="m-btn" id="btn-new-folder" title="New folder">📁</button>
-                    <button class="m-btn" id="btn-settings" title="Settings">⚙</button>
-                    <button class="m-btn m-btn-text" id="btn-chat" title="Chat">Chat</button>
-                </div>
+        <div class="m-toolbar">
+            <div class="m-toolbar-left">
+                <span class="m-toolbar-title">Marginalia</span>
+                <span class="m-toolbar-subtitle" id="version-label"></span>
             </div>
+            <div class="m-toolbar-right">
+                <label class="m-btn m-btn-lg" title="Upload PDF">
+                    +
+                    <input type="file" accept=".pdf" id="upload-input" hidden>
+                </label>
+                <button class="m-btn" id="btn-new-folder" title="New folder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+                <button class="m-btn" id="btn-settings" title="Settings">⚙</button>
+                <button class="m-theme-toggle" id="btn-theme" title="Toggle theme"></button>
+                <button class="m-btn m-btn-text" id="btn-chat" title="Chat">Chat</button>
+            </div>
+        </div>
+        <div id="app-body">
+        <!-- Library content (scrollable) -->
+        <div id="library">
             <div id="book-list"></div>
         </div>
 
@@ -49,6 +51,7 @@
                 <button class="m-chat-send" id="library-chat-send">Send</button>
             </div>
         </div>
+        </div> <!-- app-body -->
 
         <!-- Settings modal -->
         <div id="settings-overlay" class="overlay hidden">
@@ -80,6 +83,9 @@
     </div>
 
     <link rel="stylesheet" href="chat.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js" defer></script>
     <script src="pdfjs/build/pdf.mjs" type="module"></script>
     <script src="db.js" defer></script>
     <script src="tools.js" defer></script>

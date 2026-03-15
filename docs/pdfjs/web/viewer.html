@@ -47,8 +47,12 @@ See https://github.com/adobe-type-tools/cmap-resources
       --chat-panel-width: 380px;
       --toolbar-height: 52px;
     }
-    /* Hide default pdf.js toolbar */
+    /* Hide default pdf.js toolbar and sidebar */
     .toolbar { display: none !important; }
+    #sidebarContainer { display: none !important; }
+    /* Force single-page layout (no side-by-side spreads) */
+    .pdfViewer .spread { display: block !important; }
+    .pdfViewer .spread .page { margin: 1px auto -8px !important; }
     /* Viewer toolbar uses shared .m-toolbar from theme.css, just add z-index */
     #marginalia-toolbar { position: relative; z-index: 2; }
     #marginalia-chat {
