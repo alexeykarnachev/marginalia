@@ -1010,6 +1010,11 @@ export function getPageHistory(): number[] {
   return [...pageHistory];
 }
 
+export function clearPageHistory(): void {
+  pageHistory.length = 0;
+  _lastTrackedPage = null;
+}
+
 export function initPageTracking(): void {
   const app = _getPdfApp();
   if (app) {

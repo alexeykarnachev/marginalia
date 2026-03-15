@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { marked } from 'marked';
   import katex from 'katex';
+  import DOMPurify from 'dompurify';
   import type { ChatMessage } from '../types';
 
   interface MenuItem {
@@ -232,6 +233,7 @@
       }
     }
 
+    result = DOMPurify.sanitize(result);
     return result;
   }
 
@@ -382,7 +384,7 @@
     {#if toolActivitySnippet}
       {@render toolActivitySnippet()}
     {/if}
-    {#if sending}
+    {#if sending && (messages.length === 0 || messages[messages.length - 1]?.role !== 'assistant')}
       <div class="marginalia-msg assistant marginalia-thinking">
         <span class="thinking-dots">Thinking<span>.</span><span>.</span><span>.</span></span>
       </div>

@@ -50,7 +50,7 @@
     book.pages ? book.pages.length + 'p' : (book.pages === null ? '...' : '')
   );
   // Read per-book spending from localStorage
-  let bookCost = $derived(() => {
+  let bookCost = $derived.by(() => {
     try {
       const raw = localStorage.getItem(`marginalia_stats_${book.id}`);
       if (!raw) return '';
@@ -59,7 +59,7 @@
     } catch {}
     return '';
   });
-  let meta = $derived([pageCount, sizeMB + ' MB', bookCost()].filter(Boolean).join(' \u00B7 '));
+  let meta = $derived([pageCount, sizeMB + ' MB', bookCost].filter(Boolean).join(' \u00B7 '));
 
   function handleCardClick(e: MouseEvent) {
     if ((e.target as HTMLElement).closest('.item-actions')) return;

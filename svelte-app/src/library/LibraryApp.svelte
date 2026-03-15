@@ -8,10 +8,10 @@
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import { settings, applyTheme } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
-  import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, getSettings, MARGINALIA_VERSION } from '../lib/core/db';
+  import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { agentLoop } from '../lib/core/agent';
-  import { compactMessages } from '../lib/core/prompt';
+  import { buildApiMessages, compactMessages } from '../lib/core/prompt';
   import type { Book, Folder, ChatMessage } from '../lib/types';
 
   let books = $state<Book[]>([]);
@@ -26,12 +26,6 @@
   let chatFontSize = $state(parseInt(localStorage.getItem('marginalia_lib_chat_font') || '14'));
   let chatMono = $state(localStorage.getItem('marginalia_lib_chat_mono') === '1');
   let chatWidth = $state(parseInt(localStorage.getItem('marginalia_lib_chat_width') || '380'));
-
-  const FONT_SIZES = [
-    { label: 'S', size: 12 },
-    { label: 'M', size: 14 },
-    { label: 'L', size: 16 },
-  ];
 
   function setFontSize(size: number) {
     chatFontSize = size;
@@ -200,10 +194,7 @@ Respond in the user's language. Be concise.
 ## Library
 ${context.libraryTree}`;
 
-      const apiMessages: ChatMessage[] = [
-        { role: 'system', content: system },
-        ...chatState.messages.filter((m: ChatMessage) => m.role !== 'system'),
-      ];
+      const apiMessages = buildApiMessages(system, chatState.messages, chatState.summary);
 
       const result = await agentLoop(settings.apiKey, settings.model, apiMessages, {
         onDelta: (_delta: string, full: string) => {
@@ -218,7 +209,12 @@ ${context.libraryTree}`;
         onToolCall: () => {},
         onToolResult: () => {},
         onThinking: () => {},
-        onUsage: () => {},
+        onUsage: (usage: any, model: string) => {
+          chatState.stats.inputTokens += usage.prompt_tokens || 0;
+          chatState.stats.outputTokens += usage.completion_tokens || 0;
+          chatState.stats.cost += usage.cost || 0;
+          if (model) chatState.stats.model = model;
+        },
       });
 
       // Ensure final content
@@ -375,6 +371,7 @@ ${context.libraryTree}`;
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 

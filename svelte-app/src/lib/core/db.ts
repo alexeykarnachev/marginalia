@@ -7,7 +7,7 @@
 
 import type { Book, Folder, Settings } from '../types';
 
-export const MARGINALIA_VERSION = 78;
+export const MARGINALIA_VERSION = 79;
 
 // --- Storage backend interface ---
 
@@ -31,6 +31,7 @@ export interface MemoryBackend extends DbBackend {
 
 const _db: {
   _backend: DbBackend | null;
+  _cachedDb: IDBDatabase | null;
   _idb: () => Promise<IDBDatabase>;
   _idbGetAll: <T>(store: string) => Promise<T[]>;
   _idbGet: <T>(store: string, id: string) => Promise<T | undefined>;
@@ -38,8 +39,10 @@ const _db: {
   _idbDelete: (store: string, id: string) => Promise<void>;
 } = {
   _backend: null,
+  _cachedDb: null,
 
   async _idb(): Promise<IDBDatabase> {
+    if (this._cachedDb) return this._cachedDb;
     return new Promise((resolve, reject) => {
       const req = indexedDB.open('marginalia', 2);
       req.onupgradeneeded = () => {
@@ -51,7 +54,10 @@ const _db: {
           db.createObjectStore('folders', { keyPath: 'id' });
         }
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        this._cachedDb = req.result;
+        resolve(req.result);
+      };
       req.onerror = () => reject(req.error);
     });
   },

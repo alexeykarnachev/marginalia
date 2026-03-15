@@ -16,6 +16,7 @@
     setPdfAppGetter,
     initPageTracking,
     getPageHistory,
+    clearPageHistory,
   } from '../lib/core/tools';
   import { agentLoop } from '../lib/core/agent';
   import {
@@ -35,6 +36,8 @@
   let pageInputValue = $state('1');
   let pageInputFocused = $state(false);
   let chatResizing = $state(false);
+  let chatWidth = $state(parseInt(localStorage.getItem('marginalia_viewer_chat_width') || '380'));
+  let _lastAppliedTheme = '';
 
   // Current book ID
   let bookId = $state('');
@@ -356,7 +359,14 @@
 
   // Selection capture
   function captureSelection() {
-    const sel = window.getSelection()?.toString().trim() || '';
+    // Try parent document first
+    let sel = window.getSelection()?.toString().trim() || '';
+    // Also try iframe document (same-origin)
+    if (!sel) {
+      try {
+        sel = pdfIframe?.contentWindow?.getSelection()?.toString().trim() || '';
+      } catch {}
+    }
     if (sel) {
       cachedSelection = sel;
       setCachedSelection(sel);
@@ -378,6 +388,9 @@
     chatState.setSummary(null);
     chatState.resetStats();
     chatState.loadFromStorage(newBookId);
+
+    // Clear page history from previous book
+    clearPageHistory();
 
     // Reload PDF
     loadPdf();
@@ -420,6 +433,15 @@
     });
 
     app.open({ url });
+
+    // Listen for selection in iframe
+    try {
+      const iframeDoc = pdfIframe?.contentDocument;
+      if (iframeDoc) {
+        iframeDoc.addEventListener('mouseup', captureSelection);
+        iframeDoc.addEventListener('touchend', captureSelection);
+      }
+    } catch {}
 
     // Inject dark mode CSS into iframe
     applyThemeToIframe();
@@ -491,7 +513,10 @@
         pageInputValue = String(currentPage);
       }
       updateContext();
-      applyThemeToIframe();
+      if (settings.theme !== _lastAppliedTheme) {
+        applyThemeToIframe();
+        _lastAppliedTheme = settings.theme;
+      }
     }, 500);
 
     // Restore chat open state
@@ -577,8 +602,12 @@
         mono={chatMono}
         books={allBooks}
         onBookClick={(id) => handleBookChange(id)}
+        width={chatWidth}
         onResizeStart={() => chatResizing = true}
-        onResizeEnd={() => chatResizing = false}
+        onResizeEnd={(w) => {
+          chatResizing = false;
+          localStorage.setItem('marginalia_viewer_chat_width', String(w));
+        }}
         onFontSizeChange={setFontSize}
         onMonoToggle={toggleMono}
         stats={chatState.stats}
@@ -640,6 +669,7 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 

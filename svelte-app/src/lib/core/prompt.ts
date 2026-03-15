@@ -178,7 +178,7 @@ ${previousSummary}Conversation to summarize:`,
   if (!summary) throw new Error('Empty summary');
 
   // Keep only recent messages + a compaction notice
-  const nonSystemRecent = messages.slice(-RECENT_MSG_COUNT);
+  const nonSystemRecent = convMessages.slice(-RECENT_MSG_COUNT);
   const newMessages: ChatMessage[] = [
     { role: 'system', content: `Conversation compacted (${older.length} messages summarized)` },
     ...nonSystemRecent,
