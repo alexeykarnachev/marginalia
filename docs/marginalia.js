@@ -538,25 +538,27 @@ function injectStyles() {
         #marginalia-chat.open { transform: translateX(0); }
         #marginalia-chat-resize {
             position: absolute;
-            left: -12px;
+            left: 0;
             top: 0;
             bottom: 0;
-            width: 16px;
+            width: 6px;
             cursor: col-resize;
             z-index: 10;
             display: flex;
             align-items: center;
             justify-content: center;
+            touch-action: none;
         }
         #marginalia-chat-resize::after {
             content: "";
-            width: 4px;
-            height: 40px;
+            width: 3px;
+            height: 36px;
             border-radius: 2px;
             background: #555;
             transition: background 0.15s;
         }
-        #marginalia-chat-resize:hover::after {
+        #marginalia-chat-resize:hover::after,
+        #marginalia-chat-resize:active::after {
             background: #4a9eff;
         }
         #marginalia-chat-header {
@@ -1144,10 +1146,7 @@ function _updateViewerMargin() {
     if (panel.classList.contains("open")) {
         const w = parseInt(panel.style.width) || 380;
         rule.textContent = `
-            #outerContainer, .toolbar, #toolbarContainer, #mainContainer {
-                width: calc(100% - ${w}px) !important;
-                max-width: calc(100% - ${w}px) !important;
-            }
+            #outerContainer { width: calc(100% - ${w}px) !important; }
             body { overflow-x: hidden; }
         `;
     } else {
