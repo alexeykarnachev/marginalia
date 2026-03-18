@@ -493,6 +493,7 @@
         onResizeStart={() => chatResizing = true}
         onResizeEnd={(w) => {
           chatResizing = false;
+          chatWidth = w;
           localStorage.setItem(LS_VIEWER_CHAT_WIDTH, String(w));
         }}
         onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}

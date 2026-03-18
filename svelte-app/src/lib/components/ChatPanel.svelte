@@ -82,7 +82,8 @@
 
   // Resize state
   let resizing = $state(false);
-  let currentWidth = $state(width);
+  let dragWidth = $state(0);
+  let currentWidth = $derived(resizing ? dragWidth : width);
   let startX = 0;
   let startW = 0;
 
@@ -136,6 +137,7 @@
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     startX = clientX;
     startW = currentWidth;
+    dragWidth = currentWidth;
     resizing = true;
     onResizeStartCb?.();
     document.body.style.userSelect = 'none';
@@ -144,13 +146,12 @@
     const onMove = (ev: MouseEvent | TouchEvent) => {
       const cx = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
       if ('preventDefault' in ev && 'touches' in ev === false) ev.preventDefault();
-      const newW = Math.max(CHAT_MIN_WIDTH, Math.min(startW + (startX - cx), window.innerWidth * CHAT_MAX_WIDTH_RATIO));
-      currentWidth = newW;
+      dragWidth = Math.max(CHAT_MIN_WIDTH, Math.min(startW + (startX - cx), window.innerWidth * CHAT_MAX_WIDTH_RATIO));
     };
 
     const onEnd = () => {
       resizing = false;
-      onResizeEndCb?.(currentWidth);
+      onResizeEndCb?.(dragWidth);
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
       document.removeEventListener('mousemove', onMove);
@@ -477,10 +478,10 @@
 
   .chat-resize-handle {
     position: absolute;
-    left: -4px;
+    left: -12px;
     top: 0;
     bottom: 0;
-    width: 8px;
+    width: 24px;
     cursor: col-resize;
     z-index: 10;
     display: flex;
@@ -490,9 +491,9 @@
   }
   .chat-resize-handle::after {
     content: "";
-    width: 3px;
-    height: 36px;
-    border-radius: 2px;
+    width: 4px;
+    height: 48px;
+    border-radius: 3px;
     background: var(--m-border-light);
     transition: background 0.15s;
   }
