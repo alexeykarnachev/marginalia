@@ -24,6 +24,7 @@
     renderPrompt,
   } from '../lib/core/prompt';
   import { sendChatMessage } from '../lib/core/chat-send';
+  import { getChatRegistry, createChat, renameChat, deleteChat as deleteChatEntry, migrateExistingChats, getActiveChat, setActiveChat, type ChatEntry } from '../lib/core/chat-registry';
   import {
     DEFAULT_CHAT_WIDTH,
     LS_VIEWER_CHAT_WIDTH,
@@ -58,6 +59,51 @@
   let bookId = $state('');
 
   const chatState = createChatState();
+  let chats = $state<ChatEntry[]>([]);
+  let activeChatId = $state<string | null>(getActiveChat());
+
+  function refreshChats() { chats = getChatRegistry(); }
+
+  function switchChat(id: string) {
+    if (activeChatId) chatState.saveToStorage(activeChatId);
+    activeChatId = id;
+    setActiveChat(id);
+    chatState.clearMessages();
+    chatState.setSummary(null);
+    chatState.resetStats();
+    chatState.loadFromStorage(id);
+  }
+
+  function handleCreateChat() {
+    const name = prompt('Chat name:');
+    if (!name?.trim()) return;
+    const entry = createChat(name.trim());
+    refreshChats();
+    switchChat(entry.id);
+  }
+
+  function handleRenameChat(id: string) {
+    const entry = chats.find(c => c.id === id);
+    if (!entry) return;
+    const name = prompt('Rename chat:', entry.name);
+    if (!name?.trim()) return;
+    renameChat(id, name.trim());
+    refreshChats();
+  }
+
+  function handleDeleteChat(id: string) {
+    if (!confirm('Delete this chat?')) return;
+    deleteChatEntry(id);
+    refreshChats();
+    if (activeChatId === id) {
+      chatState.clearMessages();
+      chatState.setSummary(null);
+      chatState.resetStats();
+      activeChatId = chats.length > 0 ? chats[0].id : null;
+      setActiveChat(activeChatId);
+      if (activeChatId) chatState.loadFromStorage(activeChatId);
+    }
+  }
 
   // PDF viewer iframe
   let pdfIframe: HTMLIFrameElement;
@@ -154,6 +200,7 @@
   }
 
   async function handleChatSend(text: string) {
+    if (!activeChatId) return;
     await sendChatMessage(chatState, text, {
       buildSystemPrompt: (context: any) => {
         let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
@@ -161,7 +208,7 @@
         if (bp) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bp;
         return system;
       },
-      storageKey: bookId,
+      storageKey: activeChatId,
       onBeforeSend: () => {
         cachedSelection = '';
         setCachedSelection('');
@@ -172,11 +219,11 @@
 
   function handleChatClear() {
     if (chatState.messages.length === 0) return;
-    if (!confirm('Clear chat history for this book?')) return;
+    if (!confirm('Clear chat history?')) return;
     chatState.clearMessages();
     chatState.setSummary(null);
     chatState.resetStats();
-    if (bookId) chatState.saveToStorage(bookId);
+    if (activeChatId) chatState.saveToStorage(activeChatId);
   }
 
   function handlePageNav(page: number) {
@@ -195,8 +242,9 @@
   }
 
   async function handleCompact() {
-    await chatState.compact(settings.apiKey, settings.model, bookId);
-    if (bookId) chatState.saveToStorage(bookId);
+    if (!activeChatId) return;
+    await chatState.compact(settings.apiKey, settings.model, activeChatId);
+    chatState.saveToStorage(activeChatId);
   }
 
   function openCompactEditor() {
@@ -261,23 +309,9 @@
 
   // onBookChange handler
   function handleBookChange(newBookId: string) {
-    // Save current book's chat state
-    if (bookId) chatState.saveToStorage(bookId);
-
-    // Switch to new book
     bookId = newBookId;
     sessionStorage.setItem(SS_BOOK_ID, newBookId);
-
-    // Load new book's chat state
-    chatState.clearMessages();
-    chatState.setSummary(null);
-    chatState.resetStats();
-    chatState.loadFromStorage(newBookId);
-
-    // Clear page history from previous book
     clearPageHistory();
-
-    // Reload PDF
     loadPdf();
     initPageTracking();
   }
@@ -371,7 +405,7 @@
   // Sync page number from pdf.js
   let syncInterval: ReturnType<typeof setInterval>;
 
-  onMount(() => {
+  onMount(async () => {
     applyTheme();
 
     // Load PDF
@@ -381,11 +415,20 @@
       return;
     }
 
-    // Load persisted chat
-    chatState.loadFromStorage(bookId);
+    // Load book list for chat links and migrate chats
+    const allBooksData = await getAllBooks();
+    allBooks = allBooksData.map(b => ({ id: b.id, title: b.title }));
+    migrateExistingChats(allBooks);
+    refreshChats();
 
-    // Load book list for chat links
-    getAllBooks().then(bs => { allBooks = bs.map(b => ({ id: b.id, title: b.title })); });
+    // Load active chat
+    if (activeChatId && chats.some(c => c.id === activeChatId)) {
+      chatState.loadFromStorage(activeChatId);
+    } else if (chats.length > 0) {
+      activeChatId = chats[0].id;
+      setActiveChat(activeChatId);
+      chatState.loadFromStorage(activeChatId);
+    }
 
     // Load PDF after iframe is ready
     loadPdf();
@@ -477,9 +520,9 @@
 
     {#if chatOpen}
       <ChatPanel
-        placeholder="Ask about this page..."
+        placeholder={activeChatId ? 'Ask about this page...' : 'Create a chat to start'}
         messages={chatState.messages}
-        sending={chatState.sending}
+        sending={chatState.sending || !activeChatId}
         onSend={handleChatSend}
         onClear={handleChatClear}
         onClose={toggleChat}
@@ -499,6 +542,12 @@
         onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
         onMonoToggle={() => chatDisplay.toggleMono()}
         stats={chatState.stats}
+        {chats}
+        {activeChatId}
+        onSelectChat={switchChat}
+        onCreateChat={handleCreateChat}
+        onRenameChat={handleRenameChat}
+        onDeleteChat={handleDeleteChat}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
@@ -539,7 +588,7 @@
 
 <PromptEditor
   open={promptEditorOpen}
-  {bookId}
+  bookId={activeChatId || bookId}
   summary={chatState.summary}
   onClose={() => { promptEditorOpen = false; }}
 />
@@ -551,7 +600,7 @@
 
 <CompactEditor
   open={compactEditorOpen}
-  {bookId}
+  bookId={activeChatId || bookId}
   onClose={() => { compactEditorOpen = false; }}
   onCompact={handleCompact}
 />

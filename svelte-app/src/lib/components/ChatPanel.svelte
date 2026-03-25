@@ -4,6 +4,7 @@
   import katex from 'katex';
   import DOMPurify from 'dompurify';
   import type { ChatMessage } from '../types';
+  import type { ChatEntry } from '../core/chat-registry';
   import {
     DEFAULT_CHAT_WIDTH,
     DEFAULT_CHAT_FONT_SIZE,
@@ -48,6 +49,12 @@
     onFontSizeChange,
     onMonoToggle,
     stats,
+    chats = [],
+    activeChatId = null,
+    onSelectChat,
+    onCreateChat,
+    onRenameChat,
+    onDeleteChat,
   }: {
     placeholder?: string;
     messages: ChatMessage[];
@@ -70,10 +77,17 @@
     onFontSizeChange?: (size: number) => void;
     onMonoToggle?: () => void;
     stats?: { inputTokens: number; outputTokens: number; cost: number; model: string };
+    chats?: ChatEntry[];
+    activeChatId?: string | null;
+    onSelectChat?: (id: string) => void;
+    onCreateChat?: () => void;
+    onRenameChat?: (id: string) => void;
+    onDeleteChat?: (id: string) => void;
   } = $props();
 
   let inputText = $state('');
   let menuOpen = $state(false);
+  let chatListOpen = $state(false);
   let rawMode = $state(false);
   let messagesEl: HTMLDivElement;
   let inputEl: HTMLTextAreaElement;
@@ -128,6 +142,9 @@
     const target = e.target as HTMLElement;
     if (!target.closest('.menu-btn') && !target.closest('.marginalia-popover')) {
       menuOpen = false;
+    }
+    if (!target.closest('.chat-selector-btn') && !target.closest('.chat-list-popover')) {
+      chatListOpen = false;
     }
   }
 
@@ -323,7 +340,18 @@
   ></div>
 
   <div class="m-chat-header">
-    <span>Chat</span>
+    {#if onSelectChat && chats.length > 0}
+      <button
+        class="chat-selector-btn"
+        onclick={(e) => { e.stopPropagation(); chatListOpen = !chatListOpen; }}
+        title="Switch chat"
+      >
+        <span class="chat-selector-name">{chats.find(c => c.id === activeChatId)?.name || 'Chat'}</span>
+        <span class="chat-selector-arrow">{chatListOpen ? '\u25B4' : '\u25BE'}</span>
+      </button>
+    {:else}
+      <span>Chat</span>
+    {/if}
     <div class="m-chat-header-right">
       <button
         class="m-chat-header-btn menu-btn"
@@ -337,6 +365,24 @@
       >&#x2715;</button>
     </div>
   </div>
+
+  {#if chatListOpen}
+    <div class="chat-list-popover">
+      {#each chats as chat}
+        <div class="chat-list-item" class:active={chat.id === activeChatId}>
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span class="chat-list-name" onclick={() => { onSelectChat?.(chat.id); chatListOpen = false; }}>{chat.name}</span>
+          <div class="chat-list-actions">
+            <button class="chat-list-action" title="Rename" onclick={(e) => { e.stopPropagation(); onRenameChat?.(chat.id); }}>&#x270F;</button>
+            <button class="chat-list-action chat-list-action-danger" title="Delete" onclick={(e) => { e.stopPropagation(); onDeleteChat?.(chat.id); }}>&#x2715;</button>
+          </div>
+        </div>
+      {/each}
+      <hr class="popover-divider" />
+      <button class="menu-item" onclick={() => { onCreateChat?.(); chatListOpen = false; }}>+ New chat</button>
+    </div>
+  {/if}
 
   {#if menuOpen}
     <div class="marginalia-popover">
@@ -403,6 +449,12 @@
     onclick={handleMessagesClick}
     style:font-size="{fontSize}px"
   >
+    {#if !activeChatId && onCreateChat}
+      <div class="chat-empty-state">
+        <p>No chat selected</p>
+        <button class="prompt-btn prompt-btn-primary" onclick={onCreateChat}>New chat</button>
+      </div>
+    {/if}
     {#each messages as msg}
       {#if msg.role !== 'tool'}
         {#if msg.role === 'assistant'}
@@ -511,6 +563,86 @@
     border-bottom: 1px solid var(--m-border);
     flex-shrink: 0;
   }
+
+  .chat-selector-btn {
+    background: none;
+    border: 1px solid var(--m-border-light);
+    color: var(--m-fg);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 200px;
+  }
+  .chat-selector-btn:hover { border-color: var(--m-accent); }
+  .chat-selector-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-selector-arrow {
+    font-size: 10px;
+    color: var(--m-fg-dim);
+    flex-shrink: 0;
+  }
+
+  .chat-list-popover {
+    position: absolute;
+    top: 42px;
+    left: 8px;
+    background: var(--m-bg-1);
+    border: 1px solid var(--m-border-light);
+    border-radius: 8px;
+    padding: 4px 0;
+    z-index: 100;
+    min-width: 220px;
+    max-width: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px var(--m-shadow);
+  }
+  .chat-list-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  .chat-list-item:hover { background: var(--m-bg-2); }
+  .chat-list-item.active { background: var(--m-bg-2); }
+  .chat-list-name {
+    flex: 1;
+    font-size: 13px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 2px 0;
+  }
+  .chat-list-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    flex-shrink: 0;
+  }
+  .chat-list-item:hover .chat-list-actions { opacity: 1; }
+  @media (hover: none) {
+    .chat-list-actions { opacity: 0.7; }
+  }
+  .chat-list-action {
+    background: none;
+    border: none;
+    color: var(--m-fg-dim);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+  .chat-list-action:hover { color: var(--m-fg); background: var(--m-bg-3); }
+  .chat-list-action-danger:hover { color: var(--m-error); }
   .m-chat-header-right {
     display: flex;
     align-items: center;
@@ -609,6 +741,17 @@
     background: var(--m-accent);
     color: var(--m-bg-0);
     border-color: var(--m-accent);
+  }
+
+  .chat-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 20px;
+    color: var(--m-fg-dim);
+    font-size: 14px;
   }
 
   .m-chat-messages {
