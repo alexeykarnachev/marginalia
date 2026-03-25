@@ -5,6 +5,7 @@
 import type { ChatMessage, AgentCallbacks } from '../types';
 import { getToolDefinitions, executeTool } from './tools';
 import {
+  AGENT_LLM_TIMEOUT_MS,
   MAX_AGENT_ITERATIONS,
   MAX_INPUT_TOKENS_PER_TURN,
   OPENROUTER_URL,
@@ -116,109 +117,124 @@ export async function llmCall(
   tools: ReturnType<typeof getToolDefinitions> | null,
   onDelta?: (delta: string, full: string) => void
 ): Promise<LLMResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), AGENT_LLM_TIMEOUT_MS);
+
+  try {
   // Strip internal flags before serializing
-  const cleanMessages = messages.map((m) => {
-    if (m._compressed) {
-      const { _compressed, ...clean } = m;
-      return clean;
+    const cleanMessages = messages.map((m) => {
+      if (m._compressed) {
+        const { _compressed, ...clean } = m;
+        return clean;
+      }
+      return m;
+    });
+    const body: Record<string, unknown> = { model, messages: cleanMessages, stream: true };
+    if (tools && tools.length) body.tools = tools;
+
+    const res = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      headers: _apiHeaders(apiKey),
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        throw new Error(data.error?.message || `API error ${res.status}`);
+      }
+      throw new Error(`API error ${res.status}: ${res.statusText}`);
     }
-    return m;
-  });
-  const body: Record<string, unknown> = { model, messages: cleanMessages, stream: true };
-  if (tools && tools.length) body.tools = tools;
 
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: _apiHeaders(apiKey),
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       const data = await res.json();
-      throw new Error(data.error?.message || `API error ${res.status}`);
+      throw new Error(data.error?.message || 'Unknown API error');
     }
-    throw new Error(`API error ${res.status}: ${res.statusText}`);
-  }
 
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    const data = await res.json();
-    throw new Error(data.error?.message || 'Unknown API error');
-  }
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let content = '';
+    const toolCalls: ToolCallChunk[] = [];
+    let usage: LLMResult['usage'] = null;
+    let resultModel = '';
+    let finishReason = '';
 
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let content = '';
-  const toolCalls: ToolCallChunk[] = [];
-  let usage: LLMResult['usage'] = null;
-  let resultModel = '';
-  let finishReason = '';
-
-  while (true) {
-    let done: boolean;
-    let value: Uint8Array;
-    try {
-      ({ done, value } = await reader.read() as { done: boolean; value: Uint8Array });
-    } catch (e) {
-      throw new Error('Connection lost: ' + ((e as Error).message || 'network error'));
-    }
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    const lines = buffer.split('\n');
-    buffer = lines.pop()!;
-
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const payload = line.slice(6).trim();
-      if (payload === '[DONE]') continue;
+    while (true) {
+      let done: boolean;
+      let value: Uint8Array;
       try {
-        const chunk = JSON.parse(payload);
-
-        // Handle error events in the stream
-        if (chunk.error) {
-          throw new Error(chunk.error.message || chunk.error || 'Stream error');
+        ({ done, value } = await reader.read() as { done: boolean; value: Uint8Array });
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') {
+          throw new Error(`Request timed out after ${Math.round(AGENT_LLM_TIMEOUT_MS / 1000)}s`);
         }
+        throw new Error('Connection lost: ' + ((e as Error).message || 'network error'));
+      }
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
 
-        const choice = chunk.choices?.[0];
+      const lines = buffer.split('\n');
+      buffer = lines.pop()!;
 
-        const delta = choice?.delta?.content;
-        if (delta) {
-          content += delta;
-          if (onDelta) onDelta(delta, content);
-        }
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const chunk = JSON.parse(payload);
 
-        if (choice?.delta?.tool_calls) {
-          for (const tc of choice.delta.tool_calls) {
-            if (tc.index !== undefined) {
-              while (toolCalls.length <= tc.index) {
-                toolCalls.push({ id: '', function: { name: '', arguments: '' } });
+          if (chunk.error) {
+            throw new Error(chunk.error.message || chunk.error || 'Stream error');
+          }
+
+          const choice = chunk.choices?.[0];
+
+          const delta = choice?.delta?.content;
+          if (delta) {
+            content += delta;
+            if (onDelta) onDelta(delta, content);
+          }
+
+          if (choice?.delta?.tool_calls) {
+            for (const tc of choice.delta.tool_calls) {
+              if (tc.index !== undefined) {
+                while (toolCalls.length <= tc.index) {
+                  toolCalls.push({ id: '', function: { name: '', arguments: '' } });
+                }
+                const slot = toolCalls[tc.index];
+                if (tc.id) slot.id = tc.id;
+                if (tc.function?.name) slot.function.name += tc.function.name;
+                if (tc.function?.arguments) slot.function.arguments += tc.function.arguments;
               }
-              const slot = toolCalls[tc.index];
-              if (tc.id) slot.id = tc.id;
-              if (tc.function?.name) slot.function.name += tc.function.name;
-              if (tc.function?.arguments) slot.function.arguments += tc.function.arguments;
             }
           }
-        }
 
-        if (choice?.finish_reason) finishReason = choice.finish_reason;
-        if (chunk.usage) usage = chunk.usage;
-        if (chunk.model) resultModel = chunk.model;
-      } catch (e) {
-        if ((e as Error).message && (e as Error).message !== 'Stream error') {
-          // JSON parse error — skip this chunk
-        } else {
-          throw e; // Re-throw stream errors
+          if (choice?.finish_reason) finishReason = choice.finish_reason;
+          if (chunk.usage) usage = chunk.usage;
+          if (chunk.model) resultModel = chunk.model;
+        } catch (e) {
+          if (e instanceof SyntaxError) {
+            // JSON parse error — skip this chunk
+            continue;
+          }
+          throw e;
         }
       }
     }
-  }
 
-  return { content, toolCalls, usage, model: resultModel, finishReason };
+    return { content, toolCalls, usage, model: resultModel, finishReason };
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(AGENT_LLM_TIMEOUT_MS / 1000)}s`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // --- Agentic loop ---

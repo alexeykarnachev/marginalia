@@ -3,7 +3,7 @@
 
 import { lsChatKey, lsStatsKey } from './constants';
 
-const LS_REGISTRY = 'marginalia_chat_registry';
+const LS_REGISTRY = 'marginalia_chats';
 
 export interface ChatEntry {
   id: string;
@@ -13,7 +13,8 @@ export interface ChatEntry {
 
 export function getChatRegistry(): ChatEntry[] {
   try {
-    return JSON.parse(localStorage.getItem(LS_REGISTRY) || '[]');
+    const parsed = JSON.parse(localStorage.getItem(LS_REGISTRY) || '[]');
+    return Array.isArray(parsed) ? [...parsed] : [];
   } catch {
     return [];
   }
@@ -57,6 +58,8 @@ export function deleteChat(id: string): void {
  * Run once on app startup.
  */
 export function migrateExistingChats(books: { id: string; title: string }[]): void {
+  // Clean up old registry key from before rename
+  localStorage.removeItem('marginalia_chat_registry');
   const registry = getChatRegistry();
   const knownIds = new Set(registry.map(e => e.id));
 
@@ -69,11 +72,12 @@ export function migrateExistingChats(books: { id: string; title: string }[]): vo
     const chatId = key.slice(prefix.length);
     if (knownIds.has(chatId)) continue;
 
-    // Check if it actually has messages
+    // Check if it actually has chat messages (must have role field)
     try {
       const raw = JSON.parse(localStorage.getItem(key) || 'null');
       const msgs = Array.isArray(raw) ? raw : raw?.messages;
-      if (!msgs || msgs.length === 0) continue;
+      if (!Array.isArray(msgs) || msgs.length === 0) continue;
+      if (!msgs[0].role) continue;
     } catch {
       continue;
     }

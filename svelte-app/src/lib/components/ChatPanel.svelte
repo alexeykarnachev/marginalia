@@ -12,6 +12,7 @@
 
   const CHAT_MIN_WIDTH = 280;
   const CHAT_MAX_WIDTH_RATIO = 0.7;
+  const AUTO_SCROLL_BOTTOM_THRESHOLD = 48;
   const COPY_FEEDBACK_MS = 1500;
   const SEND_DONE_FEEDBACK_MS = 1500;
   const FONT_SIZES = [
@@ -93,6 +94,7 @@
   let inputEl: HTMLTextAreaElement;
   let containerEl: HTMLDivElement;
   let sendDone = $state(false);
+  let autoScrollEnabled = $state(true);
 
   // Resize state
   let resizing = $state(false);
@@ -101,16 +103,36 @@
   let startX = 0;
   let startW = 0;
 
-  // Scroll to bottom on new messages
+  function isNearBottom(): boolean {
+    if (!messagesEl) return true;
+    const remaining = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+    return remaining <= AUTO_SCROLL_BOTTOM_THRESHOLD;
+  }
+
+  function handleMessagesScroll() {
+    autoScrollEnabled = isNearBottom();
+  }
+
+  // Scroll to bottom on new messages while user is following the stream
   $effect(() => {
     // Touch messages to create dependency
     void messages.length;
     void sending;
     tick().then(() => {
-      if (messagesEl) {
+      if (messagesEl && autoScrollEnabled) {
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
     });
+  });
+
+  // When switching chats or resetting history, re-enable auto-follow.
+  $effect(() => {
+    void activeChatId;
+    void messages.length;
+    if (!messagesEl) return;
+    if (messages.length === 0) {
+      autoScrollEnabled = true;
+    }
   });
 
   function handleSend() {
@@ -340,13 +362,13 @@
   ></div>
 
   <div class="m-chat-header">
-    {#if onSelectChat && chats.length > 0}
+    {#if onSelectChat}
       <button
         class="chat-selector-btn"
         onclick={(e) => { e.stopPropagation(); chatListOpen = !chatListOpen; }}
         title="Switch chat"
       >
-        <span class="chat-selector-name">{chats.find(c => c.id === activeChatId)?.name || 'Chat'}</span>
+        <span class="chat-selector-name">{chats.find(c => c.id === activeChatId)?.name || 'New chat...'}</span>
         <span class="chat-selector-arrow">{chatListOpen ? '\u25B4' : '\u25BE'}</span>
       </button>
     {:else}
@@ -447,6 +469,7 @@
     class:mono
     bind:this={messagesEl}
     onclick={handleMessagesClick}
+    onscroll={handleMessagesScroll}
     style:font-size="{fontSize}px"
   >
     {#if !activeChatId && onCreateChat}

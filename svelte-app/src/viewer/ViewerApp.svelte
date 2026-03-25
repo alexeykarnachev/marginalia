@@ -54,6 +54,11 @@
   let chatResizing = $state(false);
   let chatWidth = $state(parseInt(localStorage.getItem(LS_VIEWER_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
   let _lastAppliedTheme = '';
+  let activePdfUrl: string | null = null;
+  let activeIframeDoc: Document | null = null;
+  let activePdfApp: any = null;
+  let documentInitHandler: (() => void) | null = null;
+  let pdfLoadToken = 0;
 
   // Current book ID
   let bookId = $state('');
@@ -65,7 +70,8 @@
   let pdfIframe: HTMLIFrameElement;
 
   function getPdfApp(): any {
-    return pdfIframe?.contentWindow?.PDFViewerApplication;
+    const iframeWindow = pdfIframe?.contentWindow as (Window & { PDFViewerApplication?: any }) | null;
+    return iframeWindow?.PDFViewerApplication;
   }
 
   function getBookId(): string {
@@ -268,12 +274,37 @@
     bookId = newBookId;
     sessionStorage.setItem(SS_BOOK_ID, newBookId);
     clearPageHistory();
-    loadPdf();
+    pageBeforeJump = null;
+    cachedSelection = '';
+    setCachedSelection('');
+    void loadPdf(newBookId);
     initPageTracking();
   }
 
-  async function loadPdf() {
-    const bid = getBookId();
+  function cleanupPdfSession() {
+    if (activeIframeDoc) {
+      activeIframeDoc.removeEventListener('mouseup', captureSelection);
+      activeIframeDoc.removeEventListener('touchend', captureSelection);
+      activeIframeDoc = null;
+    }
+
+    if (activePdfApp && documentInitHandler) {
+      activePdfApp.eventBus?.off?.('documentinit', documentInitHandler);
+    }
+    activePdfApp = null;
+    documentInitHandler = null;
+
+    if (activePdfUrl) {
+      URL.revokeObjectURL(activePdfUrl);
+      activePdfUrl = null;
+    }
+  }
+
+  async function loadPdf(targetBookId = getBookId()) {
+    const loadToken = ++pdfLoadToken;
+    cleanupPdfSession();
+
+    const bid = targetBookId;
     const book = await getBook(bid);
     if (!book) {
       window.location.href = './';
@@ -301,12 +332,25 @@
     const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
 
-    await app.initializedPromise;
-    if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
-    app.eventBus?.on('documentinit', () => {
-      if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
-    });
+    if (loadToken !== pdfLoadToken) {
+      URL.revokeObjectURL(url);
+      return;
+    }
 
+    await app.initializedPromise;
+    if (loadToken !== pdfLoadToken) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
+    documentInitHandler = () => {
+      if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
+    };
+    app.eventBus?.on('documentinit', documentInitHandler);
+
+    activePdfUrl = url;
+    activePdfApp = app;
     app.open({ url });
 
     // Listen for selection in iframe
@@ -315,6 +359,7 @@
       if (iframeDoc) {
         iframeDoc.addEventListener('mouseup', captureSelection);
         iframeDoc.addEventListener('touchend', captureSelection);
+        activeIframeDoc = iframeDoc;
       }
     } catch {}
 
@@ -361,25 +406,9 @@
   // Sync page number from pdf.js
   let syncInterval: ReturnType<typeof setInterval>;
 
-  onMount(async () => {
+  onMount(() => {
     applyTheme();
 
-    // Load PDF
-    bookId = getBookId();
-    if (!bookId) {
-      window.location.href = './';
-      return;
-    }
-
-    // Load book list for chat links and migrate chats
-    const allBooksData = await getAllBooks();
-    allBooks = allBooksData.map(b => ({ id: b.id, title: b.title }));
-    chatManager.init(allBooks);
-
-    // Load PDF after iframe is ready
-    loadPdf();
-
-    // Sync page display
     syncInterval = setInterval(() => {
       const app = getPdfApp();
       if (!app) return;
@@ -395,27 +424,35 @@
       }
     }, PAGE_SYNC_INTERVAL_MS);
 
-    // Restore chat open state
     if (localStorage.getItem(LS_CHAT_OPEN) === '1' && settings.apiKey) {
       chatOpen = true;
     }
 
-    // Selection capture listeners
     document.addEventListener('mouseup', captureSelection);
     document.addEventListener('touchend', captureSelection);
-
-    // Page tracking
-    initPageTracking();
     setGetPageHistoryFn(() => getPageHistory());
-
-    // Wire PDF app access for tools
     setPdfAppGetter(() => getPdfApp());
-
-    // Book change handler
     setOnBookChangeFn(handleBookChange);
 
+    void (async () => {
+      bookId = getBookId();
+      if (!bookId) {
+        window.location.href = './';
+        return;
+      }
+
+      const allBooksData = await getAllBooks();
+      allBooks = allBooksData.map(b => ({ id: b.id, title: b.title }));
+      chatManager.init(allBooks);
+
+      await loadPdf(bookId);
+      initPageTracking();
+    })();
+
     return () => {
+      pdfLoadToken++;
       clearInterval(syncInterval);
+      cleanupPdfSession();
       document.removeEventListener('mouseup', captureSelection);
       document.removeEventListener('touchend', captureSelection);
       setGetPageHistoryFn(null);
@@ -490,10 +527,10 @@
         stats={chatState.stats}
         chats={chatManager.chats}
         activeChatId={chatManager.activeChatId}
-        onSelectChat={chatManager.switch}
+        onSelectChat={chatManager.select}
         onCreateChat={() => chatManager.create(bookTitle || 'Chat')}
         onRenameChat={chatManager.rename}
-        onDeleteChat={chatManager.delete}
+        onDeleteChat={chatManager.remove}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },

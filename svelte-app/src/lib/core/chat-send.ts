@@ -44,7 +44,6 @@ export async function sendChatMessage(
 
     const result = await agentLoop(settings.apiKey, settings.model, apiMessages as ChatMessage[], {
       onDelta: (_delta: string, full: string) => {
-        chatState.resetToolActivity();
         chatState.handleDelta(full);
       },
       onToolCall: (name: string, args: any) => {

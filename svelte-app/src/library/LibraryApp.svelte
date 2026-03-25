@@ -301,10 +301,10 @@ ${context.libraryTree}`,
         stats={chatState.stats}
         chats={chatManager.chats}
         activeChatId={chatManager.activeChatId}
-        onSelectChat={chatManager.switch}
+        onSelectChat={chatManager.select}
         onCreateChat={() => chatManager.create('Library')}
         onRenameChat={chatManager.rename}
-        onDeleteChat={chatManager.delete}
+        onDeleteChat={chatManager.remove}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },

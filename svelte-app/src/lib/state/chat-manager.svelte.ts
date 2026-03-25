@@ -18,10 +18,10 @@ export interface ChatManager {
   readonly activeChatId: string | null;
   refresh: () => void;
   init: (books: { id: string; title: string }[]) => void;
-  switch: (id: string) => void;
+  select: (id: string) => void;
   create: (defaultName: string) => void;
   rename: (id: string) => void;
-  delete: (id: string) => void;
+  remove: (id: string) => void;
 }
 
 export function createChatManager(chatState: ChatState): ChatManager {
@@ -63,7 +63,7 @@ export function createChatManager(chatState: ChatState): ChatManager {
       }
     },
 
-    switch: switchTo,
+    select: switchTo,
 
     create(defaultName: string) {
       const name = prompt('Chat name:', defaultName);
@@ -82,7 +82,7 @@ export function createChatManager(chatState: ChatState): ChatManager {
       refresh();
     },
 
-    delete(id: string) {
+    remove(id: string) {
       if (!confirm('Delete this chat?')) return;
       deleteChatEntry(id);
       refresh();

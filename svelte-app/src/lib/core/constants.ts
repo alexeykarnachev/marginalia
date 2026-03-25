@@ -6,6 +6,7 @@ export const MAX_AGENT_ITERATIONS = 10;
 export const MAX_INPUT_TOKENS_PER_TURN = 100000;
 export const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const SIMPLE_LLM_TIMEOUT_MS = 30000;
+export const AGENT_LLM_TIMEOUT_MS = 60000;
 
 // ── Tool result compression ────────────────────────────────────────
 export const TOOL_RESULT_MIN_COMPRESS_LENGTH = 500;
@@ -63,4 +64,3 @@ export const lsCompactPromptKey = (bookId: string) => `marginalia_compact_prompt
 // ── sessionStorage keys ────────────────────────────────────────────
 export const SS_BOOK_ID = 'marginalia_book_id';
 export const SS_FOLDER_ID = 'marginalia_folder';
-
