@@ -7,6 +7,7 @@
   import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, applyTheme, getBookPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
+  import { createChatManager } from '../lib/state/chat-manager.svelte';
   import { getBook, saveBook, getAllBooks } from '../lib/core/db';
   import {
     buildLibraryContext,
@@ -24,7 +25,6 @@
     renderPrompt,
   } from '../lib/core/prompt';
   import { sendChatMessage } from '../lib/core/chat-send';
-  import { getChatRegistry, createChat, renameChat, deleteChat as deleteChatEntry, migrateExistingChats, getActiveChat, setActiveChat, type ChatEntry } from '../lib/core/chat-registry';
   import {
     DEFAULT_CHAT_WIDTH,
     LS_VIEWER_CHAT_WIDTH,
@@ -59,51 +59,7 @@
   let bookId = $state('');
 
   const chatState = createChatState();
-  let chats = $state<ChatEntry[]>([]);
-  let activeChatId = $state<string | null>(getActiveChat());
-
-  function refreshChats() { chats = getChatRegistry(); }
-
-  function switchChat(id: string) {
-    if (activeChatId) chatState.saveToStorage(activeChatId);
-    activeChatId = id;
-    setActiveChat(id);
-    chatState.clearMessages();
-    chatState.setSummary(null);
-    chatState.resetStats();
-    chatState.loadFromStorage(id);
-  }
-
-  function handleCreateChat() {
-    const name = prompt('Chat name:');
-    if (!name?.trim()) return;
-    const entry = createChat(name.trim());
-    refreshChats();
-    switchChat(entry.id);
-  }
-
-  function handleRenameChat(id: string) {
-    const entry = chats.find(c => c.id === id);
-    if (!entry) return;
-    const name = prompt('Rename chat:', entry.name);
-    if (!name?.trim()) return;
-    renameChat(id, name.trim());
-    refreshChats();
-  }
-
-  function handleDeleteChat(id: string) {
-    if (!confirm('Delete this chat?')) return;
-    deleteChatEntry(id);
-    refreshChats();
-    if (activeChatId === id) {
-      chatState.clearMessages();
-      chatState.setSummary(null);
-      chatState.resetStats();
-      activeChatId = chats.length > 0 ? chats[0].id : null;
-      setActiveChat(activeChatId);
-      if (activeChatId) chatState.loadFromStorage(activeChatId);
-    }
-  }
+  const chatManager = createChatManager(chatState);
 
   // PDF viewer iframe
   let pdfIframe: HTMLIFrameElement;
@@ -200,7 +156,7 @@
   }
 
   async function handleChatSend(text: string) {
-    if (!activeChatId) return;
+    if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
       buildSystemPrompt: (context: any) => {
         let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
@@ -208,7 +164,7 @@
         if (bp) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bp;
         return system;
       },
-      storageKey: activeChatId,
+      storageKey: chatManager.activeChatId,
       onBeforeSend: () => {
         cachedSelection = '';
         setCachedSelection('');
@@ -223,7 +179,7 @@
     chatState.clearMessages();
     chatState.setSummary(null);
     chatState.resetStats();
-    if (activeChatId) chatState.saveToStorage(activeChatId);
+    if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
   function handlePageNav(page: number) {
@@ -242,9 +198,9 @@
   }
 
   async function handleCompact() {
-    if (!activeChatId) return;
-    await chatState.compact(settings.apiKey, settings.model, activeChatId);
-    chatState.saveToStorage(activeChatId);
+    if (!chatManager.activeChatId) return;
+    await chatState.compact(settings.apiKey, settings.model, chatManager.activeChatId);
+    chatState.saveToStorage(chatManager.activeChatId);
   }
 
   function openCompactEditor() {
@@ -418,17 +374,7 @@
     // Load book list for chat links and migrate chats
     const allBooksData = await getAllBooks();
     allBooks = allBooksData.map(b => ({ id: b.id, title: b.title }));
-    migrateExistingChats(allBooks);
-    refreshChats();
-
-    // Load active chat
-    if (activeChatId && chats.some(c => c.id === activeChatId)) {
-      chatState.loadFromStorage(activeChatId);
-    } else if (chats.length > 0) {
-      activeChatId = chats[0].id;
-      setActiveChat(activeChatId);
-      chatState.loadFromStorage(activeChatId);
-    }
+    chatManager.init(allBooks);
 
     // Load PDF after iframe is ready
     loadPdf();
@@ -520,7 +466,7 @@
 
     {#if chatOpen}
       <ChatPanel
-        placeholder={activeChatId ? 'Ask about this page...' : 'Create a chat to start'}
+        placeholder={chatManager.activeChatId ? 'Ask about this page...' : 'Create a chat to start'}
         messages={chatState.messages}
         sending={chatState.sending}
         onSend={handleChatSend}
@@ -542,12 +488,12 @@
         onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
         onMonoToggle={() => chatDisplay.toggleMono()}
         stats={chatState.stats}
-        {chats}
-        {activeChatId}
-        onSelectChat={switchChat}
-        onCreateChat={handleCreateChat}
-        onRenameChat={handleRenameChat}
-        onDeleteChat={handleDeleteChat}
+        chats={chatManager.chats}
+        activeChatId={chatManager.activeChatId}
+        onSelectChat={chatManager.switch}
+        onCreateChat={() => chatManager.create(bookTitle || 'Chat')}
+        onRenameChat={chatManager.rename}
+        onDeleteChat={chatManager.delete}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
@@ -588,7 +534,7 @@
 
 <PromptEditor
   open={promptEditorOpen}
-  bookId={activeChatId || bookId}
+  bookId={chatManager.activeChatId || bookId}
   summary={chatState.summary}
   onClose={() => { promptEditorOpen = false; }}
 />
@@ -600,7 +546,7 @@
 
 <CompactEditor
   open={compactEditorOpen}
-  bookId={activeChatId || bookId}
+  bookId={chatManager.activeChatId || bookId}
   onClose={() => { compactEditorOpen = false; }}
   onCompact={handleCompact}
 />

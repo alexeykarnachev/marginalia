@@ -9,10 +9,10 @@
   import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, applyTheme, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
+  import { createChatManager } from '../lib/state/chat-manager.svelte';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
   import { setOnBookChangeFn } from '../lib/core/tools';
   import { sendChatMessage } from '../lib/core/chat-send';
-  import { getChatRegistry, createChat, renameChat, deleteChat as deleteChatEntry, migrateExistingChats, getActiveChat, setActiveChat, type ChatEntry } from '../lib/core/chat-registry';
   import type { Book, Folder } from '../lib/types';
   import {
     DEFAULT_CHAT_WIDTH,
@@ -34,54 +34,9 @@
   let chatWidth = $state(parseInt(localStorage.getItem(LS_LIB_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
 
   const chatState = createChatState();
-  let chats = $state<ChatEntry[]>([]);
-  let activeChatId = $state<string | null>(getActiveChat());
+  const chatManager = createChatManager(chatState);
 
   let uploadInput: HTMLInputElement;
-
-  function refreshChats() { chats = getChatRegistry(); }
-
-  function switchChat(id: string) {
-    // Save current chat before switching
-    if (activeChatId) chatState.saveToStorage(activeChatId);
-    activeChatId = id;
-    setActiveChat(id);
-    chatState.clearMessages();
-    chatState.setSummary(null);
-    chatState.resetStats();
-    chatState.loadFromStorage(id);
-  }
-
-  function handleCreateChat() {
-    const name = prompt('Chat name:');
-    if (!name?.trim()) return;
-    const entry = createChat(name.trim());
-    refreshChats();
-    switchChat(entry.id);
-  }
-
-  function handleRenameChat(id: string) {
-    const entry = chats.find(c => c.id === id);
-    if (!entry) return;
-    const name = prompt('Rename chat:', entry.name);
-    if (!name?.trim()) return;
-    renameChat(id, name.trim());
-    refreshChats();
-  }
-
-  function handleDeleteChat(id: string) {
-    if (!confirm('Delete this chat?')) return;
-    deleteChatEntry(id);
-    refreshChats();
-    if (activeChatId === id) {
-      chatState.clearMessages();
-      chatState.setSummary(null);
-      chatState.resetStats();
-      activeChatId = chats.length > 0 ? chats[0].id : null;
-      setActiveChat(activeChatId);
-      if (activeChatId) chatState.loadFromStorage(activeChatId);
-    }
-  }
 
   async function refreshLibrary() {
     books = await getAllBooks();
@@ -199,9 +154,9 @@
   }
 
   async function handleCompact() {
-    if (!activeChatId) return;
-    await chatState.compact(settings.apiKey, settings.model, activeChatId);
-    chatState.saveToStorage(activeChatId);
+    if (!chatManager.activeChatId) return;
+    await chatState.compact(settings.apiKey, settings.model, chatManager.activeChatId);
+    chatState.saveToStorage(chatManager.activeChatId);
   }
 
   function toggleChat() {
@@ -214,7 +169,7 @@
   }
 
   async function handleChatSend(text: string) {
-    if (!activeChatId) return;
+    if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
       buildSystemPrompt: (context: any) =>
         `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
@@ -223,7 +178,7 @@ Respond in the user's language. Be concise.
 
 ## Library
 ${context.libraryTree}`,
-      storageKey: activeChatId,
+      storageKey: chatManager.activeChatId,
       onAfterSend: () => { refreshLibrary(); },
     });
   }
@@ -233,7 +188,7 @@ ${context.libraryTree}`,
     if (!confirm('Clear conversation?')) return;
     chatState.clearMessages();
     chatState.setSummary(null);
-    if (activeChatId) chatState.saveToStorage(activeChatId);
+    if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
   // Handle open_book from chat agent
@@ -277,21 +232,7 @@ ${context.libraryTree}`,
     await loadDefaultBook();
     await refreshLibrary();
 
-    // Migrate existing chats and load registry
-    migrateExistingChats(books.map(b => ({ id: b.id, title: b.title })));
-    refreshChats();
-
-    // Load active chat or select first available
-    if (activeChatId && chats.some(c => c.id === activeChatId)) {
-      chatState.loadFromStorage(activeChatId);
-    } else if (chats.length > 0) {
-      activeChatId = chats[0].id;
-      setActiveChat(activeChatId);
-      chatState.loadFromStorage(activeChatId);
-    } else {
-      activeChatId = null;
-      setActiveChat(null);
-    }
+    chatManager.init(books.map(b => ({ id: b.id, title: b.title })));
   });
 </script>
 
@@ -336,7 +277,7 @@ ${context.libraryTree}`,
 
     {#if chatOpen}
       <ChatPanel
-        placeholder={activeChatId ? 'Ask about your library...' : 'Create a chat to start'}
+        placeholder={chatManager.activeChatId ? 'Ask about your library...' : 'Create a chat to start'}
         messages={chatState.messages}
         sending={chatState.sending}
         onSend={handleChatSend}
@@ -358,12 +299,12 @@ ${context.libraryTree}`,
         onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
         onMonoToggle={() => chatDisplay.toggleMono()}
         stats={chatState.stats}
-        {chats}
-        {activeChatId}
-        onSelectChat={switchChat}
-        onCreateChat={handleCreateChat}
-        onRenameChat={handleRenameChat}
-        onDeleteChat={handleDeleteChat}
+        chats={chatManager.chats}
+        activeChatId={chatManager.activeChatId}
+        onSelectChat={chatManager.switch}
+        onCreateChat={() => chatManager.create('Library')}
+        onRenameChat={chatManager.rename}
+        onDeleteChat={chatManager.delete}
         menuItems={[
           { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
@@ -384,9 +325,9 @@ ${context.libraryTree}`,
   </div>
 
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
-  <PromptEditor open={promptEditorOpen} bookId={activeChatId || '_default'} summary={chatState.summary} onClose={() => { promptEditorOpen = false; }} />
+  <PromptEditor open={promptEditorOpen} bookId={chatManager.activeChatId || '_default'} summary={chatState.summary} onClose={() => { promptEditorOpen = false; }} />
   <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
-  <CompactEditor open={compactEditorOpen} bookId={activeChatId || '_default'} onClose={() => { compactEditorOpen = false; }} onCompact={handleCompact} />
+  <CompactEditor open={compactEditorOpen} bookId={chatManager.activeChatId || '_default'} onClose={() => { compactEditorOpen = false; }} onCompact={handleCompact} />
 
   {#if !chatOpen}
     <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>
