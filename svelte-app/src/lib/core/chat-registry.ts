@@ -1,7 +1,7 @@
 // Chat registry — manages the list of user-created chats.
 // Each chat has an id, name, and timestamp. Messages stored separately via lsChatKey.
 
-import { lsChatKey, lsStatsKey } from './constants';
+import { lsChatKey, lsStatsKey, lsChatPromptKey, lsCompactPromptKey } from './constants';
 
 const LS_REGISTRY = 'marginalia_chats';
 
@@ -22,6 +22,10 @@ export function getChatRegistry(): ChatEntry[] {
 
 function saveRegistry(entries: ChatEntry[]): void {
   localStorage.setItem(LS_REGISTRY, JSON.stringify(entries));
+}
+
+export function removeChatEntry(id: string): void {
+  saveRegistry(getChatRegistry().filter(e => e.id !== id));
 }
 
 export function createChat(name: string): ChatEntry {
@@ -46,10 +50,11 @@ export function renameChat(id: string, name: string): void {
 }
 
 export function deleteChat(id: string): void {
-  const registry = getChatRegistry().filter(e => e.id !== id);
-  saveRegistry(registry);
+  removeChatEntry(id);
   localStorage.removeItem(lsChatKey(id));
   localStorage.removeItem(lsStatsKey(id));
+  localStorage.removeItem(lsChatPromptKey(id));
+  localStorage.removeItem(lsCompactPromptKey(id));
 }
 
 /**

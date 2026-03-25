@@ -5,7 +5,7 @@
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import CompactEditor from '../lib/components/CompactEditor.svelte';
-  import { settings, applyTheme, getBookPrompt, chatDisplay } from '../lib/state/settings.svelte';
+  import { settings, applyTheme, getBookPrompt, getChatPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { createChatManager } from '../lib/state/chat-manager.svelte';
   import { getBook, saveBook, getAllBooks } from '../lib/core/db';
@@ -16,12 +16,15 @@
     setOnBookChangeFn,
     setPdfAppGetter,
     initPageTracking,
+    disposePageTracking,
     getPageHistory,
     clearPageHistory,
   } from '../lib/core/tools';
   import {
     SYSTEM_PROMPT,
     BOOK_PROMPT_HEADER,
+    CHAT_PROMPT_HEADER,
+    SUMMARY_HEADER,
     renderPrompt,
   } from '../lib/core/prompt';
   import { sendChatMessage } from '../lib/core/chat-send';
@@ -90,9 +93,18 @@
   let allBooks = $state<{ id: string; title: string }[]>([]);
 
   // Modal states
-  let promptEditorOpen = $state(false);
+  let promptEditorMode = $state<'book' | 'chat' | null>(null);
   let toolsEditorOpen = $state(false);
   let compactEditorOpen = $state(false);
+
+  function buildViewerSystemPrompt(context: any) {
+    let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
+    const bookPrompt = getBookPrompt(bookId);
+    const chatPrompt = chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '';
+    if (bookPrompt) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bookPrompt;
+    if (chatPrompt) system += '\n\n' + CHAT_PROMPT_HEADER + '\n' + chatPrompt;
+    return system;
+  }
 
   function updateContext() {
     const pct = totalPages > 1 ? ((currentPage - 1) / (totalPages - 1)) * 100 : 100;
@@ -164,12 +176,7 @@
   async function handleChatSend(text: string) {
     if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
-      buildSystemPrompt: (context: any) => {
-        let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
-        const bp = getBookPrompt(bookId);
-        if (bp) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bp;
-        return system;
-      },
+      buildSystemPrompt: buildViewerSystemPrompt,
       storageKey: chatManager.activeChatId,
       onBeforeSend: () => {
         cachedSelection = '';
@@ -209,12 +216,33 @@
     chatState.saveToStorage(chatManager.activeChatId);
   }
 
+  function openBookPromptEditor() {
+    promptEditorMode = 'book';
+  }
+
+  function openChatPromptEditor() {
+    if (!chatManager.activeChatId) {
+      alert('Create a chat first.');
+      return;
+    }
+    promptEditorMode = 'chat';
+  }
+
+  async function buildViewerPromptPreview() {
+    const context = await buildLibraryContext();
+    let system = buildViewerSystemPrompt(context);
+    if (chatState.summary) {
+      system += '\n\n' + SUMMARY_HEADER + '\n' + chatState.summary;
+    }
+    return system;
+  }
+
   function openCompactEditor() {
     compactEditorOpen = true;
   }
 
   // Book indexing
-  async function indexBookInBackground(bid: string) {
+  async function indexBookInBackground(bid: string, loadToken: number) {
     const app = getPdfApp();
     if (!app?.pdfDocument) {
       indexingStatus = 'Waiting for PDF...';
@@ -225,18 +253,27 @@
         setTimeout(() => { clearInterval(check); resolve(); }, PDF_DOC_TIMEOUT_MS);
       });
     }
-    if (!app?.pdfDocument) { indexingStatus = ''; return; }
+    if (!app?.pdfDocument || loadToken !== pdfLoadToken) { indexingStatus = ''; return; }
 
     try {
-      const total = app.pagesCount;
+      const pdfDocument = app.pdfDocument;
+      const total = pdfDocument.numPages || app.pagesCount;
       const pages: string[] = [];
       for (let i = 1; i <= total; i++) {
+        if (loadToken !== pdfLoadToken || getBookId() !== bid) {
+          indexingStatus = '';
+          return;
+        }
         if (i === 1 || i % INDEXING_PROGRESS_INTERVAL === 0) {
           indexingStatus = `Indexing ${i}/${total}...`;
         }
-        const page = await app.pdfDocument.getPage(i);
+        const page = await pdfDocument.getPage(i);
         const content = await page.getTextContent();
         pages.push(content.items.map((item: any) => item.str).join(' '));
+      }
+      if (loadToken !== pdfLoadToken || getBookId() !== bid) {
+        indexingStatus = '';
+        return;
       }
       const book = await getBook(bid);
       if (book) {
@@ -277,8 +314,10 @@
     pageBeforeJump = null;
     cachedSelection = '';
     setCachedSelection('');
-    void loadPdf(newBookId);
-    initPageTracking();
+    void (async () => {
+      await loadPdf(newBookId);
+      initPageTracking();
+    })();
   }
 
   function cleanupPdfSession() {
@@ -368,7 +407,7 @@
 
     // Index book on first open
     if (!book.pages) {
-      indexBookInBackground(bid);
+      indexBookInBackground(bid, loadToken);
     }
   }
 
@@ -396,7 +435,7 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
       // Modals handle their own Escape via Modal.svelte
-      if (chatOpen && !compactEditorOpen && !promptEditorOpen && !toolsEditorOpen) {
+      if (chatOpen && !compactEditorOpen && !promptEditorMode && !toolsEditorOpen) {
         chatOpen = false;
         localStorage.setItem(LS_CHAT_OPEN, '0');
       }
@@ -453,6 +492,7 @@
       pdfLoadToken++;
       clearInterval(syncInterval);
       cleanupPdfSession();
+      disposePageTracking();
       document.removeEventListener('mouseup', captureSelection);
       document.removeEventListener('touchend', captureSelection);
       setGetPageHistoryFn(null);
@@ -532,7 +572,8 @@
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
         menuItems={[
-          { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
+          { label: 'Edit book prompt', onClick: openBookPromptEditor },
+          { label: 'Edit chat prompt', onClick: openChatPromptEditor },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
           { label: 'Compact', onClick: openCompactEditor },
         ]}
@@ -570,10 +611,12 @@
 </div>
 
 <PromptEditor
-  open={promptEditorOpen}
-  bookId={chatManager.activeChatId || bookId}
-  summary={chatState.summary}
-  onClose={() => { promptEditorOpen = false; }}
+  open={promptEditorMode !== null}
+  scope={promptEditorMode || 'book'}
+  scopeId={promptEditorMode === 'chat' ? (chatManager.activeChatId || '') : bookId}
+  title={promptEditorMode === 'chat' ? 'System prompt for this chat' : 'System prompt for this book'}
+  buildFullPrompt={buildViewerPromptPreview}
+  onClose={() => { promptEditorMode = null; }}
 />
 
 <ToolsEditor

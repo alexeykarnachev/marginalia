@@ -118,10 +118,73 @@ export async function llmCall(
   onDelta?: (delta: string, full: string) => void
 ): Promise<LLMResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), AGENT_LLM_TIMEOUT_MS);
+  let timeout = setTimeout(() => controller.abort(), AGENT_LLM_TIMEOUT_MS);
 
   try {
-  // Strip internal flags before serializing
+    const resetTimeout = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => controller.abort(), AGENT_LLM_TIMEOUT_MS);
+    };
+
+    let buffer = '';
+    let content = '';
+    const toolCalls: ToolCallChunk[] = [];
+    let usage: LLMResult['usage'] = null;
+    let resultModel = '';
+    let finishReason = '';
+
+    const processSseLine = (line: string) => {
+      if (!line.startsWith('data: ')) return;
+      const payload = line.slice(6).trim();
+      if (payload === '[DONE]') return;
+
+      const chunk = JSON.parse(payload);
+      if (chunk.error) {
+        throw new Error(chunk.error.message || chunk.error || 'Stream error');
+      }
+
+      const choice = chunk.choices?.[0];
+      const delta = choice?.delta?.content;
+      if (delta) {
+        content += delta;
+        if (onDelta) onDelta(delta, content);
+      }
+
+      if (choice?.delta?.tool_calls) {
+        for (const tc of choice.delta.tool_calls) {
+          if (tc.index !== undefined) {
+            while (toolCalls.length <= tc.index) {
+              toolCalls.push({ id: '', function: { name: '', arguments: '' } });
+            }
+            const slot = toolCalls[tc.index];
+            if (tc.id) slot.id = tc.id;
+            if (tc.function?.name) slot.function.name += tc.function.name;
+            if (tc.function?.arguments) slot.function.arguments += tc.function.arguments;
+          }
+        }
+      }
+
+      if (choice?.finish_reason) finishReason = choice.finish_reason;
+      if (chunk.usage) usage = chunk.usage;
+      if (chunk.model) resultModel = chunk.model;
+    };
+
+    const flushBufferedLines = (flushFinal: boolean) => {
+      const lines = buffer.split('\n');
+      buffer = flushFinal ? '' : (lines.pop() ?? '');
+
+      for (const line of lines) {
+        if (!line) continue;
+        try {
+          processSseLine(line);
+        } catch (e) {
+          if (e instanceof SyntaxError) continue;
+          throw e;
+        }
+      }
+    };
+
+    // Strip internal flags before serializing
     const cleanMessages = messages.map((m) => {
       if (m._compressed) {
         const { _compressed, ...clean } = m;
@@ -156,12 +219,6 @@ export async function llmCall(
 
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
-    let content = '';
-    const toolCalls: ToolCallChunk[] = [];
-    let usage: LLMResult['usage'] = null;
-    let resultModel = '';
-    let finishReason = '';
 
     while (true) {
       let done: boolean;
@@ -174,56 +231,13 @@ export async function llmCall(
         }
         throw new Error('Connection lost: ' + ((e as Error).message || 'network error'));
       }
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const lines = buffer.split('\n');
-      buffer = lines.pop()!;
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6).trim();
-        if (payload === '[DONE]') continue;
-        try {
-          const chunk = JSON.parse(payload);
-
-          if (chunk.error) {
-            throw new Error(chunk.error.message || chunk.error || 'Stream error');
-          }
-
-          const choice = chunk.choices?.[0];
-
-          const delta = choice?.delta?.content;
-          if (delta) {
-            content += delta;
-            if (onDelta) onDelta(delta, content);
-          }
-
-          if (choice?.delta?.tool_calls) {
-            for (const tc of choice.delta.tool_calls) {
-              if (tc.index !== undefined) {
-                while (toolCalls.length <= tc.index) {
-                  toolCalls.push({ id: '', function: { name: '', arguments: '' } });
-                }
-                const slot = toolCalls[tc.index];
-                if (tc.id) slot.id = tc.id;
-                if (tc.function?.name) slot.function.name += tc.function.name;
-                if (tc.function?.arguments) slot.function.arguments += tc.function.arguments;
-              }
-            }
-          }
-
-          if (choice?.finish_reason) finishReason = choice.finish_reason;
-          if (chunk.usage) usage = chunk.usage;
-          if (chunk.model) resultModel = chunk.model;
-        } catch (e) {
-          if (e instanceof SyntaxError) {
-            // JSON parse error — skip this chunk
-            continue;
-          }
-          throw e;
-        }
+      if (done) {
+        flushBufferedLines(true);
+        break;
       }
+      resetTimeout();
+      buffer += decoder.decode(value, { stream: true });
+      flushBufferedLines(false);
     }
 
     return { content, toolCalls, usage, model: resultModel, finishReason };
@@ -291,15 +305,18 @@ export async function agentLoop(
 
       for (const tc of result.toolCalls) {
         let args: Record<string, unknown> = {};
+        let parseError: Error | null = null;
         try {
           args = JSON.parse(tc.function.arguments);
-        } catch {
-          // ignore parse errors
+        } catch (err) {
+          parseError = err as Error;
         }
 
         if (callbacks.onToolCall) callbacks.onToolCall(tc.function.name, args);
 
-        const toolResult = await executeTool(tc.function.name, args);
+        const toolResult = parseError
+          ? `Error: invalid JSON arguments for tool "${tc.function.name}": ${parseError.message}`
+          : await executeTool(tc.function.name, args);
         const resultStr = String(toolResult);
 
         if (callbacks.onToolResult) callbacks.onToolResult(tc.function.name, args, resultStr);

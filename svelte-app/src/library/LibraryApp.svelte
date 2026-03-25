@@ -7,11 +7,12 @@
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import CompactEditor from '../lib/components/CompactEditor.svelte';
-  import { settings, applyTheme, chatDisplay } from '../lib/state/settings.svelte';
+  import { settings, applyTheme, chatDisplay, getChatPrompt } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { createChatManager } from '../lib/state/chat-manager.svelte';
+  import { removeChatEntry } from '../lib/core/chat-registry';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
-  import { setOnBookChangeFn } from '../lib/core/tools';
+  import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { sendChatMessage } from '../lib/core/chat-send';
   import type { Book, Folder } from '../lib/types';
   import {
@@ -41,6 +42,10 @@
   async function refreshLibrary() {
     books = await getAllBooks();
     folders = await getAllFolders();
+    if (currentFolderId && !folders.some(folder => folder.id === currentFolderId)) {
+      currentFolderId = null;
+      sessionStorage.removeItem(SS_FOLDER_ID);
+    }
   }
 
   function openBook(book: Book) {
@@ -60,8 +65,10 @@
   async function handleDeleteBook(book: Book) {
     if (!confirm(`Delete "${book.title}"?`)) return;
     await deleteBook(book.id);
+    removeChatEntry(book.id);
     deleteBookData(book.id);
     await refreshLibrary();
+    chatManager.init(books.map(b => ({ id: b.id, title: b.title })));
   }
 
   async function handleMoveBook(book: Book) {
@@ -97,18 +104,22 @@
 
   async function handleDeleteFolder(folder: Folder) {
     if (!confirm(`Delete folder "${folder.name}"? Books inside will move here.`)) return;
+    const targetFolderId = folder.parent_id || null;
     // Move children up
     const childBooks = books.filter(b => b.folder_id === folder.id);
     for (const b of childBooks) {
-      b.folder_id = currentFolderId;
+      b.folder_id = targetFolderId;
       await saveBook(b);
     }
     const childFolders = folders.filter(f => f.parent_id === folder.id);
     for (const f of childFolders) {
-      f.parent_id = currentFolderId;
+      f.parent_id = targetFolderId;
       await saveFolder(f);
     }
     await deleteFolder(folder.id);
+    if (currentFolderId === folder.id) {
+      handleNavigateFolder(targetFolderId);
+    }
     await refreshLibrary();
   }
 
@@ -171,16 +182,53 @@
   async function handleChatSend(text: string) {
     if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
-      buildSystemPrompt: (context: any) =>
-        `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
+      buildSystemPrompt: (context: any) => {
+        let system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
 You have access to tools for searching, organizing, and reading books.
 Respond in the user's language. Be concise.
 
 ## Library
-${context.libraryTree}`,
+${context.libraryTree}`;
+        const chatPrompt = getChatPrompt(chatManager.activeChatId!);
+        if (chatPrompt) {
+          system += `\n\n## Chat-specific instructions (MUST FOLLOW)\n${chatPrompt}`;
+        }
+        return system;
+      },
       storageKey: chatManager.activeChatId,
-      onAfterSend: () => { refreshLibrary(); },
+      onAfterSend: async () => {
+        await refreshLibrary();
+        chatManager.init(books.map(b => ({ id: b.id, title: b.title })));
+      },
     });
+  }
+
+  function openChatPromptEditor() {
+    if (!chatManager.activeChatId) {
+      alert('Create a chat first.');
+      return;
+    }
+    promptEditorOpen = true;
+  }
+
+  async function buildLibraryPromptPreview() {
+    const context = await buildLibraryContext();
+    let system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
+You have access to tools for searching, organizing, and reading books.
+Respond in the user's language. Be concise.
+
+## Library
+${context.libraryTree}`;
+    if (chatManager.activeChatId) {
+      const chatPrompt = getChatPrompt(chatManager.activeChatId);
+      if (chatPrompt) {
+        system += `\n\n## Chat-specific instructions (MUST FOLLOW)\n${chatPrompt}`;
+      }
+    }
+    if (chatState.summary) {
+      system += `\n\n## Previous conversation summary\n${chatState.summary}`;
+    }
+    return system;
   }
 
   function handleChatClear() {
@@ -306,7 +354,7 @@ ${context.libraryTree}`,
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
         menuItems={[
-          { label: 'Edit prompt', onClick: () => { promptEditorOpen = true; } },
+          { label: 'Edit chat prompt', onClick: openChatPromptEditor },
           { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
           { label: 'Compact', onClick: () => { compactEditorOpen = true; } },
         ]}
@@ -325,7 +373,14 @@ ${context.libraryTree}`,
   </div>
 
   <Settings open={settingsOpen} onClose={() => settingsOpen = false} />
-  <PromptEditor open={promptEditorOpen} bookId={chatManager.activeChatId || '_default'} summary={chatState.summary} onClose={() => { promptEditorOpen = false; }} />
+  <PromptEditor
+    open={promptEditorOpen}
+    scope="chat"
+    scopeId={chatManager.activeChatId || ''}
+    title="System prompt for this chat"
+    buildFullPrompt={buildLibraryPromptPreview}
+    onClose={() => { promptEditorOpen = false; }}
+  />
   <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
   <CompactEditor open={compactEditorOpen} bookId={chatManager.activeChatId || '_default'} onClose={() => { compactEditorOpen = false; }} onCompact={handleCompact} />
 

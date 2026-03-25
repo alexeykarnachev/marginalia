@@ -1,19 +1,21 @@
 <script lang="ts">
-  import { SYSTEM_PROMPT, BOOK_PROMPT_HEADER, SUMMARY_HEADER, renderPrompt } from '../core/prompt';
-  import { getBookPrompt, setBookPrompt } from '../state/settings.svelte';
-  import { buildLibraryContext } from '../core/tools';
+  import { getBookPrompt, getChatPrompt, setBookPrompt, setChatPrompt } from '../state/settings.svelte';
   import Modal from './Modal.svelte';
 
   let {
     open,
-    bookId,
-    summary = null,
+    scopeId,
+    scope = 'book',
+    title = 'System prompt',
     onClose,
+    buildFullPrompt,
   }: {
     open: boolean;
-    bookId: string;
-    summary?: string | null;
+    scopeId: string;
+    scope?: 'book' | 'chat';
+    title?: string;
     onClose: () => void;
+    buildFullPrompt?: () => Promise<string>;
   } = $props();
 
   let promptText = $state('');
@@ -22,14 +24,18 @@
 
   $effect(() => {
     if (open) {
-      promptText = getBookPrompt(bookId);
+      promptText = scope === 'chat' ? getChatPrompt(scopeId) : getBookPrompt(scopeId);
       showFullPrompt = false;
       fullPromptText = '';
     }
   });
 
   function handleSave() {
-    setBookPrompt(bookId, promptText.trim());
+    if (scope === 'chat') {
+      setChatPrompt(scopeId, promptText.trim());
+    } else {
+      setBookPrompt(scopeId, promptText.trim());
+    }
     onClose();
   }
 
@@ -38,18 +44,18 @@
       showFullPrompt = false;
       return;
     }
-    const context = await buildLibraryContext();
-    let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
-    const bp = getBookPrompt(bookId);
-    if (bp) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bp;
-    if (summary) system += '\n\n' + SUMMARY_HEADER + '\n' + summary;
-    fullPromptText = system;
+    if (!buildFullPrompt) {
+      fullPromptText = promptText.trim() || '(default prompt only)';
+      showFullPrompt = true;
+      return;
+    }
+    fullPromptText = await buildFullPrompt();
     showFullPrompt = true;
   }
 </script>
 
 <Modal {open} {onClose}>
-  <h3>System prompt for this book</h3>
+  <h3>{title}</h3>
   <p class="prompt-hint">This text is appended to the base system prompt. Leave empty to use the default.</p>
   <textarea
     class="prompt-textarea"

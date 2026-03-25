@@ -16,7 +16,7 @@ export interface SendChatConfig {
   /** Called before the agent loop (e.g. to clear cached selection) */
   onBeforeSend?: () => void;
   /** Called after a successful agent loop (e.g. to refresh library) */
-  onAfterSend?: () => void;
+  onAfterSend?: () => void | Promise<void>;
   /** Whether to add a tool activity summary message after tool calls */
   addToolSummary?: boolean;
 }
@@ -75,7 +75,7 @@ export async function sendChatMessage(
       chatState.updateLastMessage(result.content);
     }
 
-    config.onAfterSend?.();
+    await config.onAfterSend?.();
   } catch (err: any) {
     chatState.addMessage({ role: 'system', content: 'Error: ' + err.message });
   }

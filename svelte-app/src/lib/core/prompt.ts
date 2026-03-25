@@ -3,6 +3,7 @@
 import type { ChatMessage } from '../types';
 
 export const BOOK_PROMPT_HEADER = '## Book-specific instructions (MUST FOLLOW)';
+export const CHAT_PROMPT_HEADER = '## Chat-specific instructions (MUST FOLLOW)';
 export const SUMMARY_HEADER = '## Previous conversation summary';
 
 export const SYSTEM_PROMPT = `You are Marginalia, an AI reading assistant.

@@ -59,6 +59,7 @@ export const LS_LIB_CHAT_OPEN = 'marginalia_lib_chat_open';
 export const lsChatKey = (bookId: string) => `marginalia_chat_${bookId}`;
 export const lsStatsKey = (bookId: string) => `marginalia_stats_${bookId}`;
 export const lsPromptKey = (bookId: string) => `marginalia_prompt_${bookId}`;
+export const lsChatPromptKey = (chatId: string) => `marginalia_chat_prompt_${chatId}`;
 export const lsCompactPromptKey = (bookId: string) => `marginalia_compact_prompt_${bookId}`;
 
 // ── sessionStorage keys ────────────────────────────────────────────

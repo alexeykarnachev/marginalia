@@ -9,6 +9,7 @@ import {
   DEFAULT_MODEL,
   DEFAULT_CHAT_FONT_SIZE,
   lsPromptKey,
+  lsChatPromptKey,
   lsCompactPromptKey,
 } from '../core/constants';
 
@@ -68,6 +69,20 @@ export function setBookPrompt(bookId: string, prompt: string): void {
     localStorage.setItem(lsPromptKey(bookId), prompt.trim());
   } else {
     localStorage.removeItem(lsPromptKey(bookId));
+  }
+}
+
+// --- Per-chat settings ---
+
+export function getChatPrompt(chatId: string): string {
+  return localStorage.getItem(lsChatPromptKey(chatId)) || '';
+}
+
+export function setChatPrompt(chatId: string, prompt: string): void {
+  if (prompt.trim()) {
+    localStorage.setItem(lsChatPromptKey(chatId), prompt.trim());
+  } else {
+    localStorage.removeItem(lsChatPromptKey(chatId));
   }
 }
 

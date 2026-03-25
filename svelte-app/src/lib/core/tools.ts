@@ -35,6 +35,7 @@ import {
   deleteFolder as deleteFolderFromDb,
   deleteBookData,
 } from './db';
+import { removeChatEntry } from './chat-registry';
 
 // --- PDFViewerApplication type for window access ---
 
@@ -58,6 +59,7 @@ interface PDFViewerApp {
   };
   eventBus?: {
     on: (event: string, handler: () => void) => void;
+    off?: (event: string, handler: () => void) => void;
   };
 }
 
@@ -671,7 +673,6 @@ registerTool({
     if (page < 1 || page > total) return `Error: page ${page} out of range (1-${total})`;
     const current = app?.page || 1;
     if (current !== page) {
-      pageHistory.push(current);
       if (app?.pdfLinkService) {
         app.pdfLinkService.goToPage(page);
       } else if (app) {
@@ -692,7 +693,12 @@ registerTool({
     if (pageHistory.length === 0)
       return `No previous page in history (currently on page ${current})`;
     const prev = pageHistory.pop()!;
-    if (app) app.page = prev;
+    _suppressNextTrackedPageChange = true;
+    if (app?.pdfLinkService) {
+      app.pdfLinkService.goToPage(prev);
+    } else if (app) {
+      app.page = prev;
+    }
     return `Returned to page ${prev} (was on page ${current})`;
   },
 });
@@ -785,6 +791,7 @@ registerTool({
     const book = await getBook(book_id);
     if (!book) return `Error: book "${book_id}" not found`;
     await deleteBookFromDb(book_id);
+    removeChatEntry(book_id);
     deleteBookData(book_id);
     return `Deleted "${book.title}"`;
   },
@@ -1011,6 +1018,9 @@ registerTool({
 const pageHistory: number[] = [];
 const MAX_HISTORY = MAX_PAGE_HISTORY;
 let _lastTrackedPage: number | null = null;
+let _pageTrackingApp: PDFViewerApp | null = null;
+let _pageTrackingHandler: (() => void) | null = null;
+let _suppressNextTrackedPageChange = false;
 
 export function trackPageChange(): void {
   const app = _getPdfApp();
@@ -1018,8 +1028,12 @@ export function trackPageChange(): void {
   const current = app.page!;
   if (current !== _lastTrackedPage) {
     if (_lastTrackedPage !== null) {
-      pageHistory.push(_lastTrackedPage);
-      if (pageHistory.length > MAX_HISTORY) pageHistory.shift();
+      if (_suppressNextTrackedPageChange) {
+        _suppressNextTrackedPageChange = false;
+      } else {
+        pageHistory.push(_lastTrackedPage);
+        if (pageHistory.length > MAX_HISTORY) pageHistory.shift();
+      }
     }
     _lastTrackedPage = current;
   }
@@ -1032,12 +1046,27 @@ export function getPageHistory(): number[] {
 export function clearPageHistory(): void {
   pageHistory.length = 0;
   _lastTrackedPage = null;
+  _suppressNextTrackedPageChange = false;
+}
+
+export function disposePageTracking(): void {
+  if (_pageTrackingApp && _pageTrackingHandler) {
+    _pageTrackingApp.eventBus?.off?.('pagechanging', _pageTrackingHandler);
+  }
+  _pageTrackingApp = null;
+  _pageTrackingHandler = null;
+  _suppressNextTrackedPageChange = false;
 }
 
 export function initPageTracking(): void {
   const app = _getPdfApp();
   if (app) {
     _lastTrackedPage = app.page!;
-    app.eventBus?.on('pagechanging', () => trackPageChange());
+    if (_pageTrackingApp !== app) {
+      disposePageTracking();
+      _pageTrackingApp = app;
+      _pageTrackingHandler = () => trackPageChange();
+      app.eventBus?.on('pagechanging', _pageTrackingHandler);
+    }
   }
 }
