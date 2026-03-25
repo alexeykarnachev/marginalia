@@ -8,7 +8,8 @@
   import { settings, applyTheme, getBookPrompt, getChatPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { createChatManager } from '../lib/state/chat-manager.svelte';
-  import { getBook, saveBook, getAllBooks } from '../lib/core/db';
+  import { getAllBooks } from '../lib/core/db';
+  import { buildChatMenuItems } from '../lib/core/chat-menu';
   import {
     buildLibraryContext,
     setCachedSelection,
@@ -20,14 +21,10 @@
     getPageHistory,
     clearPageHistory,
   } from '../lib/core/tools';
-  import {
-    SYSTEM_PROMPT,
-    BOOK_PROMPT_HEADER,
-    CHAT_PROMPT_HEADER,
-    SUMMARY_HEADER,
-    renderPrompt,
-  } from '../lib/core/prompt';
+  import { SUMMARY_HEADER } from '../lib/core/prompt';
+  import { buildReadingAssistantPrompt } from '../lib/core/system-prompts';
   import { sendChatMessage } from '../lib/core/chat-send';
+  import { createViewerSession } from './viewer-session';
   import {
     DEFAULT_CHAT_WIDTH,
     LS_VIEWER_CHAT_WIDTH,
@@ -35,14 +32,7 @@
     SS_BOOK_ID,
   } from '../lib/core/constants';
 
-  const PDF_INIT_POLL_MS = 100;
-  const PDF_INIT_TIMEOUT_MS = 15000;
   const PAGE_SYNC_INTERVAL_MS = 500;
-  const PDF_DOC_POLL_MS = 500;
-  const PDF_DOC_TIMEOUT_MS = 30000;
-  const INDEXING_STATUS_CLEAR_MS = 2000;
-  const INDEXING_FAIL_CLEAR_MS = 3000;
-  const INDEXING_PROGRESS_INTERVAL = 10;
   const TITLE_TRUNCATE = 30;
   const SELECTION_PREVIEW = 40;
 
@@ -57,11 +47,7 @@
   let chatResizing = $state(false);
   let chatWidth = $state(parseInt(localStorage.getItem(LS_VIEWER_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
   let _lastAppliedTheme = '';
-  let activePdfUrl: string | null = null;
-  let activeIframeDoc: Document | null = null;
-  let activePdfApp: any = null;
-  let documentInitHandler: (() => void) | null = null;
-  let pdfLoadToken = 0;
+  let activeLoadToken = 0;
 
   // Current book ID
   let bookId = $state('');
@@ -71,11 +57,6 @@
 
   // PDF viewer iframe
   let pdfIframe: HTMLIFrameElement;
-
-  function getPdfApp(): any {
-    const iframeWindow = pdfIframe?.contentWindow as (Window & { PDFViewerApplication?: any }) | null;
-    return iframeWindow?.PDFViewerApplication;
-  }
 
   function getBookId(): string {
     return sessionStorage.getItem(SS_BOOK_ID) || '';
@@ -97,13 +78,34 @@
   let toolsEditorOpen = $state(false);
   let compactEditorOpen = $state(false);
 
+  const viewerSession = createViewerSession({
+    getPdfIframe: () => pdfIframe,
+    getCurrentBookId: getBookId,
+    setCurrentBookId: (newBookId) => {
+      bookId = newBookId;
+      sessionStorage.setItem(SS_BOOK_ID, newBookId);
+    },
+    applyThemeToIframe,
+    captureSelection,
+    onBookMissing: () => { window.location.href = './'; },
+    onBookLoaded: (title) => {
+      bookTitle = title;
+      document.title = title + ' - Marginalia';
+    },
+    onIndexingStatus: (status) => { indexingStatus = status; },
+    isLoadCurrent: (loadToken) => activeLoadToken === loadToken,
+  });
+
+  function getPdfApp(): any {
+    return viewerSession.getPdfApp();
+  }
+
   function buildViewerSystemPrompt(context: any) {
-    let system = renderPrompt(SYSTEM_PROMPT, context as unknown as Record<string, string>);
-    const bookPrompt = getBookPrompt(bookId);
-    const chatPrompt = chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '';
-    if (bookPrompt) system += '\n\n' + BOOK_PROMPT_HEADER + '\n' + bookPrompt;
-    if (chatPrompt) system += '\n\n' + CHAT_PROMPT_HEADER + '\n' + chatPrompt;
-    return system;
+    return buildReadingAssistantPrompt(
+      context,
+      getBookPrompt(bookId),
+      chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '',
+    );
   }
 
   function updateContext() {
@@ -241,54 +243,6 @@
     compactEditorOpen = true;
   }
 
-  // Book indexing
-  async function indexBookInBackground(bid: string, loadToken: number) {
-    const app = getPdfApp();
-    if (!app?.pdfDocument) {
-      indexingStatus = 'Waiting for PDF...';
-      await new Promise<void>((resolve) => {
-        const check = setInterval(() => {
-          if (app?.pdfDocument) { clearInterval(check); resolve(); }
-        }, PDF_DOC_POLL_MS);
-        setTimeout(() => { clearInterval(check); resolve(); }, PDF_DOC_TIMEOUT_MS);
-      });
-    }
-    if (!app?.pdfDocument || loadToken !== pdfLoadToken) { indexingStatus = ''; return; }
-
-    try {
-      const pdfDocument = app.pdfDocument;
-      const total = pdfDocument.numPages || app.pagesCount;
-      const pages: string[] = [];
-      for (let i = 1; i <= total; i++) {
-        if (loadToken !== pdfLoadToken || getBookId() !== bid) {
-          indexingStatus = '';
-          return;
-        }
-        if (i === 1 || i % INDEXING_PROGRESS_INTERVAL === 0) {
-          indexingStatus = `Indexing ${i}/${total}...`;
-        }
-        const page = await pdfDocument.getPage(i);
-        const content = await page.getTextContent();
-        pages.push(content.items.map((item: any) => item.str).join(' '));
-      }
-      if (loadToken !== pdfLoadToken || getBookId() !== bid) {
-        indexingStatus = '';
-        return;
-      }
-      const book = await getBook(bid);
-      if (book) {
-        book.pages = pages;
-        await saveBook(book);
-      }
-      indexingStatus = `Indexed ${total} pages`;
-      setTimeout(() => { indexingStatus = ''; }, INDEXING_STATUS_CLEAR_MS);
-    } catch (err: any) {
-      console.warn('Indexing failed:', err);
-      indexingStatus = 'Indexing failed';
-      setTimeout(() => { indexingStatus = ''; }, INDEXING_FAIL_CLEAR_MS);
-    }
-  }
-
   // Selection capture
   function captureSelection() {
     // Try parent document first
@@ -308,8 +262,6 @@
 
   // onBookChange handler
   function handleBookChange(newBookId: string) {
-    bookId = newBookId;
-    sessionStorage.setItem(SS_BOOK_ID, newBookId);
     clearPageHistory();
     pageBeforeJump = null;
     cachedSelection = '';
@@ -320,95 +272,9 @@
     })();
   }
 
-  function cleanupPdfSession() {
-    if (activeIframeDoc) {
-      activeIframeDoc.removeEventListener('mouseup', captureSelection);
-      activeIframeDoc.removeEventListener('touchend', captureSelection);
-      activeIframeDoc = null;
-    }
-
-    if (activePdfApp && documentInitHandler) {
-      activePdfApp.eventBus?.off?.('documentinit', documentInitHandler);
-    }
-    activePdfApp = null;
-    documentInitHandler = null;
-
-    if (activePdfUrl) {
-      URL.revokeObjectURL(activePdfUrl);
-      activePdfUrl = null;
-    }
-  }
-
   async function loadPdf(targetBookId = getBookId()) {
-    const loadToken = ++pdfLoadToken;
-    cleanupPdfSession();
-
-    const bid = targetBookId;
-    const book = await getBook(bid);
-    if (!book) {
-      window.location.href = './';
-      return;
-    }
-
-    bookTitle = book.title;
-    document.title = book.title + ' - Marginalia';
-
-    // Wait for iframe to load and pdf.js to initialize
-    await new Promise<void>((resolve) => {
-      const check = setInterval(() => {
-        const app = getPdfApp();
-        if (app?.initializedPromise) {
-          clearInterval(check);
-          resolve();
-        }
-      }, PDF_INIT_POLL_MS);
-      setTimeout(() => { clearInterval(check); resolve(); }, PDF_INIT_TIMEOUT_MS);
-    });
-
-    const app = getPdfApp();
-    if (!app) return;
-
-    const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-
-    if (loadToken !== pdfLoadToken) {
-      URL.revokeObjectURL(url);
-      return;
-    }
-
-    await app.initializedPromise;
-    if (loadToken !== pdfLoadToken) {
-      URL.revokeObjectURL(url);
-      return;
-    }
-
-    if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
-    documentInitHandler = () => {
-      if (app.pdfViewer) app.pdfViewer.spreadMode = 0;
-    };
-    app.eventBus?.on('documentinit', documentInitHandler);
-
-    activePdfUrl = url;
-    activePdfApp = app;
-    app.open({ url });
-
-    // Listen for selection in iframe
-    try {
-      const iframeDoc = pdfIframe?.contentDocument;
-      if (iframeDoc) {
-        iframeDoc.addEventListener('mouseup', captureSelection);
-        iframeDoc.addEventListener('touchend', captureSelection);
-        activeIframeDoc = iframeDoc;
-      }
-    } catch {}
-
-    // Inject dark mode CSS into iframe
-    applyThemeToIframe();
-
-    // Index book on first open
-    if (!book.pages) {
-      indexBookInBackground(bid, loadToken);
-    }
+    activeLoadToken += 1;
+    await viewerSession.loadPdf(targetBookId);
   }
 
   function applyThemeToIframe() {
@@ -489,9 +355,9 @@
     })();
 
     return () => {
-      pdfLoadToken++;
       clearInterval(syncInterval);
-      cleanupPdfSession();
+      activeLoadToken += 1;
+      viewerSession.cleanup();
       disposePageTracking();
       document.removeEventListener('mouseup', captureSelection);
       document.removeEventListener('touchend', captureSelection);
@@ -571,12 +437,12 @@
         onCreateChat={() => chatManager.create(bookTitle || 'Chat')}
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
-        menuItems={[
-          { label: 'Edit book prompt', onClick: openBookPromptEditor },
-          { label: 'Edit chat prompt', onClick: openChatPromptEditor },
-          { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
-          { label: 'Compact', onClick: openCompactEditor },
-        ]}
+        menuItems={buildChatMenuItems({
+          editBookPrompt: openBookPromptEditor,
+          editChatPrompt: openChatPromptEditor,
+          configureTools: () => { toolsEditorOpen = true; },
+          compact: openCompactEditor,
+        })}
       >
         {#snippet contextBar()}
           <div class="context-bar">

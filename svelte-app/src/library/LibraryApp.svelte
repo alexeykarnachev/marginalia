@@ -13,7 +13,9 @@
   import { removeChatEntry } from '../lib/core/chat-registry';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
+  import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
+  import { buildLibraryAssistantPrompt } from '../lib/core/system-prompts';
   import type { Book, Folder } from '../lib/types';
   import {
     DEFAULT_CHAT_WIDTH,
@@ -182,19 +184,11 @@
   async function handleChatSend(text: string) {
     if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
-      buildSystemPrompt: (context: any) => {
-        let system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
-You have access to tools for searching, organizing, and reading books.
-Respond in the user's language. Be concise.
-
-## Library
-${context.libraryTree}`;
-        const chatPrompt = getChatPrompt(chatManager.activeChatId!);
-        if (chatPrompt) {
-          system += `\n\n## Chat-specific instructions (MUST FOLLOW)\n${chatPrompt}`;
-        }
-        return system;
-      },
+      buildSystemPrompt: (context: any) =>
+        buildLibraryAssistantPrompt(
+          context.libraryTree,
+          getChatPrompt(chatManager.activeChatId!),
+        ),
       storageKey: chatManager.activeChatId,
       onAfterSend: async () => {
         await refreshLibrary();
@@ -213,22 +207,11 @@ ${context.libraryTree}`;
 
   async function buildLibraryPromptPreview() {
     const context = await buildLibraryContext();
-    let system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
-You have access to tools for searching, organizing, and reading books.
-Respond in the user's language. Be concise.
-
-## Library
-${context.libraryTree}`;
-    if (chatManager.activeChatId) {
-      const chatPrompt = getChatPrompt(chatManager.activeChatId);
-      if (chatPrompt) {
-        system += `\n\n## Chat-specific instructions (MUST FOLLOW)\n${chatPrompt}`;
-      }
-    }
-    if (chatState.summary) {
-      system += `\n\n## Previous conversation summary\n${chatState.summary}`;
-    }
-    return system;
+    return buildLibraryAssistantPrompt(
+      context.libraryTree,
+      chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '',
+      chatState.summary,
+    );
   }
 
   function handleChatClear() {
@@ -353,11 +336,11 @@ ${context.libraryTree}`;
         onCreateChat={() => chatManager.create('Library')}
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
-        menuItems={[
-          { label: 'Edit chat prompt', onClick: openChatPromptEditor },
-          { label: 'Configure tools', onClick: () => { toolsEditorOpen = true; } },
-          { label: 'Compact', onClick: () => { compactEditorOpen = true; } },
-        ]}
+        menuItems={buildChatMenuItems({
+          editChatPrompt: openChatPromptEditor,
+          configureTools: () => { toolsEditorOpen = true; },
+          compact: () => { compactEditorOpen = true; },
+        })}
       >
         {#snippet toolActivitySnippet()}
           {#if chatState.toolActivity.length > 0}
