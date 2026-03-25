@@ -522,7 +522,7 @@
       <ChatPanel
         placeholder={activeChatId ? 'Ask about this page...' : 'Create a chat to start'}
         messages={chatState.messages}
-        sending={chatState.sending || !activeChatId}
+        sending={chatState.sending}
         onSend={handleChatSend}
         onClear={handleChatClear}
         onClose={toggleChat}

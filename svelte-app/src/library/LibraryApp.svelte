@@ -338,7 +338,7 @@ ${context.libraryTree}`,
       <ChatPanel
         placeholder={activeChatId ? 'Ask about your library...' : 'Create a chat to start'}
         messages={chatState.messages}
-        sending={chatState.sending || !activeChatId}
+        sending={chatState.sending}
         onSend={handleChatSend}
         onClear={handleChatClear}
         onClose={toggleChat}

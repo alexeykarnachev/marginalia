@@ -115,7 +115,7 @@
 
   function handleSend() {
     const text = inputText.trim();
-    if (!text || sending) return;
+    if (!text || sending || !activeChatId) return;
     inputText = '';
     onSend(text);
     inputEl?.focus();
@@ -502,7 +502,7 @@
     <button
       class="m-chat-send"
       class:done={sendDone}
-      disabled={sending}
+      disabled={sending || !activeChatId}
       onmousedown={(e) => e.preventDefault()}
       onclick={handleSend}
     >{sendDone ? '\u2713' : 'Send'}</button>
