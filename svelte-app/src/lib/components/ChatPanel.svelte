@@ -317,8 +317,8 @@
     if (!msg) return;
     const raw = (msg as HTMLElement).dataset.raw || msg.textContent || '';
     navigator.clipboard.writeText(raw).catch(() => {});
-    btn.textContent = 'Copied';
-    setTimeout(() => { btn.textContent = 'Copy'; }, COPY_FEEDBACK_MS);
+    btn.textContent = '\u2713';
+    setTimeout(() => { btn.textContent = '\u2398'; }, COPY_FEEDBACK_MS);
   }
 
   function handleMessagesClick(e: MouseEvent) {
@@ -495,7 +495,7 @@
               {@html renderMarkdown(msg.content)}
             {/if}
             <div class="msg-actions">
-              <button class="msg-action-btn" title="Copy" onclick={handleCopyClick}>Copy</button>
+              <button class="msg-action-btn" title="Copy" onclick={handleCopyClick}>&#x2398;</button>
             </div>
           </div>
         {:else if msg.role === 'system'}
