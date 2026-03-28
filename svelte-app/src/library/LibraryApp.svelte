@@ -190,10 +190,7 @@
           getChatPrompt(chatManager.activeChatId!),
         ),
       storageKey: chatManager.activeChatId,
-      onAfterSend: async () => {
-        await refreshLibrary();
-        chatManager.init(books.map(b => ({ id: b.id, title: b.title })));
-      },
+      onAfterSend: () => { refreshLibrary(); },
     });
   }
 
