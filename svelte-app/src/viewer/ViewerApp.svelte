@@ -424,13 +424,6 @@
     <div class="m-toolbar-right">
       <button class="m-btn" title="Zoom out" onclick={handleZoomOut}>&minus;</button>
       <button class="m-btn" title="Zoom in" onclick={handleZoomIn}>+</button>
-      <button class="m-btn" title="Fullscreen" onclick={() => {
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
-        } else {
-          document.documentElement.requestFullscreen().catch(() => {});
-        }
-      }}>&#x26F6;</button>
       <ThemeToggle />
     </div>
   </div>
