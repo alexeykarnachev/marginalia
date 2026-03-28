@@ -1,4 +1,4 @@
-const MARGINALIA_VERSION = 128;
+const MARGINALIA_VERSION = 129;
 const CACHE_NAME = "marginalia-v" + MARGINALIA_VERSION;
 
 self.addEventListener("install", (e) => {

@@ -906,7 +906,7 @@
     .msg-action-danger:hover { color: var(--m-error); border-color: var(--m-error); }
   }
   .msg-action-btn:active { color: var(--m-fg); border-color: var(--m-fg-muted); }
-  .msg-action-danger:active { color: var(--m-error); border-color: var(--m-error); }
+  .msg-action-btn:focus { outline: none; }
 
   .raw-content {
     white-space: pre-wrap;
