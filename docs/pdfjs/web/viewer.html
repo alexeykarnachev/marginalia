@@ -39,10 +39,12 @@ See https://github.com/adobe-type-tools/cmap-resources
     .toolbar { display: none !important; }
     #sidebarContainer { display: none !important; }
     /* Remove toolbar gap — viewer fills from top */
-    #viewerContainer { inset: 0 !important; }
+    /* No horizontal scroll — pages centered, sides clipped when zoomed past viewport */
+    #viewerContainer { inset: 0 !important; overflow-x: hidden !important; }
     /* Force single-page layout, centered */
     .pdfViewer .spread { display: block !important; }
     .pdfViewer .spread .page { margin: 1px auto -8px !important; }
+    .pdfViewer .page { left: 50% !important; transform: translateX(-50%) !important; }
   </style>
   </head>
 

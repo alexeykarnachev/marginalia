@@ -86,7 +86,7 @@
       sessionStorage.setItem(SS_BOOK_ID, newBookId);
     },
     applyThemeToIframe,
-    onPdfReady: () => { restoreZoom(); applyLockH(); },
+    onPdfReady: restoreZoom,
     captureSelection,
     onBookMissing: () => { window.location.href = './'; },
     onBookLoaded: (title) => {
@@ -145,8 +145,6 @@
     if (app && app.page < app.pagesCount) app.page++;
   }
 
-  let lockH = $state(localStorage.getItem('marginalia_lock_h') === '1');
-
   function saveZoom() {
     const app = getPdfApp();
     if (app?.pdfViewer) {
@@ -173,39 +171,6 @@
     saveZoom();
   }
 
-  function toggleLockH() {
-    lockH = !lockH;
-    localStorage.setItem('marginalia_lock_h', lockH ? '1' : '0');
-    applyLockH();
-  }
-
-  function applyLockH() {
-    try {
-      const iframeDoc = pdfIframe?.contentDocument;
-      if (!iframeDoc) return;
-
-      let style = iframeDoc.getElementById('marginalia-lock-h');
-      if (!style) {
-        style = iframeDoc.createElement('style');
-        style.id = 'marginalia-lock-h';
-        iframeDoc.head.appendChild(style);
-      }
-
-      if (lockH) {
-        style.textContent = `
-          #viewerContainer {
-            overflow-x: hidden !important;
-          }
-          .pdfViewer .page {
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-          }
-        `;
-      } else {
-        style.textContent = '';
-      }
-    } catch {}
-  }
 
   function handlePageInputChange() {
     const p = parseInt(pageInputValue);
@@ -448,12 +413,6 @@
     </div>
     <div class="m-toolbar-right">
       <button class="m-btn" title="Zoom out" onclick={handleZoomOut}>&minus;</button>
-      <button
-        class="m-btn"
-        title="Lock horizontal scroll"
-        onclick={toggleLockH}
-        style="border-color: {lockH ? 'var(--m-accent)' : 'var(--m-border-light)'}; color: {lockH ? 'var(--m-accent)' : 'var(--m-fg-muted)'};"
-      >&#x2194;</button>
       <button class="m-btn" title="Zoom in" onclick={handleZoomIn}>+</button>
       <ThemeToggle />
     </div>
