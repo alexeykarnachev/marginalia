@@ -19,7 +19,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Book } from '../types';
-  import { lsStatsKey } from '../core/constants';
+  import { lsStatsKey, lsProgressKey } from '../core/constants';
   import { getPdfjsLib } from '../core/pdfjs-loader';
 
   const COVER_RENDER_WIDTH = 300;
@@ -48,16 +48,25 @@
     book.pages ? book.pages.length + 'p' : (book.pages === null ? '...' : '')
   );
 
-  // Read cost once at mount, not on every render
+  // Read cost and progress once at mount
   let bookCost = $state('');
+  let progressPct = $state(-1); // -1 = never opened
   let meta = $derived([pageCount, sizeMB + ' MB', bookCost].filter(Boolean).join(' \u00B7 '));
 
-  function loadCost() {
+  function loadMeta() {
     try {
       const raw = localStorage.getItem(lsStatsKey(book.id));
-      if (!raw) return;
-      const stats = JSON.parse(raw);
-      if (stats.cost > 0) bookCost = `$${stats.cost.toFixed(3)}`;
+      if (raw) {
+        const stats = JSON.parse(raw);
+        if (stats.cost > 0) bookCost = `$${stats.cost.toFixed(3)}`;
+      }
+    } catch {}
+    try {
+      const raw = localStorage.getItem(lsProgressKey(book.id));
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.total > 1) progressPct = Math.round((p.page / p.total) * 100);
+      }
     } catch {}
   }
 
@@ -82,7 +91,7 @@
   }
 
   onMount(() => {
-    loadCost();
+    loadMeta();
 
     // Check cache first (memory + sessionStorage)
     const cached = getCachedCover(book.id);
@@ -149,6 +158,11 @@
       <span class="cover-placeholder">&#x1F4C4;</span>
     {/if}
   </div>
+  {#if progressPct >= 0}
+    <div class="progress-bar">
+      <div class="progress-fill" style:width="{progressPct}%"></div>
+    </div>
+  {/if}
   <div class="m-card-info">
     <span class="m-card-title" title={book.title}>{book.title}</span>
     <span class="m-card-meta">{meta}</span>
@@ -177,5 +191,15 @@
   .cover-placeholder {
     font-size: 32px;
     color: var(--m-fg-dim);
+  }
+  .progress-bar {
+    height: 3px;
+    background: var(--m-bg-2);
+    width: 100%;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--m-accent);
+    transition: width 0.3s;
   }
 </style>

@@ -30,6 +30,7 @@
     LS_VIEWER_CHAT_WIDTH,
     LS_CHAT_OPEN,
     SS_BOOK_ID,
+    lsProgressKey,
   } from '../lib/core/constants';
 
   const PAGE_SYNC_INTERVAL_MS = 500;
@@ -346,6 +347,10 @@
       totalPages = app.pagesCount || 1;
       if (!pageInputFocused) {
         pageInputValue = String(currentPage);
+      }
+      // Save reading progress
+      if (bookId && totalPages > 1) {
+        localStorage.setItem(lsProgressKey(bookId), JSON.stringify({ page: currentPage, total: totalPages }));
       }
       updateContext();
       if (settings.theme !== _lastAppliedTheme) {

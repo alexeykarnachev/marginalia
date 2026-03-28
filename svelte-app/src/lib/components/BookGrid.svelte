@@ -1,10 +1,12 @@
 <script lang="ts">
   import type { Book, Folder } from '../types';
   import BookCard from './BookCard.svelte';
-  import { lsStatsKey } from '../core/constants';
+  import { lsStatsKey, lsProgressKey } from '../core/constants';
 
-  type SortMode = 'name' | 'date';
+  type SortMode = 'name' | 'date' | 'progress';
   const LS_SORT = 'marginalia_sort';
+  const SORT_LABELS: Record<SortMode, string> = { name: 'A-Z', date: 'New', progress: '%' };
+  const SORT_ORDER: SortMode[] = ['name', 'date', 'progress'];
 
   let {
     books,
@@ -35,8 +37,18 @@
   let sortMode = $state<SortMode>((localStorage.getItem(LS_SORT) as SortMode) || 'name');
 
   function toggleSort() {
-    sortMode = sortMode === 'name' ? 'date' : 'name';
+    const idx = SORT_ORDER.indexOf(sortMode);
+    sortMode = SORT_ORDER[(idx + 1) % SORT_ORDER.length];
     localStorage.setItem(LS_SORT, sortMode);
+  }
+
+  function getProgress(bookId: string): number {
+    try {
+      const raw = localStorage.getItem(lsProgressKey(bookId));
+      if (!raw) return -1;
+      const p = JSON.parse(raw);
+      return p.total > 1 ? p.page / p.total : 0;
+    } catch { return -1; }
   }
 
   function sortByName<T extends { name?: string; title?: string }>(items: T[]): T[] {
@@ -54,7 +66,18 @@
 
   let childBooks = $derived.by(() => {
     const filtered = books.filter(b => (b.folder_id || null) === currentFolderId);
-    return sortMode === 'date' ? sortByDate(filtered) : sortByName(filtered);
+    if (sortMode === 'date') return sortByDate(filtered);
+    if (sortMode === 'progress') {
+      return [...filtered].sort((a, b) => {
+        const pa = getProgress(a.id), pb = getProgress(b.id);
+        // Unread last, then by progress ascending (least read first)
+        if (pa < 0 && pb < 0) return 0;
+        if (pa < 0) return 1;
+        if (pb < 0) return -1;
+        return pa - pb;
+      });
+    }
+    return sortByName(filtered);
   });
 
   let breadcrumbs = $derived(buildBreadcrumbs(currentFolderId, folders));
@@ -152,8 +175,8 @@
         {/each}
       </div>
     {/if}
-    <button class="sort-btn" onclick={toggleSort} title="Sort by {sortMode === 'name' ? 'date' : 'name'}">
-      {sortMode === 'name' ? 'A-Z' : 'New'}
+    <button class="sort-btn" onclick={toggleSort} title="Sort mode">
+      {SORT_LABELS[sortMode]}
     </button>
   </div>
 
@@ -233,10 +256,14 @@
     border-radius: 6px;
     cursor: pointer;
     flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
   }
-  .sort-btn:hover {
-    border-color: var(--m-accent);
-    color: var(--m-accent);
+  .sort-btn:focus { outline: none; }
+  @media (hover: hover) {
+    .sort-btn:hover {
+      border-color: var(--m-accent);
+      color: var(--m-accent);
+    }
   }
   .breadcrumb-item.clickable { color: var(--m-link); cursor: pointer; }
   .breadcrumb-item.clickable:hover { text-decoration: underline; }

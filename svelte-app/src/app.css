@@ -310,6 +310,10 @@ html[data-theme="light"] .m-theme-toggle::after {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+}
+.m-card-info .item-actions {
+  margin-top: auto;
 }
 
 .m-card-title {
