@@ -179,29 +179,32 @@
     applyLockH();
   }
 
+  let lockHScrollListener: (() => void) | null = null;
+
   function applyLockH() {
+    // Clean up previous listener
+    if (lockHScrollListener) {
+      lockHScrollListener();
+      lockHScrollListener = null;
+    }
+
     try {
-      const iframeDoc = pdfIframe?.contentDocument;
-      if (!iframeDoc) return;
-      let style = iframeDoc.getElementById('marginalia-lock-h');
-      if (!style) {
-        style = iframeDoc.createElement('style');
-        style.id = 'marginalia-lock-h';
-        iframeDoc.head.appendChild(style);
-      }
+      const container = pdfIframe?.contentDocument?.getElementById('viewerContainer');
+      if (!container) return;
+
       if (lockH) {
-        style.textContent = `
-          #viewerContainer { touch-action: pan-y; }
-          #viewerContainer::-webkit-scrollbar:horizontal { display: none; }
-          .pdfViewer .page { margin-left: auto !important; margin-right: auto !important; }
-        `;
-        // Scroll to center horizontally
-        const container = iframeDoc.getElementById('viewerContainer');
-        if (container && container.scrollWidth > container.clientWidth) {
-          container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-        }
-      } else {
-        style.textContent = '';
+        // Center horizontally and lock
+        const centerX = () => {
+          if (container.scrollWidth > container.clientWidth) {
+            container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+          }
+        };
+        centerX();
+
+        // Force horizontal center on every scroll
+        const onScroll = () => centerX();
+        container.addEventListener('scroll', onScroll);
+        lockHScrollListener = () => container.removeEventListener('scroll', onScroll);
       }
     } catch {}
   }
@@ -451,8 +454,7 @@
         class="m-btn"
         title="Lock horizontal scroll"
         onclick={toggleLockH}
-        style:border-color={lockH ? 'var(--m-accent)' : ''}
-        style:color={lockH ? 'var(--m-accent)' : ''}
+        style="border-color: {lockH ? 'var(--m-accent)' : 'var(--m-border-light)'}; color: {lockH ? 'var(--m-accent)' : 'var(--m-fg-muted)'};"
       >&#x2194;</button>
       <button class="m-btn" title="Zoom in" onclick={handleZoomIn}>+</button>
       <ThemeToggle />
