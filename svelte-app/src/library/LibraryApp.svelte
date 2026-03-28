@@ -71,7 +71,7 @@
     removeChatEntry(book.id);
     deleteBookData(book.id);
     await refreshLibrary();
-    chatManager.init(books.map(b => ({ id: b.id, title: b.title })));
+    chatManager.init();
   }
 
   async function handleMoveBook(book: Book) {
@@ -265,7 +265,7 @@
     await loadDefaultBook();
     await refreshLibrary();
 
-    chatManager.init(books.map(b => ({ id: b.id, title: b.title })));
+    chatManager.init();
   });
 </script>
 

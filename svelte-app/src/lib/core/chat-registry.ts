@@ -57,54 +57,6 @@ export function deleteChat(id: string): void {
   localStorage.removeItem(lsCompactPromptKey(id));
 }
 
-/**
- * Migrate legacy per-book and library chats into the registry.
- * Scans localStorage for marginalia_chat_* keys not already in the registry.
- * Run once on app startup.
- */
-export function migrateExistingChats(books: { id: string; title: string }[]): void {
-  // Clean up old registry key from before rename
-  localStorage.removeItem('marginalia_chat_registry');
-  const registry = getChatRegistry();
-  const knownIds = new Set(registry.map(e => e.id));
-
-  const bookMap = new Map(books.map(b => [b.id, b.title]));
-  const prefix = 'marginalia_chat_';
-
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (!key || !key.startsWith(prefix)) continue;
-    const chatId = key.slice(prefix.length);
-    if (knownIds.has(chatId)) continue;
-
-    // Check if it actually has chat messages (must have role field)
-    try {
-      const raw = JSON.parse(localStorage.getItem(key) || 'null');
-      const msgs = Array.isArray(raw) ? raw : raw?.messages;
-      if (!Array.isArray(msgs) || msgs.length === 0) continue;
-      if (!msgs[0].role) continue;
-    } catch {
-      continue;
-    }
-
-    // Determine name
-    let name: string;
-    if (chatId === '_library') {
-      name = 'Library';
-    } else {
-      name = bookMap.get(chatId) || chatId.slice(0, 8);
-    }
-
-    registry.push({
-      id: chatId,
-      name,
-      createdAt: Date.now(),
-    });
-  }
-
-  saveRegistry(registry);
-}
-
 export function getActiveChat(): string | null {
   return localStorage.getItem('marginalia_active_chat') || null;
 }

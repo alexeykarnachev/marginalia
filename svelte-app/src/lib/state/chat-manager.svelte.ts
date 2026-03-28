@@ -7,7 +7,6 @@ import {
   createChat,
   renameChat,
   deleteChat as deleteChatEntry,
-  migrateExistingChats,
   getActiveChat,
   setActiveChat,
   type ChatEntry,
@@ -17,7 +16,7 @@ export interface ChatManager {
   readonly chats: ChatEntry[];
   readonly activeChatId: string | null;
   refresh: () => void;
-  init: (books: { id: string; title: string }[]) => void;
+  init: () => void;
   select: (id: string) => void;
   create: (defaultName: string) => void;
   rename: (id: string) => void;
@@ -48,8 +47,7 @@ export function createChatManager(chatState: ChatState): ChatManager {
 
     refresh,
 
-    init(books: { id: string; title: string }[]) {
-      migrateExistingChats(books);
+    init() {
       refresh();
       if (activeChatId && chats.some(c => c.id === activeChatId)) {
         chatState.loadFromStorage(activeChatId);

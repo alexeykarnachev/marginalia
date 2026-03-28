@@ -1,4 +1,4 @@
-const MARGINALIA_VERSION = 109;
+const MARGINALIA_VERSION = 110;
 const CACHE_NAME = "marginalia-v" + MARGINALIA_VERSION;
 
 self.addEventListener("install", (e) => {
@@ -17,15 +17,29 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
     const url = new URL(e.request.url);
 
-    // Never cache API calls
+    // Skip external requests (CDN, API)
     if (url.hostname !== location.hostname) return;
 
-    // Network-first, bypassing browser HTTP cache
+    // Hashed assets are immutable — cache-first (instant loads)
+    if (url.pathname.includes("/assets/")) {
+        e.respondWith(
+            caches.match(e.request).then((cached) =>
+                cached || fetch(e.request).then((res) => {
+                    const clone = res.clone();
+                    caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+                    return res;
+                })
+            )
+        );
+        return;
+    }
+
+    // Everything else (HTML, sw.js, pdfjs) — network-first for freshness
     e.respondWith(
         fetch(e.request, { cache: "no-cache" })
             .then((res) => {
                 const clone = res.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+                caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
                 return res;
             })
             .catch(() => caches.match(e.request))

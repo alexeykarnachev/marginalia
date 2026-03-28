@@ -348,7 +348,7 @@
 
       const allBooksData = await getAllBooks();
       allBooks = allBooksData.map(b => ({ id: b.id, title: b.title }));
-      chatManager.init(allBooks);
+      chatManager.init();
 
       await loadPdf(bookId);
       initPageTracking();
