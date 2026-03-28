@@ -56,8 +56,7 @@
     onCreateChat,
     onRenameChat,
     onDeleteChat,
-    onRegenerate,
-    onDeleteMessages,
+    onTruncate,
   } : {
     placeholder?: string;
     messages: ChatMessage[];
@@ -86,8 +85,7 @@
     onCreateChat?: () => void;
     onRenameChat?: (id: string) => void;
     onDeleteChat?: (id: string) => void;
-    onRegenerate?: (fromIndex: number) => void;
-    onDeleteMessages?: (fromIndex: number) => void;
+    onTruncate?: (fromIndex: number) => void;
   } = $props();
 
   let inputText = $state('');
@@ -498,27 +496,19 @@
             {/if}
             <div class="msg-actions">
               <button class="msg-action-btn" title="Copy" onclick={handleCopyClick}>Copy</button>
-              {#if onRegenerate && !sending}
-                <button class="msg-action-btn" title="Regenerate" onclick={() => onRegenerate(i)}>Retry</button>
-              {/if}
-              {#if onDeleteMessages}
-                <button class="msg-action-btn msg-action-danger" title="Delete from here" onclick={() => onDeleteMessages(i)}>Delete</button>
-              {/if}
             </div>
           </div>
         {:else if msg.role === 'system'}
           <div class="marginalia-msg system">{msg.content}</div>
         {:else}
-          <div class="marginalia-msg user" data-raw={msg.content}>
-            <div class="msg-actions">
-              {#if onRegenerate && !sending}
-                <button class="msg-action-btn" title="Regenerate from here" onclick={() => onRegenerate(i)}>Retry</button>
-              {/if}
-              {#if onDeleteMessages}
-                <button class="msg-action-btn msg-action-danger" title="Delete from here" onclick={() => onDeleteMessages(i)}>Delete</button>
-              {/if}
-            </div>
+          <div class="marginalia-msg user">
             {msg.content}
+            {#if !sending && onTruncate}
+              <div class="msg-actions">
+                <button class="msg-action-btn" title="Retry" onclick={() => { const text = msg.content; onTruncate(i); onSend(text); }}>&#x21BB;</button>
+                <button class="msg-action-btn" title="Edit" onclick={() => { inputText = msg.content; onTruncate(i); inputEl?.focus(); }}>&#x270F;</button>
+              </div>
+            {/if}
           </div>
         {/if}
       {/if}

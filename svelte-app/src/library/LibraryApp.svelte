@@ -198,21 +198,7 @@
     });
   }
 
-  function handleRegenerate(fromIndex: number) {
-    // Find the last user message at or before fromIndex
-    const msgs = chatState.messages;
-    let userMsgIndex = -1;
-    for (let j = fromIndex; j >= 0; j--) {
-      if (msgs[j].role === 'user') { userMsgIndex = j; break; }
-    }
-    if (userMsgIndex < 0) return;
-    const userText = msgs[userMsgIndex].content;
-    // Truncate to before the user message, then re-send
-    chatState.setMessages(msgs.slice(0, userMsgIndex));
-    handleChatSend(userText);
-  }
-
-  function handleDeleteMessages(fromIndex: number) {
+  function handleTruncate(fromIndex: number) {
     chatState.setMessages(chatState.messages.slice(0, fromIndex));
     if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
@@ -357,8 +343,7 @@
         onCreateChat={() => chatManager.create('Library')}
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
-        onRegenerate={handleRegenerate}
-        onDeleteMessages={handleDeleteMessages}
+        onTruncate={handleTruncate}
         menuItems={buildChatMenuItems({
           editChatPrompt: openChatPromptEditor,
           configureTools: () => { toolsEditorOpen = true; },
