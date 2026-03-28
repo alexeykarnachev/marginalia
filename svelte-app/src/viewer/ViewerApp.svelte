@@ -86,6 +86,7 @@
       sessionStorage.setItem(SS_BOOK_ID, newBookId);
     },
     applyThemeToIframe,
+    onPdfReady: applyLockH,
     captureSelection,
     onBookMissing: () => { window.location.href = './'; },
     onBookLoaded: (title) => {
@@ -144,12 +145,29 @@
     if (app && app.page < app.pagesCount) app.page++;
   }
 
+  let lockH = $state(localStorage.getItem('marginalia_lock_h') === '1');
+
   function handleZoomOut() {
     getPdfApp()?.zoomOut();
   }
 
   function handleZoomIn() {
     getPdfApp()?.zoomIn();
+  }
+
+  function toggleLockH() {
+    lockH = !lockH;
+    localStorage.setItem('marginalia_lock_h', lockH ? '1' : '0');
+    applyLockH();
+  }
+
+  function applyLockH() {
+    try {
+      const container = pdfIframe?.contentDocument?.getElementById('viewerContainer');
+      if (container) {
+        container.style.overflowX = lockH ? 'hidden' : '';
+      }
+    } catch {}
   }
 
   function handlePageInputChange() {
@@ -393,6 +411,7 @@
     </div>
     <div class="m-toolbar-right">
       <button class="m-btn" title="Zoom out" onclick={handleZoomOut}>&minus;</button>
+      <button class="m-btn fit-width-btn" class:active={lockH} title="Lock horizontal scroll" onclick={toggleLockH}>&#x2194;</button>
       <button class="m-btn" title="Zoom in" onclick={handleZoomIn}>+</button>
       <ThemeToggle />
     </div>
@@ -515,6 +534,11 @@
     border: none;
     width: 100%;
     min-width: 0;
+  }
+
+  .fit-width-btn.active {
+    border-color: var(--m-accent);
+    color: var(--m-accent);
   }
 
   .viewer-body {

@@ -5,6 +5,7 @@ export interface ViewerSessionOptions {
   getCurrentBookId: () => string;
   setCurrentBookId: (bookId: string) => void;
   applyThemeToIframe: () => void;
+  onPdfReady?: () => void;
   captureSelection: () => void;
   onBookMissing: () => void;
   onBookLoaded: (title: string) => void;
@@ -197,6 +198,7 @@ export function createViewerSession(options: ViewerSessionOptions): ViewerSessio
     } catch {}
 
     options.applyThemeToIframe();
+    options.onPdfReady?.();
 
     if (!book.pages) {
       void indexBookInBackground(targetBookId, loadToken);
