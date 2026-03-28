@@ -189,7 +189,20 @@
         style.id = 'marginalia-lock-h';
         iframeDoc.head.appendChild(style);
       }
-      style.textContent = lockH ? '#viewerContainer { overflow-x: hidden !important; }' : '';
+      if (lockH) {
+        style.textContent = `
+          #viewerContainer { touch-action: pan-y; }
+          #viewerContainer::-webkit-scrollbar:horizontal { display: none; }
+          .pdfViewer .page { margin-left: auto !important; margin-right: auto !important; }
+        `;
+        // Scroll to center horizontally
+        const container = iframeDoc.getElementById('viewerContainer');
+        if (container && container.scrollWidth > container.clientWidth) {
+          container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+        }
+      } else {
+        style.textContent = '';
+      }
     } catch {}
   }
 
