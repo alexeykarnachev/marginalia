@@ -38,7 +38,9 @@ See https://github.com/adobe-type-tools/cmap-resources
     /* Hide default pdf.js toolbar and sidebar (Svelte provides its own) */
     .toolbar { display: none !important; }
     #sidebarContainer { display: none !important; }
-    /* Force single-page layout */
+    /* Remove toolbar gap — viewer fills from top */
+    #viewerContainer { inset: 0 !important; }
+    /* Force single-page layout, centered */
     .pdfViewer .spread { display: block !important; }
     .pdfViewer .spread .page { margin: 1px auto -8px !important; }
   </style>
