@@ -6,12 +6,14 @@ export interface Book {
   size: number;
   pages: string[] | null;
   folder_id: string | null;
+  createdAt?: number;
 }
 
 export interface Folder {
   id: string;
   name: string;
   parent_id: string | null;
+  createdAt?: number;
 }
 
 export interface ChatMessage {

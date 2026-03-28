@@ -90,7 +90,7 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
         typeof crypto !== 'undefined' && crypto.randomUUID
           ? crypto.randomUUID()
           : 'f-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-      await helpers.saveFolder({ id, name, parent_id: parent_id || null });
+      await helpers.saveFolder({ id, name, parent_id: parent_id || null, createdAt: Date.now() });
       return `Created folder "${name}"\nfolder_id: ${id}\nUse this folder_id to move books into it.`;
     },
   });

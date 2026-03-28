@@ -3,6 +3,9 @@
   import BookCard from './BookCard.svelte';
   import { lsStatsKey } from '../core/constants';
 
+  type SortMode = 'name' | 'date';
+  const LS_SORT = 'marginalia_sort';
+
   let {
     books,
     folders,
@@ -29,13 +32,30 @@
     onUpload: (file: File) => void;
   } = $props();
 
-  let childFolders = $derived(
-    folders.filter(f => (f.parent_id || null) === currentFolderId)
-  );
+  let sortMode = $state<SortMode>((localStorage.getItem(LS_SORT) as SortMode) || 'name');
 
-  let childBooks = $derived(
-    books.filter(b => (b.folder_id || null) === currentFolderId)
-  );
+  function toggleSort() {
+    sortMode = sortMode === 'name' ? 'date' : 'name';
+    localStorage.setItem(LS_SORT, sortMode);
+  }
+
+  function sortByName<T extends { name?: string; title?: string }>(items: T[]): T[] {
+    return [...items].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
+  }
+
+  function sortByDate<T extends { createdAt?: number }>(items: T[]): T[] {
+    return [...items].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+
+  let childFolders = $derived.by(() => {
+    const filtered = folders.filter(f => (f.parent_id || null) === currentFolderId);
+    return sortMode === 'date' ? sortByDate(filtered) : sortByName(filtered);
+  });
+
+  let childBooks = $derived.by(() => {
+    const filtered = books.filter(b => (b.folder_id || null) === currentFolderId);
+    return sortMode === 'date' ? sortByDate(filtered) : sortByName(filtered);
+  });
 
   let breadcrumbs = $derived(buildBreadcrumbs(currentFolderId, folders));
 
@@ -100,7 +120,7 @@
 </script>
 
 <div class="library">
-  <div class="book-list">
+  <div class="library-toolbar">
     {#if currentFolderId}
       <div class="library-breadcrumb">
         {#each breadcrumbs as crumb, i}
@@ -120,7 +140,12 @@
         {/each}
       </div>
     {/if}
+    <button class="sort-btn" onclick={toggleSort} title="Sort by {sortMode === 'name' ? 'date' : 'name'}">
+      {sortMode === 'name' ? 'A-Z' : 'New'}
+    </button>
+  </div>
 
+  <div class="book-list">
     {#each childFolders as folder}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -173,12 +198,33 @@
     padding: 0 4px;
   }
 
+  .library-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 4px 8px;
+    gap: 8px;
+  }
+
   .library-breadcrumb {
-    width: 100%;
-    padding: 8px 0;
-    margin-bottom: 10px;
+    flex: 1;
     font-size: 14px;
     color: var(--m-fg-muted);
+  }
+
+  .sort-btn {
+    background: none;
+    border: 1px solid var(--m-border-light);
+    color: var(--m-fg-muted);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .sort-btn:hover {
+    border-color: var(--m-accent);
+    color: var(--m-accent);
   }
   .breadcrumb-item.clickable { color: var(--m-link); cursor: pointer; }
   .breadcrumb-item.clickable:hover { text-decoration: underline; }

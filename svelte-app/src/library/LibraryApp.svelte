@@ -138,7 +138,7 @@
     const name = prompt('New folder name:');
     if (!name || !name.trim()) return;
     const id = crypto.randomUUID();
-    await saveFolder({ id, name: name.trim(), parent_id: currentFolderId });
+    await saveFolder({ id, name: name.trim(), parent_id: currentFolderId, createdAt: Date.now() });
     await refreshLibrary();
   }
 
@@ -153,6 +153,7 @@
       size: data.byteLength,
       pages: null,
       folder_id: currentFolderId,
+      createdAt: Date.now(),
     });
     await refreshLibrary();
   }
@@ -240,6 +241,7 @@
         size: data.byteLength,
         pages: null,
         folder_id: null,
+        createdAt: Date.now(),
       });
     } catch {}
   }
