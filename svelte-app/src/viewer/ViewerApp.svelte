@@ -179,54 +179,39 @@
     applyLockH();
   }
 
-  let lockHCleanup: (() => void) | null = null;
-
   function applyLockH() {
-    if (lockHCleanup) {
-      lockHCleanup();
-      lockHCleanup = null;
-    }
-
     try {
       const iframeDoc = pdfIframe?.contentDocument;
       if (!iframeDoc) return;
-      const container = iframeDoc.getElementById('viewerContainer');
-      if (!container) return;
+
+      let style = iframeDoc.getElementById('marginalia-lock-h');
+      if (!style) {
+        style = iframeDoc.createElement('style');
+        style.id = 'marginalia-lock-h';
+        iframeDoc.head.appendChild(style);
+      }
 
       if (lockH) {
-        // Center horizontally
-        if (container.scrollWidth > container.clientWidth) {
-          container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-        }
-        const lockedX = container.scrollLeft;
-
-        // Block horizontal touch movement with non-passive handler
-        let startX = 0;
-        let startY = 0;
-        const onTouchStart = (e: TouchEvent) => {
-          startX = e.touches[0].clientX;
-          startY = e.touches[0].clientY;
-        };
-        const onTouchMove = (e: TouchEvent) => {
-          const dx = Math.abs(e.touches[0].clientX - startX);
-          const dy = Math.abs(e.touches[0].clientY - startY);
-          // If moving more horizontally than vertically, block it
-          if (dx > dy && dx > 5) {
-            e.preventDefault();
+        style.textContent = `
+          .pdfViewer .page {
+            max-width: 100vw !important;
+            overflow: hidden !important;
           }
-        };
-        // Also continuously pin scrollLeft in case anything slips through
-        const onScroll = () => { container.scrollLeft = lockedX; };
-
-        container.addEventListener('touchstart', onTouchStart, { passive: true });
-        container.addEventListener('touchmove', onTouchMove, { passive: false });
-        container.addEventListener('scroll', onScroll, { passive: true });
-
-        lockHCleanup = () => {
-          container.removeEventListener('touchstart', onTouchStart);
-          container.removeEventListener('touchmove', onTouchMove);
-          container.removeEventListener('scroll', onScroll);
-        };
+          .pdfViewer .page .canvasWrapper {
+            display: flex !important;
+            justify-content: center !important;
+          }
+          .pdfViewer .page .textLayer {
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+          }
+          .pdfViewer .page .annotationLayer {
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+          }
+        `;
+      } else {
+        style.textContent = '';
       }
     } catch {}
   }
