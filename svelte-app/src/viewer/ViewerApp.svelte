@@ -193,19 +193,10 @@
 
       if (lockH) {
         style.textContent = `
+          #viewerContainer {
+            overflow-x: hidden !important;
+          }
           .pdfViewer .page {
-            max-width: 100vw !important;
-            overflow: hidden !important;
-          }
-          .pdfViewer .page .canvasWrapper {
-            display: flex !important;
-            justify-content: center !important;
-          }
-          .pdfViewer .page .textLayer {
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-          }
-          .pdfViewer .page .annotationLayer {
             left: 50% !important;
             transform: translateX(-50%) !important;
           }
