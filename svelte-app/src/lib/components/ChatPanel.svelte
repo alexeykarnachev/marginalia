@@ -56,7 +56,9 @@
     onCreateChat,
     onRenameChat,
     onDeleteChat,
-  }: {
+    onRegenerate,
+    onDeleteMessages,
+  } : {
     placeholder?: string;
     messages: ChatMessage[];
     sending: boolean;
@@ -84,6 +86,8 @@
     onCreateChat?: () => void;
     onRenameChat?: (id: string) => void;
     onDeleteChat?: (id: string) => void;
+    onRegenerate?: (fromIndex: number) => void;
+    onDeleteMessages?: (fromIndex: number) => void;
   } = $props();
 
   let inputText = $state('');
@@ -492,12 +496,30 @@
             {:else}
               {@html renderMarkdown(msg.content)}
             {/if}
-            <button class="marginalia-copy-btn" onclick={handleCopyClick}>Copy</button>
+            <div class="msg-actions">
+              <button class="msg-action-btn" title="Copy" onclick={handleCopyClick}>Copy</button>
+              {#if onRegenerate && !sending}
+                <button class="msg-action-btn" title="Regenerate" onclick={() => onRegenerate(i)}>Retry</button>
+              {/if}
+              {#if onDeleteMessages}
+                <button class="msg-action-btn msg-action-danger" title="Delete from here" onclick={() => onDeleteMessages(i)}>Delete</button>
+              {/if}
+            </div>
           </div>
         {:else if msg.role === 'system'}
           <div class="marginalia-msg system">{msg.content}</div>
         {:else}
-          <div class="marginalia-msg user">{msg.content}</div>
+          <div class="marginalia-msg user" data-raw={msg.content}>
+            <div class="msg-actions">
+              {#if onRegenerate && !sending}
+                <button class="msg-action-btn" title="Regenerate from here" onclick={() => onRegenerate(i)}>Retry</button>
+              {/if}
+              {#if onDeleteMessages}
+                <button class="msg-action-btn msg-action-danger" title="Delete from here" onclick={() => onDeleteMessages(i)}>Delete</button>
+              {/if}
+            </div>
+            {msg.content}
+          </div>
         {/if}
       {/if}
     {/each}
@@ -867,10 +889,18 @@
     font-size: 0.85em;
     font-style: italic;
   }
-  .marginalia-copy-btn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
+  .msg-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  :global(.marginalia-msg:hover) .msg-actions { opacity: 1; }
+  @media (hover: none) {
+    .msg-actions { opacity: 0.5; }
+  }
+  .msg-action-btn {
     background: var(--m-bg-2);
     border: 1px solid var(--m-border-light);
     color: var(--m-fg-muted);
@@ -878,13 +908,9 @@
     padding: 2px 8px;
     border-radius: 3px;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s;
   }
-  :global(.marginalia-msg:hover) .marginalia-copy-btn { opacity: 1; }
-  @media (hover: none) {
-    .marginalia-copy-btn { opacity: 0.6; }
-  }
+  .msg-action-btn:hover { color: var(--m-fg); border-color: var(--m-fg-muted); }
+  .msg-action-danger:hover { color: var(--m-error); border-color: var(--m-error); }
 
   .raw-content {
     white-space: pre-wrap;

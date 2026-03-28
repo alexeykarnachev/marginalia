@@ -217,6 +217,23 @@
     if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
+  function handleRegenerate(fromIndex: number) {
+    const msgs = chatState.messages;
+    let userMsgIndex = -1;
+    for (let j = fromIndex; j >= 0; j--) {
+      if (msgs[j].role === 'user') { userMsgIndex = j; break; }
+    }
+    if (userMsgIndex < 0) return;
+    const userText = msgs[userMsgIndex].content;
+    chatState.setMessages(msgs.slice(0, userMsgIndex));
+    handleChatSend(userText);
+  }
+
+  function handleDeleteMessages(fromIndex: number) {
+    chatState.setMessages(chatState.messages.slice(0, fromIndex));
+    if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
+  }
+
   function handlePageNav(page: number) {
     const app = getPdfApp();
     if (page && app) {
@@ -457,6 +474,8 @@
         onCreateChat={() => chatManager.create(bookTitle || 'Chat')}
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
+        onRegenerate={handleRegenerate}
+        onDeleteMessages={handleDeleteMessages}
         menuItems={buildChatMenuItems({
           editBookPrompt: openBookPromptEditor,
           editChatPrompt: openChatPromptEditor,
