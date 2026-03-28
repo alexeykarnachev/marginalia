@@ -179,32 +179,30 @@
     applyLockH();
   }
 
-  let lockHScrollListener: (() => void) | null = null;
+  let lockHCleanup: (() => void) | null = null;
 
   function applyLockH() {
-    // Clean up previous listener
-    if (lockHScrollListener) {
-      lockHScrollListener();
-      lockHScrollListener = null;
+    if (lockHCleanup) {
+      lockHCleanup();
+      lockHCleanup = null;
     }
 
     try {
-      const container = pdfIframe?.contentDocument?.getElementById('viewerContainer');
-      if (!container) return;
+      const iframeDoc = pdfIframe?.contentDocument;
+      if (!iframeDoc) return;
+
+      // Inject/remove clip style
+      let style = iframeDoc.getElementById('marginalia-lock-h');
+      if (!style) {
+        style = iframeDoc.createElement('style');
+        style.id = 'marginalia-lock-h';
+        iframeDoc.head.appendChild(style);
+      }
 
       if (lockH) {
-        // Center horizontally and lock
-        const centerX = () => {
-          if (container.scrollWidth > container.clientWidth) {
-            container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-          }
-        };
-        centerX();
-
-        // Force horizontal center on every scroll
-        const onScroll = () => centerX();
-        container.addEventListener('scroll', onScroll);
-        lockHScrollListener = () => container.removeEventListener('scroll', onScroll);
+        style.textContent = '#viewerContainer { overflow-x: clip !important; }';
+      } else {
+        style.textContent = '';
       }
     } catch {}
   }
