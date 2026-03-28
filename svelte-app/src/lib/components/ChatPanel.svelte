@@ -886,9 +886,11 @@
     opacity: 0;
     transition: opacity 0.15s;
   }
-  :global(.marginalia-msg:hover) .msg-actions { opacity: 1; }
+  @media (hover: hover) {
+    :global(.marginalia-msg:hover) .msg-actions { opacity: 1; }
+  }
   @media (hover: none) {
-    .msg-actions { opacity: 0.5; }
+    .msg-actions { opacity: 1; }
   }
   .msg-action-btn {
     background: var(--m-bg-2);
@@ -900,6 +902,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    -webkit-tap-highlight-color: transparent;
   }
   @media (hover: hover) {
     .msg-action-btn:hover { color: var(--m-fg); border-color: var(--m-fg-muted); }
