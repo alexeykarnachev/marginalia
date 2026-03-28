@@ -15,6 +15,7 @@
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
+  import { indexBook } from '../lib/core/indexer';
   import { buildLibraryAssistantPrompt } from '../lib/core/system-prompts';
   import type { Book, Folder } from '../lib/types';
   import {
@@ -156,6 +157,8 @@
       createdAt: Date.now(),
     });
     await refreshLibrary();
+    // Index in background — refresh library when done to show page count
+    indexBook(id).then(() => refreshLibrary());
   }
 
   function handleUploadInput(e: Event) {
