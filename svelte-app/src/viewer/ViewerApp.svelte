@@ -199,7 +199,12 @@
         iframeDoc.head.appendChild(style);
       }
 
+      const container = iframeDoc.getElementById('viewerContainer');
       if (lockH) {
+        // Center horizontally before clipping
+        if (container && container.scrollWidth > container.clientWidth) {
+          container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+        }
         style.textContent = '#viewerContainer { overflow-x: clip !important; }';
       } else {
         style.textContent = '';
