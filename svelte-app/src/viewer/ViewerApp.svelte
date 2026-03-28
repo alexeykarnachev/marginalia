@@ -181,11 +181,15 @@
 
   function applyLockH() {
     try {
-      const container = pdfIframe?.contentDocument?.getElementById('viewerContainer');
-      if (!container) return;
-      const scrollTop = container.scrollTop;
-      container.style.overflowX = lockH ? 'hidden' : '';
-      container.scrollTop = scrollTop;
+      const iframeDoc = pdfIframe?.contentDocument;
+      if (!iframeDoc) return;
+      let style = iframeDoc.getElementById('marginalia-lock-h');
+      if (!style) {
+        style = iframeDoc.createElement('style');
+        style.id = 'marginalia-lock-h';
+        iframeDoc.head.appendChild(style);
+      }
+      style.textContent = lockH ? '#viewerContainer { overflow-x: hidden !important; }' : '';
     } catch {}
   }
 
