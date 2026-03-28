@@ -190,43 +190,43 @@
     try {
       const iframeDoc = pdfIframe?.contentDocument;
       if (!iframeDoc) return;
-
-      // Inject/remove clip style
-      let style = iframeDoc.getElementById('marginalia-lock-h');
-      if (!style) {
-        style = iframeDoc.createElement('style');
-        style.id = 'marginalia-lock-h';
-        iframeDoc.head.appendChild(style);
-      }
-
       const container = iframeDoc.getElementById('viewerContainer');
-      if (lockH && container) {
-        // Compute center position
-        const centerX = () => {
-          if (container.scrollWidth > container.clientWidth) {
-            return (container.scrollWidth - container.clientWidth) / 2;
-          }
-          return 0;
+      if (!container) return;
+
+      if (lockH) {
+        // Center horizontally
+        if (container.scrollWidth > container.clientWidth) {
+          container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+        }
+        const lockedX = container.scrollLeft;
+
+        // Block horizontal touch movement with non-passive handler
+        let startX = 0;
+        let startY = 0;
+        const onTouchStart = (e: TouchEvent) => {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
         };
-        container.scrollLeft = centerX();
+        const onTouchMove = (e: TouchEvent) => {
+          const dx = Math.abs(e.touches[0].clientX - startX);
+          const dy = Math.abs(e.touches[0].clientY - startY);
+          // If moving more horizontally than vertically, block it
+          if (dx > dy && dx > 5) {
+            e.preventDefault();
+          }
+        };
+        // Also continuously pin scrollLeft in case anything slips through
+        const onScroll = () => { container.scrollLeft = lockedX; };
 
-        // Lock: prevent horizontal movement during touch
-        const onTouchMove = () => { container.scrollLeft = centerX(); };
-        const onScroll = () => { container.scrollLeft = centerX(); };
-
-        container.addEventListener('touchmove', onTouchMove, { passive: true });
+        container.addEventListener('touchstart', onTouchStart, { passive: true });
+        container.addEventListener('touchmove', onTouchMove, { passive: false });
         container.addEventListener('scroll', onScroll, { passive: true });
 
-        // Hide horizontal scrollbar
-        style.textContent = '#viewerContainer::-webkit-scrollbar:horizontal { display: none; }';
-
         lockHCleanup = () => {
+          container.removeEventListener('touchstart', onTouchStart);
           container.removeEventListener('touchmove', onTouchMove);
           container.removeEventListener('scroll', onScroll);
-          style.textContent = '';
         };
-      } else {
-        style.textContent = '';
       }
     } catch {}
   }
