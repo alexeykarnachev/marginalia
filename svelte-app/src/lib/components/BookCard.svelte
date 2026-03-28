@@ -1,3 +1,7 @@
+<script module lang="ts">
+  const coverCache = new Map<string, string>();
+</script>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Book } from '../types';
@@ -6,9 +10,6 @@
 
   const COVER_RENDER_WIDTH = 300;
   const COVER_JPEG_QUALITY = 0.8;
-
-  // Module-level cover cache: avoids re-rendering covers on re-mount
-  const coverCache = new Map<string, string>();
 
   let {
     book,
