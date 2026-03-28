@@ -86,7 +86,7 @@
       sessionStorage.setItem(SS_BOOK_ID, newBookId);
     },
     applyThemeToIframe,
-    onPdfReady: applyLockH,
+    onPdfReady: () => { restoreZoom(); applyLockH(); },
     captureSelection,
     onBookMissing: () => { window.location.href = './'; },
     onBookLoaded: (title) => {
@@ -147,12 +147,30 @@
 
   let lockH = $state(localStorage.getItem('marginalia_lock_h') === '1');
 
+  function saveZoom() {
+    const app = getPdfApp();
+    if (app?.pdfViewer) {
+      localStorage.setItem('marginalia_zoom', String(app.pdfViewer.currentScale));
+    }
+  }
+
+  function restoreZoom() {
+    const saved = localStorage.getItem('marginalia_zoom');
+    if (!saved) return;
+    const app = getPdfApp();
+    if (app?.pdfViewer) {
+      app.pdfViewer.currentScale = parseFloat(saved);
+    }
+  }
+
   function handleZoomOut() {
     getPdfApp()?.zoomOut();
+    saveZoom();
   }
 
   function handleZoomIn() {
     getPdfApp()?.zoomIn();
+    saveZoom();
   }
 
   function toggleLockH() {
@@ -164,9 +182,10 @@
   function applyLockH() {
     try {
       const container = pdfIframe?.contentDocument?.getElementById('viewerContainer');
-      if (container) {
-        container.style.overflowX = lockH ? 'hidden' : '';
-      }
+      if (!container) return;
+      const scrollTop = container.scrollTop;
+      container.style.overflowX = lockH ? 'hidden' : '';
+      container.scrollTop = scrollTop;
     } catch {}
   }
 
@@ -411,7 +430,13 @@
     </div>
     <div class="m-toolbar-right">
       <button class="m-btn" title="Zoom out" onclick={handleZoomOut}>&minus;</button>
-      <button class="m-btn fit-width-btn" class:active={lockH} title="Lock horizontal scroll" onclick={toggleLockH}>&#x2194;</button>
+      <button
+        class="m-btn"
+        title="Lock horizontal scroll"
+        onclick={toggleLockH}
+        style:border-color={lockH ? 'var(--m-accent)' : ''}
+        style:color={lockH ? 'var(--m-accent)' : ''}
+      >&#x2194;</button>
       <button class="m-btn" title="Zoom in" onclick={handleZoomIn}>+</button>
       <ThemeToggle />
     </div>
@@ -534,11 +559,6 @@
     border: none;
     width: 100%;
     min-width: 0;
-  }
-
-  .fit-width-btn.active {
-    border-color: var(--m-accent);
-    color: var(--m-accent);
   }
 
   .viewer-body {
