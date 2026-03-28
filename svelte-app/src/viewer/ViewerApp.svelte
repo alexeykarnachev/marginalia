@@ -289,7 +289,7 @@
       }
       if (settings.theme === 'dark') {
         style.textContent = `
-          .pdfViewer .page { filter: invert(0.88) hue-rotate(180deg); }
+          #viewerContainer { filter: invert(0.88) hue-rotate(180deg); background: white; }
           body { background: #1d2021 !important; }
         `;
       } else {
