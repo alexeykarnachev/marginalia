@@ -2,30 +2,7 @@
 // Works standalone (no viewer iframe needed)
 
 import { getBook, saveBook } from './db';
-
-const PDFJS_POLL_MS = 50;
-const PDFJS_TIMEOUT_MS = 5000;
-
-async function getPdfjsLib(): Promise<any> {
-  if ((globalThis as any).pdfjsLib) return (globalThis as any).pdfjsLib;
-  return new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = './pdfjs/build/pdf.mjs';
-    script.type = 'module';
-    script.onload = () => {
-      const check = setInterval(() => {
-        if ((globalThis as any).pdfjsLib) {
-          clearInterval(check);
-          (globalThis as any).pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/build/pdf.worker.mjs';
-          resolve((globalThis as any).pdfjsLib);
-        }
-      }, PDFJS_POLL_MS);
-      setTimeout(() => { clearInterval(check); resolve(null); }, PDFJS_TIMEOUT_MS);
-    };
-    script.onerror = () => resolve(null);
-    document.head.appendChild(script);
-  });
-}
+import { getPdfjsLib } from './pdfjs-loader';
 
 /**
  * Index a book: extract text from all pages and save to IndexedDB.

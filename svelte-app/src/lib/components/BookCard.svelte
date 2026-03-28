@@ -2,34 +2,10 @@
   import { onMount } from 'svelte';
   import type { Book } from '../types';
   import { lsStatsKey } from '../core/constants';
+  import { getPdfjsLib } from '../core/pdfjs-loader';
 
   const COVER_RENDER_WIDTH = 300;
   const COVER_JPEG_QUALITY = 0.8;
-  const PDFJS_LIB_POLL_MS = 50;
-  const PDFJS_LIB_TIMEOUT_MS = 5000;
-
-  // Load pdf.js dynamically from public directory via script tag
-  async function getPdfjsLib(): Promise<any> {
-    if ((globalThis as any).pdfjsLib) return (globalThis as any).pdfjsLib;
-    return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = './pdfjs/build/pdf.mjs';
-      script.type = 'module';
-      script.onload = () => {
-        // pdf.mjs sets globalThis.pdfjsLib
-        const check = setInterval(() => {
-          if ((globalThis as any).pdfjsLib) {
-            clearInterval(check);
-            (globalThis as any).pdfjsLib.GlobalWorkerOptions.workerSrc = './pdfjs/build/pdf.worker.mjs';
-            resolve((globalThis as any).pdfjsLib);
-          }
-        }, PDFJS_LIB_POLL_MS);
-        setTimeout(() => { clearInterval(check); resolve(null); }, PDFJS_LIB_TIMEOUT_MS);
-      };
-      script.onerror = () => resolve(null);
-      document.head.appendChild(script);
-    });
-  }
 
   // Module-level cover cache: avoids re-rendering covers on re-mount
   const coverCache = new Map<string, string>();
@@ -48,24 +24,27 @@
     onMove: (book: Book) => void;
   } = $props();
 
-  let coverEl: HTMLDivElement;
+  let cardEl: HTMLDivElement;
   let coverUrl = $state<string | null>(null);
+  let visible = $state(false);
 
   let sizeMB = $derived((book.size / 1048576).toFixed(1));
   let pageCount = $derived(
     book.pages ? book.pages.length + 'p' : (book.pages === null ? '...' : '')
   );
-  // Read per-book spending from localStorage
-  let bookCost = $derived.by(() => {
+
+  // Read cost once at mount, not on every render
+  let bookCost = $state('');
+  let meta = $derived([pageCount, sizeMB + ' MB', bookCost].filter(Boolean).join(' \u00B7 '));
+
+  function loadCost() {
     try {
       const raw = localStorage.getItem(lsStatsKey(book.id));
-      if (!raw) return '';
+      if (!raw) return;
       const stats = JSON.parse(raw);
-      if (stats.cost > 0) return `$${stats.cost.toFixed(3)}`;
+      if (stats.cost > 0) bookCost = `$${stats.cost.toFixed(3)}`;
     } catch {}
-    return '';
-  });
-  let meta = $derived([pageCount, sizeMB + ' MB', bookCost].filter(Boolean).join(' \u00B7 '));
+  }
 
   function handleCardClick(e: MouseEvent) {
     if ((e.target as HTMLElement).closest('.item-actions')) return;
@@ -88,13 +67,30 @@
   }
 
   onMount(() => {
+    loadCost();
+
     // Check cache first
     const cached = coverCache.get(book.id);
     if (cached) {
       coverUrl = cached;
-    } else {
-      renderCover();
+      visible = true;
+      return;
     }
+
+    // Lazy render: only when card scrolls into view
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          visible = true;
+          observer.disconnect();
+          renderCover();
+        }
+      },
+      { rootMargin: '200px' }, // start loading 200px before visible
+    );
+    observer.observe(cardEl);
+
+    return () => observer.disconnect();
   });
 
   async function renderCover() {
@@ -130,8 +126,8 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="m-card" onclick={handleCardClick}>
-  <div class="m-card-cover" bind:this={coverEl}>
+<div class="m-card" bind:this={cardEl} onclick={handleCardClick}>
+  <div class="m-card-cover">
     {#if coverUrl}
       <img src={coverUrl} alt={book.title} style="width:100%;height:100%;object-fit:cover;" />
     {:else}
