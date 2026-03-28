@@ -200,12 +200,31 @@
       }
 
       const container = iframeDoc.getElementById('viewerContainer');
-      if (lockH) {
-        // Center horizontally before clipping
-        if (container && container.scrollWidth > container.clientWidth) {
-          container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-        }
-        style.textContent = '#viewerContainer { overflow-x: clip !important; }';
+      if (lockH && container) {
+        // Compute center position
+        const centerX = () => {
+          if (container.scrollWidth > container.clientWidth) {
+            return (container.scrollWidth - container.clientWidth) / 2;
+          }
+          return 0;
+        };
+        container.scrollLeft = centerX();
+
+        // Lock: prevent horizontal movement during touch
+        const onTouchMove = () => { container.scrollLeft = centerX(); };
+        const onScroll = () => { container.scrollLeft = centerX(); };
+
+        container.addEventListener('touchmove', onTouchMove, { passive: true });
+        container.addEventListener('scroll', onScroll, { passive: true });
+
+        // Hide horizontal scrollbar
+        style.textContent = '#viewerContainer::-webkit-scrollbar:horizontal { display: none; }';
+
+        lockHCleanup = () => {
+          container.removeEventListener('touchmove', onTouchMove);
+          container.removeEventListener('scroll', onScroll);
+          style.textContent = '';
+        };
       } else {
         style.textContent = '';
       }
