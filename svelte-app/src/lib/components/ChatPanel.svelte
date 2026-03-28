@@ -317,8 +317,8 @@
     if (!msg) return;
     const raw = (msg as HTMLElement).dataset.raw || msg.textContent || '';
     navigator.clipboard.writeText(raw).catch(() => {});
-    btn.textContent = '\u2713';
-    setTimeout(() => { btn.textContent = '\u2398'; }, COPY_FEEDBACK_MS);
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+    setTimeout(() => { btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }, COPY_FEEDBACK_MS);
   }
 
   function handleMessagesClick(e: MouseEvent) {
@@ -495,7 +495,7 @@
               {@html renderMarkdown(msg.content)}
             {/if}
             <div class="msg-actions">
-              <button class="msg-action-btn" title="Copy" onclick={handleCopyClick}>&#x2398;</button>
+              <button class="msg-action-btn" title="Copy" onclick={handleCopyClick}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
             </div>
           </div>
         {:else if msg.role === 'system'}
@@ -505,8 +505,8 @@
             {msg.content}
             {#if !sending && onTruncate}
               <div class="msg-actions">
-                <button class="msg-action-btn" title="Retry" onclick={() => { const text = msg.content; onTruncate(i); onSend(text); }}>&#x21BB;</button>
-                <button class="msg-action-btn" title="Edit" onclick={() => { inputText = msg.content; onTruncate(i); inputEl?.focus(); }}>&#x270F;</button>
+                <button class="msg-action-btn" title="Retry" onclick={() => { const text = msg.content; onTruncate(i); onSend(text); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+                <button class="msg-action-btn" title="Edit" onclick={() => { inputText = msg.content; onTruncate(i); inputEl?.focus(); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               </div>
             {/if}
           </div>
@@ -894,10 +894,12 @@
     background: var(--m-bg-2);
     border: 1px solid var(--m-border-light);
     color: var(--m-fg-muted);
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 3px;
+    padding: 4px 6px;
+    border-radius: 4px;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .msg-action-btn:hover { color: var(--m-fg); border-color: var(--m-fg-muted); }
   .msg-action-danger:hover { color: var(--m-error); border-color: var(--m-error); }
