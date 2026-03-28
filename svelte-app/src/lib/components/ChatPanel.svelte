@@ -618,7 +618,9 @@
     gap: 4px;
     max-width: 200px;
   }
-  .chat-selector-btn:hover { border-color: var(--m-accent); }
+  @media (hover: hover) {
+    .chat-selector-btn:hover { border-color: var(--m-accent); }
+  }
   .chat-selector-name {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -681,8 +683,10 @@
     padding: 2px 4px;
     border-radius: 3px;
   }
-  .chat-list-action:hover { color: var(--m-fg); background: var(--m-bg-3); }
-  .chat-list-action-danger:hover { color: var(--m-error); }
+  @media (hover: hover) {
+    .chat-list-action:hover { color: var(--m-fg); background: var(--m-bg-3); }
+    .chat-list-action-danger:hover { color: var(--m-error); }
+  }
   .m-chat-header-right {
     display: flex;
     align-items: center;
@@ -697,9 +701,11 @@
     padding: 4px 6px;
     border-radius: 4px;
   }
-  .m-chat-header-btn:hover {
-    color: var(--m-fg);
-    background: var(--m-bg-2);
+  @media (hover: hover) {
+    .m-chat-header-btn:hover {
+      color: var(--m-fg);
+      background: var(--m-bg-2);
+    }
   }
 
   .marginalia-popover {
@@ -902,14 +908,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    -webkit-tap-highlight-color: transparent;
   }
   @media (hover: hover) {
     .msg-action-btn:hover { color: var(--m-fg); border-color: var(--m-fg-muted); }
     .msg-action-danger:hover { color: var(--m-error); border-color: var(--m-error); }
   }
-  .msg-action-btn:active { color: var(--m-fg); border-color: var(--m-fg-muted); }
-  .msg-action-btn:focus { outline: none; }
 
   .raw-content {
     white-space: pre-wrap;

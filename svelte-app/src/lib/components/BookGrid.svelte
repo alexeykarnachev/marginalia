@@ -256,9 +256,7 @@
     border-radius: 6px;
     cursor: pointer;
     flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
   }
-  .sort-btn:focus { outline: none; }
   @media (hover: hover) {
     .sort-btn:hover {
       border-color: var(--m-accent);

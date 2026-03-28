@@ -10,6 +10,13 @@
   box-sizing: border-box;
 }
 
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+button:focus {
+  outline: none;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--m-bg-0);
@@ -166,7 +173,9 @@ html[data-theme="light"] {
   padding: 0;
   width: 40px;
 }
-.m-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
+@media (hover: hover) {
+  .m-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
+}
 .m-btn-text {
   width: auto;
   padding: 0 14px;
@@ -247,7 +256,9 @@ html[data-theme="light"] .m-theme-toggle::after {
   align-items: center;
   justify-content: center;
 }
-.m-chat-fab:hover { background: var(--m-accent-hover); }
+@media (hover: hover) {
+  .m-chat-fab:hover { background: var(--m-accent-hover); }
+}
 
 /* ── Item actions (shared by BookCard + BookGrid) ────────────────── */
 
@@ -274,8 +285,10 @@ html[data-theme="light"] .m-theme-toggle::after {
   align-items: center;
   justify-content: center;
 }
-.item-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
-.item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
+@media (hover: hover) {
+  .item-btn:hover { border-color: var(--m-accent); color: var(--m-accent); }
+  .item-btn-danger:hover { border-color: var(--m-error); color: var(--m-error); }
+}
 
 /* ── Library card (shared by BookCard + folder items) ──────────── */
 
@@ -396,8 +409,8 @@ html[data-theme="light"] .m-theme-toggle::after {
   cursor: pointer;
   font-size: 13px;
 }
-.prompt-btn:hover {
-  background: var(--m-bg-2);
+@media (hover: hover) {
+  .prompt-btn:hover { background: var(--m-bg-2); }
 }
 
 .prompt-btn-primary {
@@ -405,8 +418,8 @@ html[data-theme="light"] .m-theme-toggle::after {
   color: var(--m-bg-0);
   border-color: var(--m-accent);
 }
-.prompt-btn-primary:hover {
-  background: var(--m-accent-hover);
+@media (hover: hover) {
+  .prompt-btn-primary:hover { background: var(--m-accent-hover); }
 }
 
 /* ── Tool activity (shared) ──────────────────────────────────────── */
