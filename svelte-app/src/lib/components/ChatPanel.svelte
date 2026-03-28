@@ -205,8 +205,13 @@
     document.addEventListener('touchend', onEnd);
   }
 
-  // Render markdown content
+  // Render cache: avoids re-running marked+DOMPurify+KaTeX for unchanged messages
+  const renderCache = new Map<string, string>();
+  let bookById = $derived(new Map(books.map(b => [b.id, b])));
+
   function renderMarkdown(text: string): string {
+    const cached = renderCache.get(text);
+    if (cached) return cached;
     const blocks: string[] = [];
     const inlines: string[] = [];
     const pageLinks: string[] = [];
@@ -256,8 +261,7 @@
     }
 
     // Book links: convert [id: UUID] patterns into clickable links before stripping
-    if (books.length > 0) {
-      const bookById = new Map(books.map(b => [b.id, b]));
+    if (bookById.size > 0) {
       // Match [id: UUID] or (id: UUID) — replace with link using book title
       result = result.replace(/[\[(]id:\s*`?([0-9a-f-]{36})`?\s*[\])]/gi, (_m, id) => {
         const book = bookById.get(id);
@@ -301,6 +305,7 @@
     }
 
     result = DOMPurify.sanitize(result, { ADD_ATTR: ['data-page', 'data-book-id'] });
+    renderCache.set(text, result);
     return result;
   }
 
@@ -478,7 +483,7 @@
         <button class="prompt-btn prompt-btn-primary" onclick={onCreateChat}>New chat</button>
       </div>
     {/if}
-    {#each messages as msg}
+    {#each messages as msg, i (i)}
       {#if msg.role !== 'tool'}
         {#if msg.role === 'assistant'}
           <div class="marginalia-msg assistant" class:raw={rawMode} data-raw={msg.content}>
