@@ -1,5 +1,19 @@
 <script module lang="ts">
   const coverCache = new Map<string, string>();
+  const COVER_PREFIX = 'mcover_';
+
+  function getCachedCover(id: string): string | null {
+    const mem = coverCache.get(id);
+    if (mem) return mem;
+    const stored = sessionStorage.getItem(COVER_PREFIX + id);
+    if (stored) { coverCache.set(id, stored); return stored; }
+    return null;
+  }
+
+  function setCachedCover(id: string, dataUrl: string) {
+    coverCache.set(id, dataUrl);
+    try { sessionStorage.setItem(COVER_PREFIX + id, dataUrl); } catch {}
+  }
 </script>
 
 <script lang="ts">
@@ -70,8 +84,8 @@
   onMount(() => {
     loadCost();
 
-    // Check cache first
-    const cached = coverCache.get(book.id);
+    // Check cache first (memory + sessionStorage)
+    const cached = getCachedCover(book.id);
     if (cached) {
       coverUrl = cached;
       visible = true;
@@ -118,7 +132,7 @@
 
       const dataUrl = canvas.toDataURL('image/jpeg', COVER_JPEG_QUALITY);
       coverUrl = dataUrl;
-      coverCache.set(book.id, dataUrl);
+      setCachedCover(book.id, dataUrl);
     } catch (err) {
       console.warn('Cover render failed for', book.title, err);
     }

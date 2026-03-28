@@ -72,35 +72,47 @@
     return crumbs;
   }
 
-  function folderMeta(folderId: string): string {
-    // Count books in this folder (and subfolders recursively)
-    const folderIds = new Set<string>();
-    function collectFolders(id: string) {
-      folderIds.add(id);
-      for (const f of folders) {
-        if (f.parent_id === id) collectFolders(f.id);
-      }
-    }
-    collectFolders(folderId);
-    const folderBooks = books.filter(b => b.folder_id && folderIds.has(b.folder_id));
-    const count = folderBooks.length;
-
-    let totalCost = 0;
-    for (const b of folderBooks) {
+  // Pre-compute all folder metadata once when books/folders change
+  let folderMetaMap = $derived.by(() => {
+    // Read all book costs once
+    const costByBook = new Map<string, number>();
+    for (const b of books) {
       try {
         const raw = localStorage.getItem(lsStatsKey(b.id));
         if (raw) {
           const stats = JSON.parse(raw);
-          if (stats.cost > 0) totalCost += stats.cost;
+          if (stats.cost > 0) costByBook.set(b.id, stats.cost);
         }
       } catch {}
     }
 
-    const parts: string[] = [];
-    parts.push(count === 1 ? '1 book' : `${count} books`);
-    if (totalCost > 0) parts.push(`$${totalCost.toFixed(3)}`);
-    return parts.join(' \u00B7 ');
-  }
+    // Build parent->children index
+    const childMap = new Map<string, string[]>();
+    for (const f of folders) {
+      const pid = f.parent_id || '';
+      if (!childMap.has(pid)) childMap.set(pid, []);
+      childMap.get(pid)!.push(f.id);
+    }
+
+    // Collect all descendant folder IDs (recursive, using index)
+    function collectIds(id: string, out: Set<string>) {
+      out.add(id);
+      for (const cid of childMap.get(id) || []) collectIds(cid, out);
+    }
+
+    const result = new Map<string, string>();
+    for (const f of folders) {
+      const ids = new Set<string>();
+      collectIds(f.id, ids);
+      const folderBooks = books.filter(b => b.folder_id && ids.has(b.folder_id));
+      let totalCost = 0;
+      for (const b of folderBooks) totalCost += costByBook.get(b.id) || 0;
+      const parts: string[] = [folderBooks.length === 1 ? '1 book' : `${folderBooks.length} books`];
+      if (totalCost > 0) parts.push(`$${totalCost.toFixed(3)}`);
+      result.set(f.id, parts.join(' \u00B7 '));
+    }
+    return result;
+  });
 
   function handleFolderClick(folder: Folder, e: MouseEvent) {
     if ((e.target as HTMLElement).closest('.item-actions')) return;
@@ -155,7 +167,7 @@
         </div>
         <div class="m-card-info">
           <span class="m-card-title" title={folder.name}>{folder.name}</span>
-          <span class="m-card-meta">{folderMeta(folder.id)}</span>
+          <span class="m-card-meta">{folderMetaMap.get(folder.id) || '0 books'}</span>
           <div class="item-actions">
             <button class="item-btn" title="Rename" onclick={(e) => handleFolderRename(folder, e)}>&#x270F;</button>
             <button class="item-btn item-btn-danger" title="Delete" onclick={(e) => handleFolderDelete(folder, e)}>&#x2715;</button>
