@@ -111,22 +111,10 @@
   function scrollAnchor(container: HTMLDivElement) {
     let isAtBottom = true;
     let lastHeight = container.scrollHeight;
-    let userTouched = false;
-    const THRESHOLD = 50;
 
-    function checkBottom() {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      return scrollHeight - scrollTop - clientHeight < THRESHOLD;
-    }
-
-    // Detect user interaction — only touch/mousedown, not programmatic scroll
-    function onTouch() { userTouched = true; }
-
-    function onScroll() {
-      if (userTouched) {
-        isAtBottom = checkBottom();
-        userTouched = false;
-      }
+    // User touch = stop following immediately
+    function onTouch() {
+      isAtBottom = false;
     }
 
     // ResizeObserver: detect content height changes and compensate
@@ -138,7 +126,7 @@
       if (isAtBottom) {
         container.scrollTop = container.scrollHeight;
       } else if (delta > 0) {
-        // Content grew — compensate to prevent jump
+        // Content grew above — compensate to prevent jump
         container.scrollTop += delta;
       }
       lastHeight = newHeight;
@@ -157,7 +145,6 @@
 
     container.addEventListener('touchstart', onTouch, { passive: true });
     container.addEventListener('mousedown', onTouch);
-    container.addEventListener('scroll', onScroll, { passive: true });
 
     return {
       destroy() {
@@ -165,7 +152,6 @@
         mo.disconnect();
         container.removeEventListener('touchstart', onTouch);
         container.removeEventListener('mousedown', onTouch);
-        container.removeEventListener('scroll', onScroll);
       },
       scrollToBottom() {
         isAtBottom = true;
