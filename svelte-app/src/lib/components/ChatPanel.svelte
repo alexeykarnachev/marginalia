@@ -103,39 +103,86 @@
   let startX = 0;
   let startW = 0;
 
-  let userInteracted = false;
+  let lastUserIndex = $derived(
+    messages.reduceRight((found: number, msg: ChatMessage, i: number) => found >= 0 ? found : (msg.role === 'user' ? i : -1), -1)
+  );
 
-  function handleMessagesScroll() {
-    // scroll events from programmatic scrollTop changes also fire here,
-    // so we only use touch/mousedown to detect user interaction
-  }
+  // Svelte action for scroll anchoring — handles auto-follow and scroll preservation
+  function scrollAnchor(container: HTMLDivElement) {
+    let isAtBottom = true;
+    let lastHeight = container.scrollHeight;
+    let userTouched = false;
+    const THRESHOLD = 50;
 
-  function handleMessagesTouch() {
-    if (sending) userInteracted = true;
-  }
+    function checkBottom() {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      return scrollHeight - scrollTop - clientHeight < THRESHOLD;
+    }
 
-  // Auto-scroll: follow new messages and streaming content
-  // Stop following if user touches/scrolls the chat during generation
-  $effect(() => {
-    // Dependencies: message count (new messages) + last message content (streaming deltas)
-    const len = messages.length;
-    const lastContent = len > 0 ? messages[len - 1].content : '';
-    void lastContent;
+    // Detect user interaction — only touch/mousedown, not programmatic scroll
+    function onTouch() { userTouched = true; }
 
-    if (userInteracted) return;
-
-    tick().then(() => {
-      if (messagesEl) {
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+    function onScroll() {
+      if (userTouched) {
+        isAtBottom = checkBottom();
+        userTouched = false;
       }
+    }
+
+    // ResizeObserver: detect content height changes and compensate
+    const ro = new ResizeObserver(() => {
+      const newHeight = container.scrollHeight;
+      const delta = newHeight - lastHeight;
+      if (delta === 0) return;
+
+      if (isAtBottom) {
+        container.scrollTop = container.scrollHeight;
+      } else if (delta > 0) {
+        // Content grew — compensate to prevent jump
+        container.scrollTop += delta;
+      }
+      lastHeight = newHeight;
     });
-  });
+
+    // Observe the container itself for size changes
+    ro.observe(container);
+
+    // Also observe children for individual resizes
+    const mo = new MutationObserver(() => {
+      for (const child of container.children) ro.observe(child);
+      lastHeight = container.scrollHeight;
+    });
+    mo.observe(container, { childList: true });
+    for (const child of container.children) ro.observe(child);
+
+    container.addEventListener('touchstart', onTouch, { passive: true });
+    container.addEventListener('mousedown', onTouch);
+    container.addEventListener('scroll', onScroll, { passive: true });
+
+    return {
+      destroy() {
+        ro.disconnect();
+        mo.disconnect();
+        container.removeEventListener('touchstart', onTouch);
+        container.removeEventListener('mousedown', onTouch);
+        container.removeEventListener('scroll', onScroll);
+      },
+      scrollToBottom() {
+        isAtBottom = true;
+        container.scrollTop = container.scrollHeight;
+        lastHeight = container.scrollHeight;
+      },
+    };
+  }
+
+  let anchor: ReturnType<typeof scrollAnchor> | null = null;
+
 
   function handleSend() {
     const text = inputText.trim();
     if (!text || sending || !activeChatId) return;
     inputText = '';
-    userInteracted = false;
+    anchor?.scrollToBottom();
     onSend(text);
     inputEl?.focus();
   }
@@ -334,8 +381,13 @@
 
   onMount(() => {
     document.addEventListener('click', handleClickOutsideMenu);
+    if (messagesEl) {
+      const a = scrollAnchor(messagesEl);
+      anchor = a;
+    }
     return () => {
       document.removeEventListener('click', handleClickOutsideMenu);
+      anchor?.destroy();
     };
   });
 
@@ -471,9 +523,6 @@
     class:mono
     bind:this={messagesEl}
     onclick={handleMessagesClick}
-    onscroll={handleMessagesScroll}
-    ontouchstart={handleMessagesTouch}
-    onmousedown={handleMessagesTouch}
     style:font-size="{fontSize}px"
   >
     {#if !activeChatId && onCreateChat}
@@ -500,10 +549,10 @@
         {:else}
           <div class="marginalia-msg user">
             {msg.content}
-            {#if onTruncate}
-              <div class="msg-actions" class:disabled={sending}>
-                <button class="msg-action-btn" disabled={sending} title="Retry" onclick={() => { const text = msg.content; onTruncate(i); onSend(text); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-                <button class="msg-action-btn" disabled={sending} title="Edit" onclick={() => { inputText = msg.content; onTruncate(i); inputEl?.focus(); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+            {#if onTruncate && i === lastUserIndex && !sending}
+              <div class="msg-actions">
+                <button class="msg-action-btn" title="Retry" onclick={() => { const text = msg.content; onTruncate(i); onSend(text); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+                <button class="msg-action-btn" title="Edit" onclick={() => { inputText = msg.content; onTruncate(i); inputEl?.focus(); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               </div>
             {/if}
           </div>
@@ -888,19 +937,13 @@
     margin-top: 6px;
     opacity: 0;
     transition: opacity 0.15s;
-  }
-  .msg-actions.disabled {
-    pointer-events: none;
-    opacity: 0 !important;
-    height: 0;
-    margin: 0;
-    overflow: hidden;
+    overflow-anchor: none;
   }
   @media (hover: hover) {
-    :global(.marginalia-msg:hover) .msg-actions:not(.disabled) { opacity: 1; }
+    :global(.marginalia-msg:hover) .msg-actions { opacity: 1; }
   }
   @media (hover: none) {
-    .msg-actions:not(.disabled) { opacity: 1; }
+    .msg-actions { opacity: 1; }
   }
   .msg-action-btn {
     background: var(--m-bg-2);
