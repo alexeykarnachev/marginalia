@@ -117,18 +117,20 @@
       isAtBottom = false;
     }
 
-    // ResizeObserver: detect content height changes and compensate
+    // ResizeObserver: detect content height changes
     const ro = new ResizeObserver(() => {
       const newHeight = container.scrollHeight;
       const delta = newHeight - lastHeight;
       if (delta === 0) return;
 
       if (isAtBottom) {
+        // Following mode — scroll to bottom
         container.scrollTop = container.scrollHeight;
-      } else if (delta > 0) {
-        // Content grew above — compensate to prevent jump
-        container.scrollTop += delta;
       }
+      // If user scrolled away: do nothing. Let the browser handle scroll
+      // position naturally. Content growing at the bottom doesn't move
+      // the viewport. Content changing height above (buttons appearing)
+      // is handled by the browser's default behavior.
       lastHeight = newHeight;
     });
 
