@@ -105,6 +105,8 @@
   let startX = 0;
   let startW = 0;
 
+  let userScrolledAway = false;
+
   function isNearBottom(): boolean {
     if (!messagesEl) return true;
     const remaining = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
@@ -112,14 +114,17 @@
   }
 
   function handleMessagesScroll() {
-    autoScrollEnabled = isNearBottom();
+    if (sending && !isNearBottom()) {
+      // User scrolled away during generation — lock it
+      userScrolledAway = true;
+    }
+    autoScrollEnabled = !userScrolledAway && isNearBottom();
   }
 
   // Scroll to bottom on new messages while user is following the stream
   $effect(() => {
     // Touch messages to create dependency
     void messages.length;
-    void sending;
     tick().then(() => {
       if (messagesEl && autoScrollEnabled) {
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -127,13 +132,19 @@
     });
   });
 
-  // When switching chats or resetting history, re-enable auto-follow.
+  // Reset scroll lock when generation finishes or chat changes
+  $effect(() => {
+    if (!sending) {
+      userScrolledAway = false;
+      // Don't force scroll — just unlock for next interaction
+    }
+  });
+
   $effect(() => {
     void activeChatId;
-    void messages.length;
-    if (!messagesEl) return;
     if (messages.length === 0) {
       autoScrollEnabled = true;
+      userScrolledAway = false;
     }
   });
 
