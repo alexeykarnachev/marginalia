@@ -105,7 +105,7 @@
   let startX = 0;
   let startW = 0;
 
-  let userScrolledAway = false;
+  let userTouchedDuringGen = false;
 
   function isNearBottom(): boolean {
     if (!messagesEl) return true;
@@ -114,44 +114,29 @@
   }
 
   function handleMessagesScroll() {
-    if (sending && !isNearBottom()) {
-      // User scrolled away during generation — lock it
-      userScrolledAway = true;
-    }
-    autoScrollEnabled = !userScrolledAway && isNearBottom();
+    autoScrollEnabled = isNearBottom();
   }
 
-  // Scroll to bottom on new messages while user is following the stream
+  function handleMessagesTouch() {
+    if (sending) userTouchedDuringGen = true;
+  }
+
+  // Scroll to bottom when messages change, but only if following
   $effect(() => {
-    // Touch messages to create dependency
     void messages.length;
     tick().then(() => {
-      if (messagesEl && autoScrollEnabled) {
+      if (messagesEl && autoScrollEnabled && !userTouchedDuringGen) {
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
     });
-  });
-
-  // Reset scroll lock when generation finishes or chat changes
-  $effect(() => {
-    if (!sending) {
-      userScrolledAway = false;
-      // Don't force scroll — just unlock for next interaction
-    }
-  });
-
-  $effect(() => {
-    void activeChatId;
-    if (messages.length === 0) {
-      autoScrollEnabled = true;
-      userScrolledAway = false;
-    }
   });
 
   function handleSend() {
     const text = inputText.trim();
     if (!text || sending || !activeChatId) return;
     inputText = '';
+    autoScrollEnabled = true;
+    userTouchedDuringGen = false;
     onSend(text);
     inputEl?.focus();
   }
@@ -488,6 +473,8 @@
     bind:this={messagesEl}
     onclick={handleMessagesClick}
     onscroll={handleMessagesScroll}
+    ontouchstart={handleMessagesTouch}
+    onmousedown={handleMessagesTouch}
     style:font-size="{fontSize}px"
   >
     {#if !activeChatId && onCreateChat}
