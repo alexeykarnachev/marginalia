@@ -108,25 +108,9 @@
   function scrollAnchor(container: HTMLDivElement) {
     let isAtBottom = true;
     let lastHeight = container.scrollHeight;
-    let currentChatId: string | null = null;
-    let isProgrammatic = false;
 
     function onTouch() {
       isAtBottom = false;
-    }
-
-    function onScroll() {
-      // Only save when NOT caused by our own programmatic scrollTop assignment
-      if (!isProgrammatic && currentChatId) {
-        sessionStorage.setItem('mscroll_' + currentChatId, String(container.scrollTop));
-      }
-    }
-
-    function setScrollTop(value: number) {
-      isProgrammatic = true;
-      container.scrollTop = value;
-      // Reset on next microtask (after scroll event fires synchronously)
-      queueMicrotask(() => { isProgrammatic = false; });
     }
 
     // ResizeObserver: detect content height changes
@@ -134,17 +118,14 @@
       const newHeight = container.scrollHeight;
       const delta = newHeight - lastHeight;
       if (delta === 0) return;
-
       if (isAtBottom) {
-        setScrollTop(container.scrollHeight);
+        container.scrollTop = container.scrollHeight;
       }
       lastHeight = newHeight;
     });
 
-    // Observe the container itself for size changes
     ro.observe(container);
 
-    // Also observe children for individual resizes
     const mo = new MutationObserver(() => {
       for (const child of container.children) ro.observe(child);
       lastHeight = container.scrollHeight;
@@ -154,7 +135,6 @@
 
     container.addEventListener('touchstart', onTouch, { passive: true });
     container.addEventListener('mousedown', onTouch);
-    container.addEventListener('scroll', onScroll, { passive: true });
 
     return {
       destroy() {
@@ -162,24 +142,10 @@
         mo.disconnect();
         container.removeEventListener('touchstart', onTouch);
         container.removeEventListener('mousedown', onTouch);
-        container.removeEventListener('scroll', onScroll);
       },
       scrollToBottom() {
         isAtBottom = true;
-        setScrollTop(container.scrollHeight);
-        lastHeight = container.scrollHeight;
-      },
-      restorePosition(chatId: string) {
-        currentChatId = chatId;
-        const saved = sessionStorage.getItem('mscroll_' + chatId);
-        if (saved) {
-          const pos = parseInt(saved);
-          setScrollTop(pos);
-          isAtBottom = pos >= container.scrollHeight - container.clientHeight - 50;
-        } else {
-          isAtBottom = true;
-          setScrollTop(container.scrollHeight);
-        }
+        container.scrollTop = container.scrollHeight;
         lastHeight = container.scrollHeight;
       },
     };
@@ -269,25 +235,22 @@
     renderCache.clear();
   });
 
-  // On chat switch: clear cache, restore scroll after messages render
+  // On chat switch: clear cache, scroll to bottom after messages render
   let prevChatId: string | null = null;
-  let needsRestore = false;
+  let needsScrollBottom = false;
   $effect(() => {
     const chatId = activeChatId;
-    const changed = chatId !== prevChatId;
-    if (changed) {
+    if (chatId !== prevChatId) {
       prevChatId = chatId;
       renderCache.clear();
-      needsRestore = true;
+      needsScrollBottom = true;
     }
   });
-  // Restore scroll position once messages are rendered
   $effect(() => {
     void messages.length;
-    if (needsRestore && activeChatId && messages.length > 0) {
-      needsRestore = false;
-      const chatId = activeChatId;
-      tick().then(() => anchor?.restorePosition(chatId));
+    if (needsScrollBottom && messages.length > 0) {
+      needsScrollBottom = false;
+      tick().then(() => anchor?.scrollToBottom());
     }
   });
 
