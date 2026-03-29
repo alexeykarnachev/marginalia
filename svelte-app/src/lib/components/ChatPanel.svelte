@@ -108,19 +108,25 @@
   function scrollAnchor(container: HTMLDivElement) {
     let isAtBottom = true;
     let lastHeight = container.scrollHeight;
-
     let currentChatId: string | null = null;
+    let isProgrammatic = false;
 
-    // User touch = stop following immediately
     function onTouch() {
       isAtBottom = false;
     }
 
-    // Save scroll position on every scroll
     function onScroll() {
-      if (currentChatId) {
+      // Only save when NOT caused by our own programmatic scrollTop assignment
+      if (!isProgrammatic && currentChatId) {
         sessionStorage.setItem('mscroll_' + currentChatId, String(container.scrollTop));
       }
+    }
+
+    function setScrollTop(value: number) {
+      isProgrammatic = true;
+      container.scrollTop = value;
+      // Reset on next microtask (after scroll event fires synchronously)
+      queueMicrotask(() => { isProgrammatic = false; });
     }
 
     // ResizeObserver: detect content height changes
@@ -130,13 +136,8 @@
       if (delta === 0) return;
 
       if (isAtBottom) {
-        // Following mode — scroll to bottom
-        container.scrollTop = container.scrollHeight;
+        setScrollTop(container.scrollHeight);
       }
-      // If user scrolled away: do nothing. Let the browser handle scroll
-      // position naturally. Content growing at the bottom doesn't move
-      // the viewport. Content changing height above (buttons appearing)
-      // is handled by the browser's default behavior.
       lastHeight = newHeight;
     });
 
@@ -165,23 +166,19 @@
       },
       scrollToBottom() {
         isAtBottom = true;
-        container.scrollTop = container.scrollHeight;
+        setScrollTop(container.scrollHeight);
         lastHeight = container.scrollHeight;
-      },
-      setChatId(id: string | null) {
-        currentChatId = id;
       },
       restorePosition(chatId: string) {
         currentChatId = chatId;
         const saved = sessionStorage.getItem('mscroll_' + chatId);
         if (saved) {
           const pos = parseInt(saved);
-          container.scrollTop = pos;
+          setScrollTop(pos);
           isAtBottom = pos >= container.scrollHeight - container.clientHeight - 50;
         } else {
-          // New chat or no saved position — go to bottom
           isAtBottom = true;
-          container.scrollTop = container.scrollHeight;
+          setScrollTop(container.scrollHeight);
         }
         lastHeight = container.scrollHeight;
       },
