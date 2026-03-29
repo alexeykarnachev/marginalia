@@ -892,6 +892,9 @@
   .msg-actions.disabled {
     pointer-events: none;
     opacity: 0 !important;
+    height: 0;
+    margin: 0;
+    overflow: hidden;
   }
   @media (hover: hover) {
     :global(.marginalia-msg:hover) .msg-actions:not(.disabled) { opacity: 1; }
