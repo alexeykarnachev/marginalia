@@ -106,20 +106,26 @@
   let userInteracted = false;
 
   function handleMessagesScroll() {
-    // Any scroll during generation = user took control
-    if (sending) userInteracted = true;
+    // scroll events from programmatic scrollTop changes also fire here,
+    // so we only use touch/mousedown to detect user interaction
   }
 
   function handleMessagesTouch() {
     if (sending) userInteracted = true;
   }
 
-  // Auto-scroll: only during active generation, and only if user hasn't touched
+  // Auto-scroll: follow new messages and streaming content
+  // Stop following if user touches/scrolls the chat during generation
   $effect(() => {
-    void messages.length;
-    const shouldFollow = sending && !userInteracted;
+    // Dependencies: message count (new messages) + last message content (streaming deltas)
+    const len = messages.length;
+    const lastContent = len > 0 ? messages[len - 1].content : '';
+    void lastContent;
+
+    if (userInteracted) return;
+
     tick().then(() => {
-      if (messagesEl && shouldFollow) {
+      if (messagesEl) {
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
     });
