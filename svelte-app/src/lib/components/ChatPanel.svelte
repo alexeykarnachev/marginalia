@@ -269,17 +269,25 @@
     renderCache.clear();
   });
 
-  // Save scroll position periodically and on chat switch
+  // On chat switch: clear cache, restore scroll after messages render
   let prevChatId: string | null = null;
+  let needsRestore = false;
   $effect(() => {
     const chatId = activeChatId;
     const changed = chatId !== prevChatId;
     if (changed) {
       prevChatId = chatId;
       renderCache.clear();
-      if (chatId) {
-        tick().then(() => anchor?.restorePosition(chatId));
-      }
+      needsRestore = true;
+    }
+  });
+  // Restore scroll position once messages are rendered
+  $effect(() => {
+    void messages.length;
+    if (needsRestore && activeChatId && messages.length > 0) {
+      needsRestore = false;
+      const chatId = activeChatId;
+      tick().then(() => anchor?.restorePosition(chatId));
     }
   });
 
