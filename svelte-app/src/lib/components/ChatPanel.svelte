@@ -109,9 +109,18 @@
     let isAtBottom = true;
     let lastHeight = container.scrollHeight;
 
+    let currentChatId: string | null = null;
+
     // User touch = stop following immediately
     function onTouch() {
       isAtBottom = false;
+    }
+
+    // Save scroll position on every scroll
+    function onScroll() {
+      if (currentChatId) {
+        sessionStorage.setItem('mscroll_' + currentChatId, String(container.scrollTop));
+      }
     }
 
     // ResizeObserver: detect content height changes
@@ -144,6 +153,7 @@
 
     container.addEventListener('touchstart', onTouch, { passive: true });
     container.addEventListener('mousedown', onTouch);
+    container.addEventListener('scroll', onScroll, { passive: true });
 
     return {
       destroy() {
@@ -151,21 +161,27 @@
         mo.disconnect();
         container.removeEventListener('touchstart', onTouch);
         container.removeEventListener('mousedown', onTouch);
+        container.removeEventListener('scroll', onScroll);
       },
       scrollToBottom() {
         isAtBottom = true;
         container.scrollTop = container.scrollHeight;
         lastHeight = container.scrollHeight;
       },
-      savePosition(chatId: string) {
-        if (chatId) sessionStorage.setItem('mscroll_' + chatId, String(container.scrollTop));
+      setChatId(id: string | null) {
+        currentChatId = id;
       },
       restorePosition(chatId: string) {
+        currentChatId = chatId;
         const saved = sessionStorage.getItem('mscroll_' + chatId);
         if (saved) {
           const pos = parseInt(saved);
           container.scrollTop = pos;
           isAtBottom = pos >= container.scrollHeight - container.clientHeight - 50;
+        } else {
+          // New chat or no saved position — go to bottom
+          isAtBottom = true;
+          container.scrollTop = container.scrollHeight;
         }
         lastHeight = container.scrollHeight;
       },
@@ -256,18 +272,17 @@
     renderCache.clear();
   });
 
-  // On chat switch: save old position, clear cache, restore new position
+  // Save scroll position periodically and on chat switch
   let prevChatId: string | null = null;
   $effect(() => {
     const chatId = activeChatId;
-    if (prevChatId && prevChatId !== chatId) {
-      anchor?.savePosition(prevChatId);
-    }
-    prevChatId = chatId;
-    renderCache.clear();
-    // Restore scroll after DOM updates with new messages
-    if (chatId) {
-      tick().then(() => anchor?.restorePosition(chatId));
+    const changed = chatId !== prevChatId;
+    if (changed) {
+      prevChatId = chatId;
+      renderCache.clear();
+      if (chatId) {
+        tick().then(() => anchor?.restorePosition(chatId));
+      }
     }
   });
 
@@ -404,7 +419,6 @@
       anchor = a;
     }
     return () => {
-      if (activeChatId) anchor?.savePosition(activeChatId);
       document.removeEventListener('click', handleClickOutsideMenu);
       anchor?.destroy();
     };
