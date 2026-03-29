@@ -157,6 +157,18 @@
         container.scrollTop = container.scrollHeight;
         lastHeight = container.scrollHeight;
       },
+      savePosition(chatId: string) {
+        if (chatId) sessionStorage.setItem('mscroll_' + chatId, String(container.scrollTop));
+      },
+      restorePosition(chatId: string) {
+        const saved = sessionStorage.getItem('mscroll_' + chatId);
+        if (saved) {
+          const pos = parseInt(saved);
+          container.scrollTop = pos;
+          isAtBottom = pos >= container.scrollHeight - container.clientHeight - 50;
+        }
+        lastHeight = container.scrollHeight;
+      },
     };
   }
 
@@ -244,10 +256,19 @@
     renderCache.clear();
   });
 
-  // Clear render cache when switching chats (old message HTML is irrelevant)
+  // On chat switch: save old position, clear cache, restore new position
+  let prevChatId: string | null = null;
   $effect(() => {
-    activeChatId;
+    const chatId = activeChatId;
+    if (prevChatId && prevChatId !== chatId) {
+      anchor?.savePosition(prevChatId);
+    }
+    prevChatId = chatId;
     renderCache.clear();
+    // Restore scroll after DOM updates with new messages
+    if (chatId) {
+      tick().then(() => anchor?.restorePosition(chatId));
+    }
   });
 
   function renderMarkdown(text: string): string {
@@ -383,6 +404,7 @@
       anchor = a;
     }
     return () => {
+      if (activeChatId) anchor?.savePosition(activeChatId);
       document.removeEventListener('click', handleClickOutsideMenu);
       anchor?.destroy();
     };
