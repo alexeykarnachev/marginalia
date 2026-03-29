@@ -304,8 +304,10 @@ html[data-theme="light"] .m-theme-toggle::after {
   transition: box-shadow 0.15s;
   flex-shrink: 0;
 }
-.m-card:hover { box-shadow: 0 2px 12px var(--m-shadow); }
-.m-card:hover .item-actions { opacity: 1; }
+@media (hover: hover) {
+  .m-card:hover { box-shadow: 0 2px 12px var(--m-shadow); }
+  .m-card:hover .item-actions { opacity: 1; }
+}
 
 .m-card-cover {
   width: 100%;

@@ -264,7 +264,9 @@
     }
   }
   .breadcrumb-item.clickable { color: var(--m-link); cursor: pointer; }
-  .breadcrumb-item.clickable:hover { text-decoration: underline; }
+  @media (hover: hover) {
+    .breadcrumb-item.clickable:hover { text-decoration: underline; }
+  }
   .breadcrumb-item.current { color: var(--m-fg); }
   .breadcrumb-sep { color: var(--m-fg-dim); margin: 0 4px; }
 

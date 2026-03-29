@@ -10,7 +10,7 @@
   import { settings, applyTheme, chatDisplay, getChatPrompt } from '../lib/state/settings.svelte';
   import { createChatState } from '../lib/state/chat.svelte';
   import { createChatManager } from '../lib/state/chat-manager.svelte';
-  import { removeChatEntry } from '../lib/core/chat-registry';
+  import { deleteChat } from '../lib/core/chat-registry';
   import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
@@ -68,7 +68,7 @@
   async function handleDeleteBook(book: Book) {
     if (!confirm(`Delete "${book.title}"?`)) return;
     await deleteBook(book.id);
-    removeChatEntry(book.id);
+    deleteChat(book.id);
     deleteBookData(book.id);
     await refreshLibrary();
     chatManager.init();
@@ -170,12 +170,6 @@
     }
   }
 
-  async function handleCompact() {
-    if (!chatManager.activeChatId) return;
-    await chatState.compact(settings.apiKey, settings.model, chatManager.activeChatId);
-    chatState.saveToStorage(chatManager.activeChatId);
-  }
-
   function toggleChat() {
     if (!chatOpen && !settings.apiKey) {
       alert('Set your OpenRouter API key in Settings first.');
@@ -196,11 +190,6 @@
       storageKey: chatManager.activeChatId,
       onAfterSend: () => { refreshLibrary(); },
     });
-  }
-
-  function handleTruncate(fromIndex: number) {
-    chatState.setMessages(chatState.messages.slice(0, fromIndex));
-    if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
   function openChatPromptEditor() {
@@ -225,6 +214,7 @@
     if (!confirm('Clear conversation?')) return;
     chatState.clearMessages();
     chatState.setSummary(null);
+    chatState.resetStats();
     if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
@@ -343,7 +333,7 @@
         onCreateChat={() => chatManager.create('Library')}
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
-        onTruncate={handleTruncate}
+        onTruncate={chatManager.truncate}
         menuItems={buildChatMenuItems({
           editChatPrompt: openChatPromptEditor,
           configureTools: () => { toolsEditorOpen = true; },
@@ -373,7 +363,7 @@
     onClose={() => { promptEditorOpen = false; }}
   />
   <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
-  <CompactEditor open={compactEditorOpen} bookId={chatManager.activeChatId || '_default'} onClose={() => { compactEditorOpen = false; }} onCompact={handleCompact} />
+  <CompactEditor open={compactEditorOpen} bookId={chatManager.activeChatId || '_default'} onClose={() => { compactEditorOpen = false; }} onCompact={() => chatManager.compact(settings.apiKey, settings.model)} />
 
   {#if !chatOpen}
     <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>

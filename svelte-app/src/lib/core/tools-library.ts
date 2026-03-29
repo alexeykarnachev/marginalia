@@ -61,7 +61,7 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       const book = await helpers.getBook(book_id);
       if (!book) return `Error: book "${book_id}" not found`;
       await helpers.deleteBook(book_id);
-      helpers.removeChatEntry(book_id);
+      helpers.deleteChat(book_id);
       helpers.deleteBookData(book_id);
       return `Deleted "${book.title}"`;
     },

@@ -238,6 +238,18 @@
   const renderCache = new Map<string, string>();
   let bookById = $derived(new Map(books.map(b => [b.id, b])));
 
+  // Clear render cache when books change (book titles affect rendered links)
+  $effect(() => {
+    books;
+    renderCache.clear();
+  });
+
+  // Clear render cache when switching chats (old message HTML is irrelevant)
+  $effect(() => {
+    activeChatId;
+    renderCache.clear();
+  });
+
   function renderMarkdown(text: string): string {
     const cached = renderCache.get(text);
     if (cached) return cached;
@@ -620,7 +632,11 @@
     background: var(--m-border-light);
     transition: background 0.15s;
   }
-  .chat-resize-handle:hover::after,
+  @media (hover: hover) {
+    .chat-resize-handle:hover::after {
+      background: var(--m-accent);
+    }
+  }
   .chat-resize-handle:active::after {
     background: var(--m-accent);
   }
@@ -684,7 +700,9 @@
     padding: 6px 10px;
     gap: 6px;
   }
-  .chat-list-item:hover { background: var(--m-bg-2); }
+  @media (hover: hover) {
+    .chat-list-item:hover { background: var(--m-bg-2); }
+  }
   .chat-list-item.active { background: var(--m-bg-2); }
   .chat-list-name {
     flex: 1;
@@ -701,7 +719,9 @@
     opacity: 0;
     flex-shrink: 0;
   }
-  .chat-list-item:hover .chat-list-actions { opacity: 1; }
+  @media (hover: hover) {
+    .chat-list-item:hover .chat-list-actions { opacity: 1; }
+  }
   @media (hover: none) {
     .chat-list-actions { opacity: 0.7; }
   }
@@ -763,9 +783,11 @@
     text-align: left;
     cursor: pointer;
   }
-  .menu-item:hover { background: var(--m-bg-2); }
+  @media (hover: hover) {
+    .menu-item:hover { background: var(--m-bg-2); }
+    .menu-item-danger:hover { background: rgba(251, 73, 52, 0.1); }
+  }
   .menu-item-danger { color: var(--m-error); }
-  .menu-item-danger:hover { background: rgba(251, 73, 52, 0.1); }
 
   .popover-divider {
     border: none;
@@ -800,7 +822,9 @@
     border-radius: 4px;
     cursor: pointer;
   }
-  .menu-seg-btn:hover { background: var(--m-bg-1); }
+  @media (hover: hover) {
+    .menu-seg-btn:hover { background: var(--m-bg-1); }
+  }
   .menu-seg-btn.active {
     background: var(--m-accent);
     color: var(--m-bg-0);
@@ -943,7 +967,6 @@
   }
   @media (hover: hover) {
     .msg-action-btn:hover { color: var(--m-fg); border-color: var(--m-fg-muted); }
-    .msg-action-danger:hover { color: var(--m-error); border-color: var(--m-error); }
   }
 
   .raw-content {

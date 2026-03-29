@@ -21,6 +21,8 @@ export interface ChatManager {
   create: (defaultName: string) => void;
   rename: (id: string) => void;
   remove: (id: string) => void;
+  truncate: (fromIndex: number) => void;
+  compact: (apiKey: string, model: string) => Promise<void>;
 }
 
 export function createChatManager(chatState: ChatState): ChatManager {
@@ -92,6 +94,17 @@ export function createChatManager(chatState: ChatState): ChatManager {
         setActiveChat(activeChatId);
         if (activeChatId) chatState.loadFromStorage(activeChatId);
       }
+    },
+
+    truncate(fromIndex: number) {
+      chatState.setMessages(chatState.messages.slice(0, fromIndex));
+      if (activeChatId) chatState.saveToStorage(activeChatId);
+    },
+
+    async compact(apiKey: string, model: string) {
+      if (!activeChatId) return;
+      await chatState.compact(apiKey, model, activeChatId);
+      chatState.saveToStorage(activeChatId);
     },
   };
 }

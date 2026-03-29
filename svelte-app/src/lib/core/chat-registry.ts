@@ -24,7 +24,7 @@ function saveRegistry(entries: ChatEntry[]): void {
   localStorage.setItem(LS_REGISTRY, JSON.stringify(entries));
 }
 
-export function removeChatEntry(id: string): void {
+function removeChatEntry(id: string): void {
   saveRegistry(getChatRegistry().filter(e => e.id !== id));
 }
 

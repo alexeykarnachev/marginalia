@@ -49,7 +49,6 @@ export async function sendChatMessage(
       onToolCall: (name: string, args: any) => {
         chatState.addToolActivity(humanizeToolAction(name, args));
       },
-      onToolResult: () => {},
       onThinking: () => {},
       onUsage: (usage: any, model: string) => {
         chatState.trackUsage(usage, model);

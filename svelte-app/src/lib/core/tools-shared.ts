@@ -43,7 +43,7 @@ export interface ToolRegistrationHelpers {
   saveFolder: (folder: Folder) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
   deleteBookData: (bookId: string) => void;
-  removeChatEntry: (id: string) => void;
+  deleteChat: (id: string) => void;
   getOnBookChange: () => ((bookId: string) => void) | null;
   pageHistory: number[];
   setSuppressNextTrackedPageChange: (value: boolean) => void;

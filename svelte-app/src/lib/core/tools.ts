@@ -35,7 +35,7 @@ import {
   deleteFolder as deleteFolderFromDb,
   deleteBookData,
 } from './db';
-import { removeChatEntry } from './chat-registry';
+import { deleteChat } from './chat-registry';
 import type { PDFViewerApp } from './tools-shared';
 import type { ToolRegistrationHelpers } from './tools-shared';
 import { registerReadingTools } from './tools-reading';
@@ -452,7 +452,7 @@ const registrationHelpers: ToolRegistrationHelpers = {
   saveFolder,
   deleteFolder: deleteFolderFromDb,
   deleteBookData,
-  removeChatEntry,
+  deleteChat,
   getOnBookChange: () => _onBookChangeFn,
   pageHistory,
   setSuppressNextTrackedPageChange: (value: boolean) => {

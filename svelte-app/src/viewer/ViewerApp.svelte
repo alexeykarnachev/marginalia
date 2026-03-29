@@ -218,11 +218,6 @@
     if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
-  function handleTruncate(fromIndex: number) {
-    chatState.setMessages(chatState.messages.slice(0, fromIndex));
-    if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
-  }
-
   function handlePageNav(page: number) {
     const app = getPdfApp();
     if (page && app) {
@@ -236,12 +231,6 @@
       goToPage(pageBeforeJump);
       pageBeforeJump = null;
     }
-  }
-
-  async function handleCompact() {
-    if (!chatManager.activeChatId) return;
-    await chatState.compact(settings.apiKey, settings.model, chatManager.activeChatId);
-    chatState.saveToStorage(chatManager.activeChatId);
   }
 
   function openBookPromptEditor() {
@@ -467,7 +456,7 @@
         onCreateChat={() => chatManager.create(bookTitle || 'Chat')}
         onRenameChat={chatManager.rename}
         onDeleteChat={chatManager.remove}
-        onTruncate={handleTruncate}
+        onTruncate={chatManager.truncate}
         menuItems={buildChatMenuItems({
           editBookPrompt: openBookPromptEditor,
           editChatPrompt: openChatPromptEditor,
@@ -525,7 +514,7 @@
   open={compactEditorOpen}
   bookId={chatManager.activeChatId || bookId}
   onClose={() => { compactEditorOpen = false; }}
-  onCompact={handleCompact}
+  onCompact={() => chatManager.compact(settings.apiKey, settings.model)}
 />
 
 {#if !chatOpen}

@@ -62,8 +62,10 @@
     border-radius: 6px;
     cursor: pointer;
   }
-  .tool-row:hover {
-    background: var(--m-bg-1);
+  @media (hover: hover) {
+    .tool-row:hover {
+      background: var(--m-bg-1);
+    }
   }
 
   .tool-row input[type="checkbox"] {
