@@ -12,7 +12,6 @@
 
   const CHAT_MIN_WIDTH = 280;
   const CHAT_MAX_WIDTH_RATIO = 0.7;
-  const AUTO_SCROLL_BOTTOM_THRESHOLD = 48;
   const COPY_FEEDBACK_MS = 1500;
   const SEND_DONE_FEEDBACK_MS = 1500;
   const FONT_SIZES = [
@@ -96,7 +95,6 @@
   let inputEl: HTMLTextAreaElement;
   let containerEl: HTMLDivElement;
   let sendDone = $state(false);
-  let autoScrollEnabled = $state(true);
 
   // Resize state
   let resizing = $state(false);
@@ -105,27 +103,23 @@
   let startX = 0;
   let startW = 0;
 
-  let userTouchedDuringGen = false;
-
-  function isNearBottom(): boolean {
-    if (!messagesEl) return true;
-    const remaining = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
-    return remaining <= AUTO_SCROLL_BOTTOM_THRESHOLD;
-  }
+  let userInteracted = false;
 
   function handleMessagesScroll() {
-    autoScrollEnabled = isNearBottom();
+    // Any scroll during generation = user took control
+    if (sending) userInteracted = true;
   }
 
   function handleMessagesTouch() {
-    if (sending) userTouchedDuringGen = true;
+    if (sending) userInteracted = true;
   }
 
-  // Scroll to bottom when messages change, but only if following
+  // Auto-scroll: only during active generation, and only if user hasn't touched
   $effect(() => {
     void messages.length;
+    const shouldFollow = sending && !userInteracted;
     tick().then(() => {
-      if (messagesEl && autoScrollEnabled && !userTouchedDuringGen) {
+      if (messagesEl && shouldFollow) {
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
     });
@@ -135,8 +129,7 @@
     const text = inputText.trim();
     if (!text || sending || !activeChatId) return;
     inputText = '';
-    autoScrollEnabled = true;
-    userTouchedDuringGen = false;
+    userInteracted = false;
     onSend(text);
     inputEl?.focus();
   }
