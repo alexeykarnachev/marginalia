@@ -11,7 +11,7 @@
   import { createChatState } from '../lib/state/chat.svelte';
   import { createChatManager } from '../lib/state/chat-manager.svelte';
   import { deleteChat } from '../lib/core/chat-registry';
-  import { getAllBooks, getAllFolders, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
+  import { getAllBooks, getAllFolders, getBook, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
   import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
@@ -82,15 +82,15 @@
     );
     if (target === null) return;
     if (target.trim() === '') {
-      book.folder_id = null;
-      await saveBook(book);
+      const fresh = await getBook(book.id);
+      if (fresh) { fresh.folder_id = null; await saveBook(fresh); }
       await refreshLibrary();
       return;
     }
     const folder = folders.find(f => f.name.toLowerCase() === target.trim().toLowerCase());
     if (folder) {
-      book.folder_id = folder.id;
-      await saveBook(book);
+      const fresh = await getBook(book.id);
+      if (fresh) { fresh.folder_id = folder.id; await saveBook(fresh); }
       await refreshLibrary();
     } else {
       alert(`Folder "${target}" not found.`);
