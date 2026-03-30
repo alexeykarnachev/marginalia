@@ -43,9 +43,39 @@
 
   let uploadInput: HTMLInputElement;
 
+  function cacheLibraryMetadata() {
+    // Cache lightweight metadata (no PDF data) for instant rendering on return
+    try {
+      const meta = books.map(b => ({ id: b.id, title: b.title, filename: b.filename, size: b.size, pages: b.pages ? b.pages.length : null, folder_id: b.folder_id, createdAt: b.createdAt }));
+      sessionStorage.setItem('marginalia_lib_cache', JSON.stringify({ books: meta, folders }));
+    } catch {}
+  }
+
+  function loadCachedLibrary(): boolean {
+    try {
+      const raw = sessionStorage.getItem('marginalia_lib_cache');
+      if (!raw) return false;
+      const cached = JSON.parse(raw);
+      if (cached.books?.length > 0 || cached.folders?.length > 0) {
+        // Restore with placeholder data — enough for grid rendering
+        books = cached.books.map((b: any) => ({
+          ...b,
+          data: new Blob(), // placeholder, not needed for grid display
+          pages: b.pages !== null ? new Array(b.pages) : null,
+        }));
+        folders = cached.folders;
+        libraryLoaded = true;
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
   async function refreshLibrary() {
     books = await getAllBooks();
     folders = await getAllFolders();
+    libraryLoaded = true;
+    cacheLibraryMetadata();
     if (currentFolderId && !folders.some(folder => folder.id === currentFolderId)) {
       currentFolderId = null;
       sessionStorage.removeItem(SS_FOLDER_ID);
@@ -258,11 +288,15 @@
   onMount(async () => {
     applyTheme();
     sessionStorage.removeItem(SS_BOOK_ID);
+
+    // Instant render from cache, then refresh from IndexedDB in background
+    const hadCache = loadCachedLibrary();
+    chatManager.init();
+
     await loadDefaultBook();
     await refreshLibrary();
-    libraryLoaded = true;
 
-    chatManager.init();
+    if (!hadCache) chatManager.init();
   });
 </script>
 
