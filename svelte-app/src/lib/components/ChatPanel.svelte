@@ -6,7 +6,6 @@
   import type { ChatMessage } from '../types';
   import type { ChatEntry } from '../core/chat-registry';
   import { getModelContextLength } from '../core/model-info';
-  import { settings } from '../state/settings.svelte';
   import {
     DEFAULT_CHAT_WIDTH,
     DEFAULT_CHAT_FONT_SIZE,
@@ -96,8 +95,8 @@
   // Fetch model context length when model changes
   $effect(() => {
     const model = stats?.model;
-    if (model && settings.apiKey) {
-      getModelContextLength(model, settings.apiKey).then(len => { modelContextLength = len; });
+    if (model) {
+      getModelContextLength(model).then(len => { modelContextLength = len; });
     }
   });
   let chatListOpen = $state(false);
@@ -607,14 +606,12 @@
   </div>
 
   {#if stats && stats.model}
+    {@const fmt = (n: number) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : Math.round(n / 1000) + 'k'}
     <div class="chat-stats-bar">
       <span class="chat-stats-model">{stats.model}</span>
-      {#if modelContextLength > 0 && stats.lastContextTokens > 0}
-        {@const fmtTokens = (n: number) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : (n / 1000).toFixed(1) + 'k'}
-        <span class="chat-stats-ctx">{fmtTokens(stats.lastContextTokens)} / {fmtTokens(modelContextLength)} ({Math.round(stats.lastContextTokens / modelContextLength * 100)}%)</span>
-      {:else if stats.inputTokens > 0}
-        <span class="chat-stats-tokens">{(stats.inputTokens / 1000).toFixed(1)}k in / {(stats.outputTokens / 1000).toFixed(1)}k out</span>
-      {/if}
+      <span class="chat-stats-ctx">
+        {fmt(stats.lastContextTokens)}{#if modelContextLength > 0}{' / '}{fmt(modelContextLength)}{' ('}{Math.round(stats.lastContextTokens / modelContextLength * 100)}%){/if}
+      </span>
       {#if stats.cost > 0}
         <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
       {/if}

@@ -10,7 +10,7 @@ import { IDB_NAME, IDB_VERSION } from './constants';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 164;
+export const MARGINALIA_VERSION = 165;
 
 // --- Storage backend interface ---
 
