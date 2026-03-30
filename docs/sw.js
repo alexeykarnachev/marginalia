@@ -1,11 +1,12 @@
-const MARGINALIA_VERSION = 172;
-const CACHE_NAME = "marginalia-v" + MARGINALIA_VERSION;
+const MARGINALIA_VERSION = 173;
+const CACHE_NAME = "marginalia";
 
 self.addEventListener("install", (e) => {
     self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
+    // Clean up old versioned caches from previous SW versions
     e.waitUntil(
         caches.keys().then((keys) =>
             Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
@@ -19,7 +20,7 @@ self.addEventListener("fetch", (e) => {
     // Skip external requests (CDN, API)
     if (url.hostname !== location.hostname) return;
 
-    // Hashed assets are immutable — cache-first (instant loads)
+    // Hashed assets are immutable — cache-first
     if (url.pathname.includes("/assets/")) {
         e.respondWith(
             caches.match(e.request).then((cached) =>
@@ -33,7 +34,7 @@ self.addEventListener("fetch", (e) => {
         return;
     }
 
-    // Everything else (HTML, sw.js, pdfjs) — network-first for freshness
+    // Everything else — network-first
     e.respondWith(
         fetch(e.request, { cache: "no-cache" })
             .then((res) => {
