@@ -2,6 +2,16 @@
   const coverCache = new Map<string, string>();
   const COVER_PREFIX = 'mcover_';
 
+  // Sequential queue — only one PDF open at a time to avoid memory spikes on iPad
+  let renderQueue: Promise<void> = Promise.resolve();
+  function coverRenderQueue(): Promise<() => void> {
+    let release: () => void;
+    const gate = new Promise<void>(r => { release = r; });
+    const ticket = renderQueue;
+    renderQueue = renderQueue.then(() => gate);
+    return ticket.then(() => release!);
+  }
+
   function getCachedCover(id: string): string | null {
     const mem = coverCache.get(id);
     if (mem) return mem;
@@ -120,30 +130,40 @@
   async function renderCover() {
     if (!book.data) return;
 
+    // Wait for the global queue — one PDF at a time to avoid memory spikes
+    const release = await coverRenderQueue();
+
     try {
       const pdfjsLib = await getPdfjsLib();
       if (!pdfjsLib) return;
       const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
       const buf = await blob.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-      const page = await pdf.getPage(1);
 
-      const viewport = page.getViewport({ scale: 1 });
-      const canvas = document.createElement('canvas');
-      const scale = COVER_RENDER_WIDTH / viewport.width;
-      canvas.width = Math.round(viewport.width * scale);
-      canvas.height = Math.round(viewport.height * scale);
+      try {
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1 });
+        const canvas = document.createElement('canvas');
+        const scale = COVER_RENDER_WIDTH / viewport.width;
+        canvas.width = Math.round(viewport.width * scale);
+        canvas.height = Math.round(viewport.height * scale);
 
-      await page.render({
-        canvasContext: canvas.getContext('2d')!,
-        viewport: page.getViewport({ scale }),
-      }).promise;
+        await page.render({
+          canvasContext: canvas.getContext('2d')!,
+          viewport: page.getViewport({ scale }),
+        }).promise;
 
-      const dataUrl = canvas.toDataURL('image/jpeg', COVER_JPEG_QUALITY);
-      coverUrl = dataUrl;
-      setCachedCover(book.id, dataUrl);
+        const dataUrl = canvas.toDataURL('image/jpeg', COVER_JPEG_QUALITY);
+        coverUrl = dataUrl;
+        setCachedCover(book.id, dataUrl);
+      } finally {
+        // Free memory — close the PDF document immediately
+        await pdf.destroy();
+      }
     } catch (err) {
       console.warn('Cover render failed for', book.title, err);
+    } finally {
+      release();
     }
   }
 </script>
