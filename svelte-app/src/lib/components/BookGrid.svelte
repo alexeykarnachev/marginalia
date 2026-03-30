@@ -21,6 +21,7 @@
     onRenameFolder,
     onDeleteFolder,
     onUpload,
+    loading = false,
   }: {
     books: Book[];
     folders: Folder[];
@@ -33,6 +34,7 @@
     onRenameFolder: (folder: Folder) => void;
     onDeleteFolder: (folder: Folder) => void;
     onUpload: (file: File) => void;
+    loading?: boolean;
   } = $props();
 
   let sortMode = $state<SortMode>((localStorage.getItem(LS_SORT) as SortMode) || 'name');
@@ -231,7 +233,9 @@
       />
     {/each}
 
-    {#if childFolders.length === 0 && childBooks.length === 0}
+    {#if loading}
+      <div class="library-empty">Loading library...</div>
+    {:else if childFolders.length === 0 && childBooks.length === 0}
       <div class="library-empty">
         {currentFolderId ? 'This folder is empty' : 'No books yet -- upload a PDF to get started'}
       </div>

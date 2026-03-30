@@ -38,8 +38,9 @@
   const SELECTION_PREVIEW = 40;
 
   let bookTitle = $state('');
-  let currentPage = $state(1);
-  let totalPages = $state(1);
+  let currentPage = $state(0);
+  let totalPages = $state(0);
+  let pdfReady = $state(false);
   let chatOpen = $state(false);
   let pageBeforeJump = $state<number | null>(null);
 
@@ -333,9 +334,10 @@
       const app = getPdfApp();
       if (!app) return;
       currentPage = app.page || 1;
-      totalPages = app.pagesCount || 1;
+      totalPages = app.pagesCount || 0;
+      if (totalPages > 0) pdfReady = true;
       if (!pageInputFocused) {
-        pageInputValue = String(currentPage);
+        pageInputValue = String(currentPage || '');
       }
       // Save reading progress
       if (bookId && totalPages > 1) {
@@ -397,18 +399,22 @@
       <span class="m-toolbar-text" title={bookTitle}>{bookTitle}</span>
     </div>
     <div class="m-toolbar-center">
-      <button class="m-btn" title="Previous page" onclick={handlePrev}>&lsaquo;</button>
-      <input
-        type="number"
-        class="m-page-input"
-        bind:value={pageInputValue}
-        onchange={handlePageInputChange}
-        onfocus={() => pageInputFocused = true}
-        onblur={() => pageInputFocused = false}
-        min="1"
-      />
-      <span class="m-page-total">/ {totalPages}</span>
-      <button class="m-btn" title="Next page" onclick={handleNext}>&rsaquo;</button>
+      {#if pdfReady}
+        <button class="m-btn" title="Previous page" onclick={handlePrev}>&lsaquo;</button>
+        <input
+          type="number"
+          class="m-page-input"
+          bind:value={pageInputValue}
+          onchange={handlePageInputChange}
+          onfocus={() => pageInputFocused = true}
+          onblur={() => pageInputFocused = false}
+          min="1"
+        />
+        <span class="m-page-total">/ {totalPages}</span>
+        <button class="m-btn" title="Next page" onclick={handleNext}>&rsaquo;</button>
+      {:else}
+        <span class="m-toolbar-text">Loading...</span>
+      {/if}
     </div>
     <div class="m-toolbar-right">
       <button class="m-btn" title="Zoom out" onclick={handleZoomOut}>&minus;</button>

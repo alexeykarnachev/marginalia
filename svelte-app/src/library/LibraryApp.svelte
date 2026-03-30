@@ -28,6 +28,7 @@
 
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
+  let libraryLoaded = $state(false);
   let currentFolderId = $state<string | null>(sessionStorage.getItem(SS_FOLDER_ID) || null);
   let chatOpen = $state(localStorage.getItem(LS_LIB_CHAT_OPEN) === '1');
   let settingsOpen = $state(false);
@@ -259,6 +260,7 @@
     sessionStorage.removeItem(SS_BOOK_ID);
     await loadDefaultBook();
     await refreshLibrary();
+    libraryLoaded = true;
 
     chatManager.init();
   });
@@ -301,6 +303,7 @@
       onRenameFolder={handleRenameFolder}
       onDeleteFolder={handleDeleteFolder}
       onUpload={handleUpload}
+      loading={!libraryLoaded}
     />
 
     {#if chatOpen}
