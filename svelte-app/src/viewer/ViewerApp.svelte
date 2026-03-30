@@ -6,9 +6,8 @@
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, applyTheme, getBookPrompt, getChatPrompt, chatDisplay } from '../lib/state/settings.svelte';
-  import { createChatState } from '../lib/state/chat.svelte';
-  import { createChatManager } from '../lib/state/chat-manager.svelte';
-  import { getAllBooks } from '../lib/core/db';
+  import type { ChatState } from '../lib/state/chat.svelte';
+  import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import {
     buildLibraryContext,
@@ -16,6 +15,7 @@
     setGetPageHistoryFn,
     setOnBookChangeFn,
     setPdfAppGetter,
+    setCurrentBookIdFn,
     initPageTracking,
     disposePageTracking,
     getPageHistory,
@@ -29,13 +29,30 @@
     DEFAULT_CHAT_WIDTH,
     LS_VIEWER_CHAT_WIDTH,
     LS_CHAT_OPEN,
-    SS_BOOK_ID,
     lsProgressKey,
   } from '../lib/core/constants';
 
   const PAGE_SYNC_INTERVAL_MS = 500;
   const TITLE_TRUNCATE = 30;
   const SELECTION_PREVIEW = 40;
+
+  let {
+    bookId,
+    allBooks,
+    chatState,
+    chatManager,
+    onGoBack,
+    onBookChange,
+    onLibraryRefresh,
+  }: {
+    bookId: string;
+    allBooks: { id: string; title: string }[];
+    chatState: ChatState;
+    chatManager: ChatManager;
+    onGoBack: () => void;
+    onBookChange: (id: string) => void;
+    onLibraryRefresh?: () => Promise<void>;
+  } = $props();
 
   let bookTitle = $state('');
   let currentPage = $state(0);
@@ -51,18 +68,8 @@
   let _lastAppliedTheme = '';
   let activeLoadToken = 0;
 
-  // Current book ID
-  let bookId = $state('');
-
-  const chatState = createChatState();
-  const chatManager = createChatManager(chatState);
-
   // PDF viewer iframe
   let pdfIframe: HTMLIFrameElement;
-
-  function getBookId(): string {
-    return sessionStorage.getItem(SS_BOOK_ID) || '';
-  }
 
   // Context bar state
   let contextText = $state('');
@@ -72,8 +79,6 @@
   // Indexing status
   let indexingStatus = $state('');
 
-  // All books (for book title links in chat)
-  let allBooks = $state<{ id: string; title: string }[]>([]);
 
   // Modal states
   let promptEditorMode = $state<'book' | 'chat' | null>(null);
@@ -82,15 +87,14 @@
 
   const viewerSession = createViewerSession({
     getPdfIframe: () => pdfIframe,
-    getCurrentBookId: getBookId,
+    getCurrentBookId: () => bookId,
     setCurrentBookId: (newBookId) => {
-      bookId = newBookId;
-      sessionStorage.setItem(SS_BOOK_ID, newBookId);
+      onBookChange(newBookId);
     },
     applyThemeToIframe,
     onPdfReady: restoreZoom,
     captureSelection,
-    onBookMissing: () => { window.location.href = './'; },
+    onBookMissing: () => { onGoBack(); },
     onBookLoaded: (title) => {
       bookTitle = title;
       document.title = title + ' - Marginalia';
@@ -185,7 +189,7 @@
   }
 
   function goBack() {
-    window.location.href = './';
+    onGoBack();
   }
 
   function toggleChat() {
@@ -278,17 +282,19 @@
 
   // onBookChange handler
   function handleBookChange(newBookId: string) {
+    onBookChange(newBookId);
     clearPageHistory();
     pageBeforeJump = null;
     cachedSelection = '';
     setCachedSelection('');
+    pdfReady = false;
     void (async () => {
       await loadPdf(newBookId);
       initPageTracking();
     })();
   }
 
-  async function loadPdf(targetBookId = getBookId()) {
+  async function loadPdf(targetBookId = bookId) {
     activeLoadToken += 1;
     await viewerSession.loadPdf(targetBookId);
   }
@@ -358,18 +364,14 @@
     document.addEventListener('touchend', captureSelection);
     setGetPageHistoryFn(() => getPageHistory());
     setPdfAppGetter(() => getPdfApp());
+    setCurrentBookIdFn(() => bookId);
     setOnBookChangeFn(handleBookChange);
 
     void (async () => {
-      bookId = getBookId();
       if (!bookId) {
-        window.location.href = './';
+        onGoBack();
         return;
       }
-
-      const allBooksData = await getAllBooks();
-      allBooks = allBooksData.map(b => ({ id: b.id, title: b.title }));
-      chatManager.init();
 
       await loadPdf(bookId);
       initPageTracking();
@@ -385,6 +387,7 @@
       setGetPageHistoryFn(null);
       setOnBookChangeFn(null);
       setPdfAppGetter(null);
+      setCurrentBookIdFn(null);
     };
   });
 

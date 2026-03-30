@@ -16,7 +16,9 @@ export async function getModelContextLength(model: string): Promise<number> {
       allModels = data.data || [];
     }
 
-    const info = allModels!.find((m: any) => m.id === model);
+    // Try exact match first, then prefix match (handles dated variants like model-20251217)
+    const info = allModels!.find((m: any) => m.id === model)
+      || allModels!.find((m: any) => model.startsWith(m.id));
     const ctx = info?.context_length || 0;
     if (ctx > 0) cache.set(model, ctx);
     return ctx;

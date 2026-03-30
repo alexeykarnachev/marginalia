@@ -63,6 +63,3 @@ export const lsChatPromptKey = (chatId: string) => `marginalia_chat_prompt_${cha
 export const lsCompactPromptKey = (bookId: string) => `marginalia_compact_prompt_${bookId}`;
 export const lsProgressKey = (bookId: string) => `marginalia_progress_${bookId}`;
 
-// ── sessionStorage keys ────────────────────────────────────────────
-export const SS_BOOK_ID = 'marginalia_book_id';
-export const SS_FOLDER_ID = 'marginalia_folder';

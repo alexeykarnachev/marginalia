@@ -1,4 +1,3 @@
-import { SS_BOOK_ID } from './constants';
 import type { ToolRegistrar, ToolRegistrationHelpers } from './tools-shared';
 
 export function registerNavigationTools(register: ToolRegistrar, helpers: ToolRegistrationHelpers): void {
@@ -59,7 +58,6 @@ export function registerNavigationTools(register: ToolRegistrar, helpers: ToolRe
     handler: async ({ book_id }: { book_id: string }) => {
       const book = await helpers.getBook(book_id);
       if (!book) return `Error: book "${book_id}" not found`;
-      sessionStorage.setItem(SS_BOOK_ID, book_id);
       helpers.getOnBookChange()?.(book_id);
       return `Opened "${book.title}"`;
     },

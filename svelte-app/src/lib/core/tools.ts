@@ -7,7 +7,6 @@
 import type { Book, Folder, ToolDefinition, LibraryContext } from '../types';
 import {
   LS_DISABLED_TOOLS,
-  SS_BOOK_ID,
   MAX_PAGE_HISTORY,
   PAGE_HISTORY_DISPLAY_LIMIT,
   READ_PAGES_MAX,
@@ -141,8 +140,14 @@ export function setBookPageProvider(provider: BookPageProvider | null): void {
   _bookPageProvider = provider;
 }
 
+let _currentBookIdFn: (() => string | null) | null = null;
+
+export function setCurrentBookIdFn(fn: (() => string | null) | null): void {
+  _currentBookIdFn = fn;
+}
+
 async function _getCurrentBookId(): Promise<string | null> {
-  return sessionStorage.getItem(SS_BOOK_ID) || null;
+  return _currentBookIdFn ? _currentBookIdFn() : null;
 }
 
 async function _getPageTextFromViewer(pageNum: number): Promise<string> {

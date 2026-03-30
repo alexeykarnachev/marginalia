@@ -7,12 +7,12 @@
   import PromptEditor from '../lib/components/PromptEditor.svelte';
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import CompactEditor from '../lib/components/CompactEditor.svelte';
-  import { settings, applyTheme, chatDisplay, getChatPrompt } from '../lib/state/settings.svelte';
-  import { createChatState } from '../lib/state/chat.svelte';
-  import { createChatManager } from '../lib/state/chat-manager.svelte';
+  import { settings, chatDisplay, getChatPrompt } from '../lib/state/settings.svelte';
+  import type { ChatState } from '../lib/state/chat.svelte';
+  import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { deleteChat } from '../lib/core/chat-registry';
-  import { getAllBooks, getAllFolders, getBook, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder, MARGINALIA_VERSION } from '../lib/core/db';
-  import { buildLibraryContext, setOnBookChangeFn } from '../lib/core/tools';
+  import { getBook, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder } from '../lib/core/db';
+  import { buildLibraryContext } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
   import { indexBook } from '../lib/core/indexer';
@@ -22,14 +22,32 @@
     DEFAULT_CHAT_WIDTH,
     LS_LIB_CHAT_OPEN,
     LS_LIB_CHAT_WIDTH,
-    SS_BOOK_ID,
-    SS_FOLDER_ID,
   } from '../lib/core/constants';
 
-  let books = $state<Book[]>([]);
-  let folders = $state<Folder[]>([]);
-  let libraryLoaded = $state(false);
-  let currentFolderId = $state<string | null>(sessionStorage.getItem(SS_FOLDER_ID) || null);
+  let {
+    books,
+    folders,
+    libraryLoaded,
+    currentFolderId,
+    chatState,
+    chatManager,
+    refreshLibrary,
+    version,
+    onOpenBook,
+    onFolderChange,
+  }: {
+    books: Book[];
+    folders: Folder[];
+    libraryLoaded: boolean;
+    currentFolderId: string | null;
+    chatState: ChatState;
+    chatManager: ChatManager;
+    refreshLibrary: () => Promise<void>;
+    version: number;
+    onOpenBook: (book: Book) => void;
+    onFolderChange: (id: string | null) => void;
+  } = $props();
+
   let chatOpen = $state(localStorage.getItem(LS_LIB_CHAT_OPEN) === '1');
   let settingsOpen = $state(false);
   let promptEditorOpen = $state(false);
@@ -38,54 +56,7 @@
 
   let chatWidth = $state(parseInt(localStorage.getItem(LS_LIB_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
 
-  const chatState = createChatState();
-  const chatManager = createChatManager(chatState);
-
   let uploadInput: HTMLInputElement;
-
-  function cacheLibraryMetadata() {
-    // Cache lightweight metadata (no PDF data) for instant rendering on return
-    try {
-      const meta = books.map(b => ({ id: b.id, title: b.title, filename: b.filename, size: b.size, pages: b.pages ? b.pages.length : null, folder_id: b.folder_id, createdAt: b.createdAt }));
-      sessionStorage.setItem('marginalia_lib_cache', JSON.stringify({ books: meta, folders }));
-    } catch {}
-  }
-
-  function loadCachedLibrary(): boolean {
-    try {
-      const raw = sessionStorage.getItem('marginalia_lib_cache');
-      if (!raw) return false;
-      const cached = JSON.parse(raw);
-      if (cached.books?.length > 0 || cached.folders?.length > 0) {
-        // Restore with placeholder data — enough for grid rendering
-        books = cached.books.map((b: any) => ({
-          ...b,
-          data: new Blob(), // placeholder, not needed for grid display
-          pages: b.pages !== null ? new Array(b.pages) : null,
-        }));
-        folders = cached.folders;
-        libraryLoaded = true;
-        return true;
-      }
-    } catch {}
-    return false;
-  }
-
-  async function refreshLibrary() {
-    books = await getAllBooks();
-    folders = await getAllFolders();
-    libraryLoaded = true;
-    cacheLibraryMetadata();
-    if (currentFolderId && !folders.some(folder => folder.id === currentFolderId)) {
-      currentFolderId = null;
-      sessionStorage.removeItem(SS_FOLDER_ID);
-    }
-  }
-
-  function openBook(book: Book) {
-    sessionStorage.setItem(SS_BOOK_ID, book.id);
-    window.location.href = './viewer.html';
-  }
 
   async function handleRenameBook(book: Book) {
     const name = prompt('Rename book:', book.title);
@@ -158,12 +129,7 @@
   }
 
   function handleNavigateFolder(folderId: string | null) {
-    currentFolderId = folderId;
-    if (folderId) {
-      sessionStorage.setItem(SS_FOLDER_ID, folderId);
-    } else {
-      sessionStorage.removeItem(SS_FOLDER_ID);
-    }
+    onFolderChange(folderId);
   }
 
   async function handleNewFolder() {
@@ -249,61 +215,20 @@
     if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
-  // Handle open_book from chat agent
-  setOnBookChangeFn((bookId: string) => {
-    sessionStorage.setItem(SS_BOOK_ID, bookId);
-    window.location.href = './viewer.html';
-  });
-
-  async function loadDefaultBook() {
-    const existing = await getAllBooks();
-    if (existing.length > 0) return;
-    try {
-      const res = await fetch('./default-book.pdf');
-      if (!res.ok) return;
-      const data = await res.arrayBuffer();
-      await saveBook({
-        id: '1984',
-        title: '1984',
-        filename: '1984.pdf',
-        data,
-        size: data.byteLength,
-        pages: null,
-        folder_id: null,
-        createdAt: Date.now(),
-      });
-    } catch {}
-  }
-
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      // Modals handle their own Escape via Modal.svelte
       if (chatOpen && !compactEditorOpen && !promptEditorOpen && !toolsEditorOpen && !settingsOpen) {
         chatOpen = false;
         localStorage.setItem(LS_LIB_CHAT_OPEN, '0');
       }
     }
   }
-
-  onMount(async () => {
-    applyTheme();
-    sessionStorage.removeItem(SS_BOOK_ID);
-
-    // Instant render from cache, then refresh from IndexedDB in background
-    const hadCache = loadCachedLibrary();
-    chatManager.init();
-
-    await loadDefaultBook();
-    await refreshLibrary();
-
-    if (!hadCache) chatManager.init();
-  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
 <div class="app">
-  <Toolbar title="Marginalia" subtitle="v{MARGINALIA_VERSION}">
+  <Toolbar title="Marginalia" subtitle="v{version}">
     {#snippet actions()}
       <label class="m-btn m-btn-lg" title="Upload PDF">
         +
@@ -329,7 +254,7 @@
       {books}
       {folders}
       {currentFolderId}
-      onOpenBook={openBook}
+      onOpenBook={onOpenBook}
       onRenameBook={handleRenameBook}
       onDeleteBook={handleDeleteBook}
       onMoveBook={handleMoveBook}
@@ -352,10 +277,7 @@
         fontSize={chatDisplay.fontSize}
         mono={chatDisplay.mono}
         books={books.map(b => ({ id: b.id, title: b.title }))}
-        onBookClick={(id) => {
-          sessionStorage.setItem(SS_BOOK_ID, id);
-          window.location.href = './viewer.html';
-        }}
+        onBookClick={(id) => onOpenBook({ id } as Book)}
         onResizeStart={() => {}}
         onResizeEnd={(w) => {
           chatWidth = w;

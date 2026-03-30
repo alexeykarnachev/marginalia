@@ -608,7 +608,7 @@
   {#if stats && stats.model}
     {@const fmt = (n: number) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : Math.round(n / 1000) + 'k'}
     <div class="chat-stats-bar">
-      <span class="chat-stats-model">{stats.model}</span>
+      <span class="chat-stats-model">{stats.model.replace(/-\d{8}$/, '')}</span>
       <span class="chat-stats-ctx">
         {fmt(stats.lastContextTokens)}{#if modelContextLength > 0}{' / '}{fmt(modelContextLength)}{' ('}{Math.round(stats.lastContextTokens / modelContextLength * 100)}%){/if}
       </span>
