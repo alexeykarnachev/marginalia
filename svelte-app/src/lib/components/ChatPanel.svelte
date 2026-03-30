@@ -187,6 +187,15 @@
     onClear();
   }
 
+  function handleCopyAll() {
+    menuOpen = false;
+    const text = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+      .map(m => `[${m.role}]\n${m.content}`)
+      .join('\n\n---\n\n');
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+
   function handleMenuItemClick(item: MenuItem) {
     menuOpen = false;
     item.onClick();
@@ -518,6 +527,10 @@
         >{rawMode ? 'ON' : 'OFF'}</button>
       </div>
       <hr class="popover-divider" />
+      <button
+        class="menu-item"
+        onclick={handleCopyAll}
+      >Copy all</button>
       <button
         class="menu-item menu-item-danger"
         onclick={handleClear}
