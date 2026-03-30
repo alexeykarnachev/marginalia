@@ -49,7 +49,10 @@ export async function sendChatMessage(
       onToolCall: (name: string, args: any) => {
         chatState.addToolActivity(humanizeToolAction(name, args));
       },
-      onThinking: () => {},
+      onThinking: () => {
+        // Clear tool activity from previous iteration
+        chatState.resetToolActivity();
+      },
       onUsage: (usage: any, model: string) => {
         chatState.trackUsage(usage, model);
       },

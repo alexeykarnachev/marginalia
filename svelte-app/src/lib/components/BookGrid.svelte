@@ -5,7 +5,8 @@
 
   type SortMode = 'name' | 'date' | 'progress';
   const LS_SORT = 'marginalia_sort';
-  const SORT_LABELS: Record<SortMode, string> = { name: 'A-Z', date: 'New', progress: '%' };
+  const LS_SORT_ASC = 'marginalia_sort_asc';
+  const SORT_LABELS: Record<SortMode, string> = { name: 'A-Z', date: 'Date', progress: '%' };
   const SORT_ORDER: SortMode[] = ['name', 'date', 'progress'];
 
   let {
@@ -35,11 +36,19 @@
   } = $props();
 
   let sortMode = $state<SortMode>((localStorage.getItem(LS_SORT) as SortMode) || 'name');
+  let sortAsc = $state(localStorage.getItem(LS_SORT_ASC) !== '0');
 
   function toggleSort() {
     const idx = SORT_ORDER.indexOf(sortMode);
     sortMode = SORT_ORDER[(idx + 1) % SORT_ORDER.length];
+    sortAsc = true;
     localStorage.setItem(LS_SORT, sortMode);
+    localStorage.setItem(LS_SORT_ASC, '1');
+  }
+
+  function toggleDirection() {
+    sortAsc = !sortAsc;
+    localStorage.setItem(LS_SORT_ASC, sortAsc ? '1' : '0');
   }
 
   function getProgress(bookId: string): number {
@@ -51,6 +60,10 @@
     } catch { return -1; }
   }
 
+  function applyDirection<T>(items: T[]): T[] {
+    return sortAsc ? items : [...items].reverse();
+  }
+
   function sortByName<T extends { name?: string; title?: string }>(items: T[]): T[] {
     return [...items].sort((a, b) => (a.name || a.title || '').localeCompare(b.name || b.title || ''));
   }
@@ -59,25 +72,31 @@
     return [...items].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 
+  function sortByProgress(items: Book[]): Book[] {
+    return [...items].sort((a, b) => {
+      const pa = getProgress(a.id), pb = getProgress(b.id);
+      // Never-opened (-1) always last regardless of direction
+      if (pa < 0 && pb < 0) return 0;
+      if (pa < 0) return 1;
+      if (pb < 0) return -1;
+      // Most read first by default (descending)
+      return pb - pa;
+    });
+  }
+
   let childFolders = $derived.by(() => {
     const filtered = folders.filter(f => (f.parent_id || null) === currentFolderId);
-    return sortMode === 'date' ? sortByDate(filtered) : sortByName(filtered);
+    const sorted = sortMode === 'date' ? sortByDate(filtered) : sortByName(filtered);
+    return applyDirection(sorted);
   });
 
   let childBooks = $derived.by(() => {
     const filtered = books.filter(b => (b.folder_id || null) === currentFolderId);
-    if (sortMode === 'date') return sortByDate(filtered);
-    if (sortMode === 'progress') {
-      return [...filtered].sort((a, b) => {
-        const pa = getProgress(a.id), pb = getProgress(b.id);
-        // Unread last, then by progress ascending (least read first)
-        if (pa < 0 && pb < 0) return 0;
-        if (pa < 0) return 1;
-        if (pb < 0) return -1;
-        return pa - pb;
-      });
-    }
-    return sortByName(filtered);
+    let sorted: Book[];
+    if (sortMode === 'date') sorted = sortByDate(filtered);
+    else if (sortMode === 'progress') sorted = sortByProgress(filtered);
+    else sorted = sortByName(filtered);
+    return applyDirection(sorted);
   });
 
   let breadcrumbs = $derived(buildBreadcrumbs(currentFolderId, folders));
@@ -175,6 +194,9 @@
         {/each}
       </div>
     {/if}
+    <button class="sort-btn" onclick={toggleDirection} title="Reverse order">
+      {sortAsc ? '\u25B2' : '\u25BC'}
+    </button>
     <button class="sort-btn" onclick={toggleSort} title="Sort mode">
       {SORT_LABELS[sortMode]}
     </button>

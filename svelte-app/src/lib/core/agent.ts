@@ -211,10 +211,23 @@ export async function llmCall(
       throw new Error(`API error ${res.status}: ${res.statusText}`);
     }
 
+    // If server returned JSON instead of SSE stream, it's an error
     const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
+    if (!contentType.includes('text/event-stream')) {
       const data = await res.json();
-      throw new Error(data.error?.message || 'Unknown API error');
+      if (data.error) throw new Error(data.error.message || 'API error');
+      // Non-streaming response — extract content directly
+      const choice = data.choices?.[0];
+      return {
+        content: choice?.message?.content || '',
+        toolCalls: (choice?.message?.tool_calls || []).map((tc: any) => ({
+          id: tc.id,
+          function: { name: tc.function.name, arguments: tc.function.arguments },
+        })),
+        usage: data.usage || null,
+        model: data.model || model,
+        finishReason: choice?.finish_reason || '',
+      };
     }
 
     const reader = res.body!.getReader();
@@ -278,6 +291,8 @@ export async function agentLoop(
     if (callbacks.onThinking) callbacks.onThinking(i);
 
     const result = await llmCall(apiKey, model, messages, tools, (delta, full) => {
+      // Only stream text to UI if this is a final response (no tool calls yet parsed)
+      // During streaming we don't know yet if tools will be called, so always stream
       if (callbacks.onDelta) callbacks.onDelta(delta, full);
     });
 
