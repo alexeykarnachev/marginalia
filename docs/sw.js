@@ -1,6 +1,10 @@
 const MARGINALIA_VERSION = 167;
 const CACHE_NAME = "marginalia-v" + MARGINALIA_VERSION;
 
+self.addEventListener("install", (e) => {
+    self.skipWaiting();
+});
+
 self.addEventListener("activate", (e) => {
     e.waitUntil(
         caches.keys().then((keys) =>
