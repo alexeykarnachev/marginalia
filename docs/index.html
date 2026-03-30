@@ -9,18 +9,14 @@
     <link rel="icon" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <script type="module" crossorigin src="./assets/index-BOrEa0lm.js"></script>
+  <script type="module" crossorigin src="./assets/index-DXz-vIrP.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-BQbVEYGZ.css">
 </head>
 <body>
     <div id="app"></div>
     <script>
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js").then(reg => {
-            reg.update();
-            setInterval(() => reg.update(), 5 * 60 * 1000);
-        });
-        navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
+        navigator.serviceWorker.register("./sw.js");
     }
     </script>
 </body>
