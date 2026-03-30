@@ -65,13 +65,15 @@ export async function sendChatMessage(
     }
     chatState.resetToolActivity();
 
-    // Ensure final content
-    const msgs = chatState.messages;
-    const last = msgs[msgs.length - 1];
-    if (result.content && (!last || last.role !== 'assistant')) {
-      chatState.addMessage({ role: 'assistant', content: result.content });
-    } else if (result.content && last?.role === 'assistant') {
-      chatState.updateLastMessage(result.content);
+    // Ensure final content is present.
+    // handleDelta already created the assistant message during streaming.
+    // Only add/update if streaming didn't produce a message.
+    if (result.content) {
+      const msgs = chatState.messages;
+      const hasAssistantMsg = msgs.some(m => m.role === 'assistant');
+      if (!hasAssistantMsg) {
+        chatState.addMessage({ role: 'assistant', content: result.content });
+      }
     }
 
     await config.onAfterSend?.();
