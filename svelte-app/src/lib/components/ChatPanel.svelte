@@ -5,6 +5,8 @@
   import DOMPurify from 'dompurify';
   import type { ChatMessage } from '../types';
   import type { ChatEntry } from '../core/chat-registry';
+  import { getModelContextLength } from '../core/model-info';
+  import { settings } from '../state/settings.svelte';
   import {
     DEFAULT_CHAT_WIDTH,
     DEFAULT_CHAT_FONT_SIZE,
@@ -77,7 +79,7 @@
     onResizeEnd?: (width: number) => void;
     onFontSizeChange?: (size: number) => void;
     onMonoToggle?: () => void;
-    stats?: { inputTokens: number; outputTokens: number; cost: number; model: string };
+    stats?: { inputTokens: number; outputTokens: number; cost: number; lastContextTokens: number; model: string };
     chats?: ChatEntry[];
     activeChatId?: string | null;
     onSelectChat?: (id: string) => void;
@@ -89,6 +91,15 @@
 
   let inputText = $state('');
   let menuOpen = $state(false);
+  let modelContextLength = $state(0);
+
+  // Fetch model context length when model changes
+  $effect(() => {
+    const model = stats?.model;
+    if (model && settings.apiKey) {
+      getModelContextLength(model, settings.apiKey).then(len => { modelContextLength = len; });
+    }
+  });
   let chatListOpen = $state(false);
   let rawMode = $state(false);
   let messagesEl: HTMLDivElement;
@@ -598,7 +609,11 @@
   {#if stats && (stats.cost > 0 || stats.inputTokens > 0)}
     <div class="chat-stats-bar">
       <span class="chat-stats-model">{stats.model || 'unknown'}</span>
-      <span class="chat-stats-tokens">{(stats.inputTokens / 1000).toFixed(1)}k in / {(stats.outputTokens / 1000).toFixed(1)}k out</span>
+      {#if modelContextLength > 0 && stats.lastContextTokens > 0}
+        <span class="chat-stats-ctx">{(stats.lastContextTokens / 1000).toFixed(1)}k / {(modelContextLength / 1000).toFixed(0)}k ({Math.round(stats.lastContextTokens / modelContextLength * 100)}%)</span>
+      {:else}
+        <span class="chat-stats-tokens">{(stats.inputTokens / 1000).toFixed(1)}k in / {(stats.outputTokens / 1000).toFixed(1)}k out</span>
+      {/if}
       <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
     </div>
   {/if}
@@ -1041,6 +1056,7 @@
     flex-shrink: 0;
   }
   .chat-stats-model { color: var(--m-link); }
+  .chat-stats-ctx { color: var(--m-fg-dim); }
   .chat-stats-cost { margin-left: auto; }
 
   .m-chat-input-area {
