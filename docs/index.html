@@ -9,14 +9,16 @@
     <link rel="icon" href="./icon-192.png">
     <link rel="apple-touch-icon" href="./icon-192.png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-  <script type="module" crossorigin src="./assets/index-AyYFt-qU.js"></script>
+  <script type="module" crossorigin src="./assets/index-D1-gHmhR.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-BQbVEYGZ.css">
 </head>
 <body>
     <div id="app"></div>
     <script>
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js?v=2");
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+        });
     }
     </script>
 </body>
