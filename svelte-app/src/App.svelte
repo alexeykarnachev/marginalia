@@ -7,6 +7,7 @@
   import { createChatManager } from './lib/state/chat-manager.svelte';
   import { getAllBooks, getAllFolders, saveBook, MARGINALIA_VERSION } from './lib/core/db';
   import { setOnBookChangeFn } from './lib/core/tools';
+  import { getPdfjsLib } from './lib/core/pdfjs-loader';
   import type { Book, Folder } from './lib/types';
 
   // --- Routing ---
@@ -87,11 +88,13 @@
       }
     });
 
-    // Load data
+    // Load data and preload pdf.js
     void (async () => {
       await loadDefaultBook();
       await refreshLibrary();
       chatManager.init();
+      // Preload pdf.js so cover rendering doesn't inject a script tag later
+      getPdfjsLib();
     })();
   });
 </script>
