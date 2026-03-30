@@ -158,15 +158,27 @@
     const text = inputText.trim();
     if (!text || sending || !activeChatId) return;
     inputText = '';
-    anchor?.scrollToBottom();
     onSend(text);
+    // Scroll to bottom after the message is added to DOM
+    tick().then(() => anchor?.scrollToBottom());
     inputEl?.focus();
   }
 
+  function isTouchDevice() {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }
+
   function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+    if (e.key === 'Enter') {
+      if (isTouchDevice()) {
+        // On touch devices: Enter inserts newline, use Send button to send
+        return;
+      }
+      // Desktop: Enter sends, Shift+Enter inserts newline
+      if (!e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
     }
   }
 
@@ -551,7 +563,7 @@
           <div class="marginalia-msg user">
             {msg.content}
             {#if onTruncate}
-              <div class="msg-actions" style:opacity={sending ? '0' : ''} style:pointer-events={sending ? 'none' : ''}>
+              <div class="msg-actions">
                 <button class="msg-action-btn" title="Retry" onclick={() => { const text = msg.content; onTruncate(i); anchor?.scrollToBottom(); onSend(text); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
                 <button class="msg-action-btn" title="Edit" onclick={() => { inputText = msg.content; onTruncate(i); inputEl?.focus(); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
               </div>
