@@ -130,14 +130,19 @@
   async function renderCover() {
     if (!book.data) return;
 
+    // Skip if we already know this cover fails
+    const failKey = COVER_PREFIX + 'fail_' + book.id;
+    if (sessionStorage.getItem(failKey)) return;
+
     // Wait for the global queue — one PDF at a time to avoid memory spikes
     const release = await coverRenderQueue();
 
     try {
       const pdfjsLib = await getPdfjsLib();
-      if (!pdfjsLib) return;
+      if (!pdfjsLib) { release(); return; }
       const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
       const buf = await blob.arrayBuffer();
+      if (buf.byteLength < 100) { release(); sessionStorage.setItem(failKey, '1'); return; } // too small to be a real PDF
       const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
 
       try {
@@ -157,11 +162,11 @@
         coverUrl = dataUrl;
         setCachedCover(book.id, dataUrl);
       } finally {
-        // Free memory — close the PDF document immediately
         await pdf.destroy();
       }
     } catch (err) {
       console.warn('Cover render failed for', book.title, err);
+      try { sessionStorage.setItem(failKey, '1'); } catch {}
     } finally {
       release();
     }
