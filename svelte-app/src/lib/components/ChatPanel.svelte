@@ -606,15 +606,17 @@
     {/if}
   </div>
 
-  {#if stats && (stats.cost > 0 || stats.inputTokens > 0)}
+  {#if stats && stats.model}
     <div class="chat-stats-bar">
-      <span class="chat-stats-model">{stats.model || 'unknown'}</span>
+      <span class="chat-stats-model">{stats.model}</span>
       {#if modelContextLength > 0 && stats.lastContextTokens > 0}
         <span class="chat-stats-ctx">{(stats.lastContextTokens / 1000).toFixed(1)}k / {(modelContextLength / 1000).toFixed(0)}k ({Math.round(stats.lastContextTokens / modelContextLength * 100)}%)</span>
-      {:else}
+      {:else if stats.inputTokens > 0}
         <span class="chat-stats-tokens">{(stats.inputTokens / 1000).toFixed(1)}k in / {(stats.outputTokens / 1000).toFixed(1)}k out</span>
       {/if}
-      <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
+      {#if stats.cost > 0}
+        <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
+      {/if}
     </div>
   {/if}
 
