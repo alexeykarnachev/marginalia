@@ -5,7 +5,7 @@
   import { applyTheme } from './lib/state/settings.svelte';
   import { createChatState } from './lib/state/chat.svelte';
   import { createChatManager } from './lib/state/chat-manager.svelte';
-  import { getAllBooks, getAllFolders, saveBook, MARGINALIA_VERSION } from './lib/core/db';
+  import { getAllBooksMeta, getAllFolders, saveBook, MARGINALIA_VERSION } from './lib/core/db';
   import { setOnBookChangeFn } from './lib/core/tools';
   import { getPdfjsLib } from './lib/core/pdfjs-loader';
   import type { Book, Folder } from './lib/types';
@@ -37,13 +37,13 @@
   const chatManager = createChatManager(chatState);
 
   async function refreshLibrary() {
-    books = await getAllBooks();
+    books = await getAllBooksMeta();
     folders = await getAllFolders();
     libraryLoaded = true;
   }
 
   async function loadDefaultBook() {
-    const existing = await getAllBooks();
+    const existing = await getAllBooksMeta();
     if (existing.length > 0) return;
     try {
       const res = await fetch('./default-book.pdf');

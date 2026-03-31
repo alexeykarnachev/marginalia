@@ -10,7 +10,7 @@ import { IDB_NAME, IDB_VERSION } from './constants';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 178;
+export const MARGINALIA_VERSION = 179;
 
 // --- Storage backend interface ---
 
@@ -108,9 +108,34 @@ const _db: {
 
 // --- Public API (tools and app code call these) ---
 
+/** Load all books WITH full PDF data (use sparingly — high memory) */
 export async function getAllBooks(): Promise<Book[]> {
   if (_db._backend) return _db._backend.getAllBooks();
   return _db._idbGetAll<Book>('books');
+}
+
+/** Load all books WITHOUT PDF data — safe for grid/library display */
+export async function getAllBooksMeta(): Promise<Book[]> {
+  if (_db._backend) return _db._backend.getAllBooks();
+  const db = await _db._idb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('books', 'readonly');
+    const store = tx.objectStore('books');
+    const results: Book[] = [];
+    const req = store.openCursor();
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (cursor) {
+        const book = cursor.value as Book;
+        // Strip the heavy data field — replace with empty placeholder
+        results.push({ ...book, data: new Blob() });
+        cursor.continue();
+      } else {
+        resolve(results);
+      }
+    };
+    req.onerror = () => reject(req.error);
+  });
 }
 
 export async function getBook(id: string): Promise<Book | null> {

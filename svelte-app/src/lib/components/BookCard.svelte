@@ -30,6 +30,7 @@
   import { onMount } from 'svelte';
   import type { Book } from '../types';
   import { lsStatsKey, lsProgressKey } from '../core/constants';
+  import { getBook } from '../core/db';
   import { getPdfjsLib } from '../core/pdfjs-loader';
 
   const COVER_RENDER_WIDTH = 300;
@@ -128,8 +129,6 @@
   });
 
   async function renderCover() {
-    if (!book.data) return;
-
     // Skip if we already know this cover fails
     const failKey = COVER_PREFIX + 'fail_' + book.id;
     if (sessionStorage.getItem(failKey)) return;
@@ -140,10 +139,20 @@
     try {
       const pdfjsLib = await getPdfjsLib();
       if (!pdfjsLib) { release(); return; }
-      const blob = book.data instanceof Blob ? book.data : new Blob([book.data], { type: 'application/pdf' });
+
+      // Load PDF data on demand from IndexedDB (not from book.data which is stripped)
+      const fullBook = await getBook(book.id);
+      if (!fullBook?.data) { release(); try { sessionStorage.setItem(failKey, '1'); } catch {} return; }
+
+      const blob = fullBook.data instanceof Blob ? fullBook.data : new Blob([fullBook.data], { type: 'application/pdf' });
       const buf = await blob.arrayBuffer();
-      if (buf.byteLength < 100) { release(); sessionStorage.setItem(failKey, '1'); return; } // too small to be a real PDF
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+      if (buf.byteLength < 100) { release(); try { sessionStorage.setItem(failKey, '1'); } catch {} return; }
+      const pdf = await pdfjsLib.getDocument({
+        data: new Uint8Array(buf),
+        disableFontFace: true,    // Don't add fonts to document.fonts
+        disableAutoFetch: true,   // Don't prefetch PDF data
+        disableRange: true,       // Don't use range requests
+      }).promise;
 
       try {
         const page = await pdf.getPage(1);

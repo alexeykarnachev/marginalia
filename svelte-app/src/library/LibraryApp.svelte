@@ -61,8 +61,8 @@
   async function handleRenameBook(book: Book) {
     const name = prompt('Rename book:', book.title);
     if (name && name.trim()) {
-      book.title = name.trim();
-      await saveBook(book);
+      const fresh = await getBook(book.id);
+      if (fresh) { fresh.title = name.trim(); await saveBook(fresh); }
       await refreshLibrary();
     }
   }
