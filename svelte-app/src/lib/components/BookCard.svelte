@@ -149,9 +149,7 @@
       if (buf.byteLength < 100) { release(); try { sessionStorage.setItem(failKey, '1'); } catch {} return; }
       const pdf = await pdfjsLib.getDocument({
         data: new Uint8Array(buf),
-        disableFontFace: true,    // Don't add fonts to document.fonts
-        disableAutoFetch: true,   // Don't prefetch PDF data
-        disableRange: true,       // Don't use range requests
+        standardFontDataUrl: './pdfjs/web/standard_fonts/',
       }).promise;
 
       try {
