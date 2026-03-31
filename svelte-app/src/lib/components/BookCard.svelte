@@ -129,10 +129,6 @@
   });
 
   async function renderCover() {
-    // Skip if we already know this cover fails
-    const failKey = COVER_PREFIX + 'fail_' + book.id;
-    if (sessionStorage.getItem(failKey)) return;
-
     // Wait for the global queue — one PDF at a time to avoid memory spikes
     const release = await coverRenderQueue();
 
@@ -142,11 +138,11 @@
 
       // Load PDF data on demand from IndexedDB (not from book.data which is stripped)
       const fullBook = await getBook(book.id);
-      if (!fullBook?.data) { release(); try { sessionStorage.setItem(failKey, '1'); } catch {} return; }
+      if (!fullBook?.data) { release(); return; }
 
       const blob = fullBook.data instanceof Blob ? fullBook.data : new Blob([fullBook.data], { type: 'application/pdf' });
       const buf = await blob.arrayBuffer();
-      if (buf.byteLength < 100) { release(); try { sessionStorage.setItem(failKey, '1'); } catch {} return; }
+      if (buf.byteLength < 100) { release(); return; }
       const pdf = await pdfjsLib.getDocument({
         data: new Uint8Array(buf),
         standardFontDataUrl: './pdfjs/web/standard_fonts/',
@@ -173,7 +169,6 @@
       }
     } catch (err) {
       console.warn('Cover render failed for', book.title, err);
-      try { sessionStorage.setItem(failKey, '1'); } catch {}
     } finally {
       release();
     }
