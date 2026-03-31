@@ -8,6 +8,7 @@
   import { getAllBooksMeta, getAllFolders, saveBook, MARGINALIA_VERSION } from './lib/core/db';
   import { setOnBookChangeFn } from './lib/core/tools';
   import { getPdfjsLib } from './lib/core/pdfjs-loader';
+  import { log } from './lib/core/logger';
   import type { Book, Folder } from './lib/types';
 
   // --- Routing ---
@@ -37,9 +38,11 @@
   const chatManager = createChatManager(chatState);
 
   async function refreshLibrary() {
+    log('APP', 'refreshLibrary START');
     books = await getAllBooksMeta();
     folders = await getAllFolders();
     libraryLoaded = true;
+    log('APP', 'refreshLibrary DONE', books.length, 'books', folders.length, 'folders');
   }
 
   async function loadDefaultBook() {
@@ -63,6 +66,7 @@
   }
 
   onMount(() => {
+    log('APP', 'onMount');
     applyTheme();
 
     // Restore state from URL hash

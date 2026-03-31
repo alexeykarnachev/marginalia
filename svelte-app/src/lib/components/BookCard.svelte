@@ -31,6 +31,7 @@
   import type { Book } from '../types';
   import { lsStatsKey, lsProgressKey } from '../core/constants';
   import { getBook } from '../core/db';
+  import { log } from '../core/logger';
   import { getPdfjsLib } from '../core/pdfjs-loader';
 
   const COVER_RENDER_WIDTH = 300;
@@ -102,6 +103,7 @@
   }
 
   onMount(() => {
+    log('CARD', 'mount', book.id, book.title);
     loadMeta();
 
     // Check cache first (memory + sessionStorage)
@@ -129,8 +131,10 @@
   });
 
   async function renderCover() {
+    log('COVER', 'start', book.id, book.title);
     // Wait for the global queue — one PDF at a time to avoid memory spikes
     const release = await coverRenderQueue();
+    log('COVER', 'queue released', book.id);
 
     try {
       const pdfjsLib = await getPdfjsLib();
@@ -162,12 +166,16 @@
         }).promise;
 
         const dataUrl = canvas.toDataURL('image/jpeg', COVER_JPEG_QUALITY);
+        log('COVER', 'rendered', book.id, 'dataUrl length:', dataUrl.length);
         coverUrl = dataUrl;
         setCachedCover(book.id, dataUrl);
       } finally {
+        log('COVER', 'destroying pdf', book.id);
         await pdf.destroy();
+        log('COVER', 'destroyed', book.id);
       }
     } catch (err) {
+      log('COVER', 'FAILED', book.id, err);
       console.warn('Cover render failed for', book.title, err);
     } finally {
       release();
