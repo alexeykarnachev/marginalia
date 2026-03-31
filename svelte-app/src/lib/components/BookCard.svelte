@@ -167,8 +167,12 @@
 
         const dataUrl = canvas.toDataURL('image/jpeg', COVER_JPEG_QUALITY);
         log('COVER', 'rendered', book.id, 'dataUrl length:', dataUrl.length);
-        coverUrl = dataUrl;
-        setCachedCover(book.id, dataUrl);
+        if (dataUrl.length > 100) {
+          coverUrl = dataUrl;
+          setCachedCover(book.id, dataUrl);
+        } else {
+          log('COVER', 'empty render, skipping', book.id);
+        }
       } finally {
         log('COVER', 'destroying pdf', book.id);
         await pdf.destroy();
