@@ -3,11 +3,11 @@
   import BookCard from './BookCard.svelte';
   import { lsStatsKey, lsProgressKey } from '../core/constants';
 
-  type SortMode = 'name' | 'date' | 'progress';
+  type SortMode = 'name' | 'date' | 'progress' | 'recent';
   const LS_SORT = 'marginalia_sort';
   const LS_SORT_ASC = 'marginalia_sort_asc';
-  const SORT_LABELS: Record<SortMode, string> = { name: 'A-Z', date: 'Date', progress: '%' };
-  const SORT_ORDER: SortMode[] = ['name', 'date', 'progress'];
+  const SORT_LABELS: Record<SortMode, string> = { name: 'A-Z', date: 'Date', progress: '%', recent: 'Recent' };
+  const SORT_ORDER: SortMode[] = ['name', 'date', 'progress', 'recent'];
 
   let {
     books,
@@ -86,6 +86,25 @@
     });
   }
 
+  function getLastOpen(bookId: string): number {
+    try {
+      const raw = localStorage.getItem(lsProgressKey(bookId));
+      if (!raw) return -1;
+      const p = JSON.parse(raw);
+      return p.lastOpen || -1;
+    } catch { return -1; }
+  }
+
+  function sortByRecent(items: Book[]): Book[] {
+    return [...items].sort((a, b) => {
+      const ta = getLastOpen(a.id), tb = getLastOpen(b.id);
+      if (ta < 0 && tb < 0) return 0;
+      if (ta < 0) return 1;
+      if (tb < 0) return -1;
+      return tb - ta;
+    });
+  }
+
   let childFolders = $derived.by(() => {
     const filtered = folders.filter(f => (f.parent_id || null) === currentFolderId);
     const sorted = sortMode === 'date' ? sortByDate(filtered) : sortByName(filtered);
@@ -97,6 +116,7 @@
     let sorted: Book[];
     if (sortMode === 'date') sorted = sortByDate(filtered);
     else if (sortMode === 'progress') sorted = sortByProgress(filtered);
+    else if (sortMode === 'recent') sorted = sortByRecent(filtered);
     else sorted = sortByName(filtered);
     return applyDirection(sorted);
   });

@@ -347,7 +347,7 @@
       }
       // Save reading progress
       if (bookId && totalPages > 1) {
-        localStorage.setItem(lsProgressKey(bookId), JSON.stringify({ page: currentPage, total: totalPages }));
+        localStorage.setItem(lsProgressKey(bookId), JSON.stringify({ page: currentPage, total: totalPages, lastOpen: Date.now() }));
       }
       updateContext();
       if (settings.theme !== _lastAppliedTheme) {
