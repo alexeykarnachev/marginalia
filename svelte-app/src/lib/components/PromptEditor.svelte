@@ -21,13 +21,15 @@
   let promptText = $state('');
   let showFullPrompt = $state(false);
   let fullPromptText = $state('');
+  let wasOpen = false;
 
   $effect(() => {
-    if (open) {
+    if (open && !wasOpen) {
       promptText = scope === 'chat' ? getChatPrompt(scopeId) : getBookPrompt(scopeId);
       showFullPrompt = false;
       fullPromptText = '';
     }
+    wasOpen = open;
   });
 
   function handleSave() {
