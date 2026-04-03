@@ -10,7 +10,7 @@ import { IDB_NAME, IDB_VERSION } from './constants';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 187;
+export const MARGINALIA_VERSION = 188;
 
 // --- Storage backend interface ---
 
@@ -34,7 +34,6 @@ export interface MemoryBackend extends DbBackend {
 
 const _db: {
   _backend: DbBackend | null;
-  _cachedDb: IDBDatabase | null;
   _idb: () => Promise<IDBDatabase>;
   _idbGetAll: <T>(store: string) => Promise<T[]>;
   _idbGet: <T>(store: string, id: string) => Promise<T | undefined>;
@@ -42,10 +41,8 @@ const _db: {
   _idbDelete: (store: string, id: string) => Promise<void>;
 } = {
   _backend: null,
-  _cachedDb: null,
 
   async _idb(): Promise<IDBDatabase> {
-    if (this._cachedDb) return this._cachedDb;
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(IDB_NAME, IDB_VERSION);
       req.onupgradeneeded = () => {
@@ -57,10 +54,7 @@ const _db: {
           db.createObjectStore('folders', { keyPath: 'id' });
         }
       };
-      req.onsuccess = () => {
-        this._cachedDb = req.result;
-        resolve(req.result);
-      };
+      req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
   },
