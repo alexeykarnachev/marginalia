@@ -257,11 +257,8 @@ export function setOnBookChangeFn(fn: ((bookId: string) => void) | null): void {
   _onBookChangeFn = fn;
 }
 
-export async function buildLibraryContext(): Promise<LibraryContext> {
-  const folders = await getAllFolders();
-  const books = await getAllBooksMeta();
-
-  // Library tree
+/** Build a text tree from in-memory books and folders. No DB access. */
+export function buildLibraryTree(books: Book[], folders: Folder[]): string {
   function buildTree(parentId: string | null, indent: string): string[] {
     const lines: string[] = [];
     for (const f of folders.filter((f) => (f.parent_id || null) === parentId)) {
@@ -277,7 +274,14 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
     return lines;
   }
   const treeLines = buildTree(null, '');
-  const libraryTree = treeLines.length ? treeLines.join('\n') : '(empty library)';
+  return treeLines.length ? treeLines.join('\n') : '(empty library)';
+}
+
+export async function buildLibraryContext(): Promise<LibraryContext> {
+  const folders = await getAllFolders();
+  const books = await getAllBooksMeta();
+
+  const libraryTree = buildLibraryTree(books, folders);
 
   // Storage stats
   const totalSize = books.reduce((s, b) => s + (b.size || 0), 0);
@@ -328,7 +332,7 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
   );
   const focusContext = focusParts.join('\n');
 
-  return {
+  const context: LibraryContext = {
     // For system prompt template
     libraryTree,
     focusContext,
@@ -347,6 +351,7 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
     totalSize,
     totalPageCount: totalPages,
   };
+  return context;
 }
 
 // --- Reading tools ---

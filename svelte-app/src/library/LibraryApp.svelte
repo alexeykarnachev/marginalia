@@ -13,7 +13,7 @@
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { deleteChat } from '../lib/core/chat-registry';
   import { getBook, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder } from '../lib/core/db';
-  import { buildLibraryContext } from '../lib/core/tools';
+  import { buildLibraryTree } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
   import { indexBook } from '../lib/core/indexer';
@@ -207,13 +207,12 @@
     promptEditorOpen = true;
   }
 
-  async function buildLibraryPromptPreview() {
-    const context = await buildLibraryContext();
-    return buildLibraryAssistantPrompt(
-      context.libraryTree,
+  function buildLibraryPromptPreview() {
+    return Promise.resolve(buildLibraryAssistantPrompt(
+      buildLibraryTree(books, folders),
       chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '',
       chatState.summary,
-    );
+    ));
   }
 
   function handleChatClear() {

@@ -148,7 +148,8 @@
 {:else if activeBookId}
   <ViewerApp
     bookId={activeBookId}
-    allBooks={books.map(b => ({ id: b.id, title: b.title }))}
+    allBooks={books}
+    allFolders={folders}
     {chatState}
     {chatManager}
     onGoBack={navigateToLibrary}

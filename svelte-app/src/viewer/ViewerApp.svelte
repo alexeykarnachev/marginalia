@@ -8,9 +8,10 @@
   import { settings, applyTheme, getBookPrompt, getChatPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
+  import type { Book, Folder } from '../lib/types';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import {
-    buildLibraryContext,
+    buildLibraryTree,
     setCachedSelection,
     setGetPageHistoryFn,
     setOnBookChangeFn,
@@ -39,6 +40,7 @@
   let {
     bookId,
     allBooks,
+    allFolders,
     chatState,
     chatManager,
     onGoBack,
@@ -46,7 +48,8 @@
     onLibraryRefresh,
   }: {
     bookId: string;
-    allBooks: { id: string; title: string }[];
+    allBooks: Book[];
+    allFolders: Folder[];
     chatState: ChatState;
     chatManager: ChatManager;
     onGoBack: () => void;
@@ -250,13 +253,42 @@
     promptEditorMode = 'chat';
   }
 
-  async function buildViewerPromptPreview() {
-    const context = await buildLibraryContext();
+  function buildViewerPromptPreview() {
+    const libraryTree = buildLibraryTree(allBooks, allFolders);
+    const history = getPageHistory();
+    const pageHistoryStr = history.length
+      ? history.slice(-10).map((p: number) => `p.${p}`).join(' -> ') + ` -> p.${currentPage} (current)`
+      : '';
+    const totalSize = allBooks.reduce((s, b) => s + (b.size || 0), 0);
+    const totalPageCount = allBooks.reduce((s, b) => s + (b.pages ? b.pages.length : 0), 0);
+    const focusParts = [
+      `Reading: "${bookTitle}" (id: ${bookId})`,
+      `Page: ${currentPage} of ${totalPages}`,
+      `Time: ${new Date().toLocaleString()}`,
+      `Library: ${allBooks.length} books, ${allFolders.length} folders, ${totalPageCount} pages`,
+    ];
+    const context = {
+      libraryTree,
+      focusContext: focusParts.join('\n'),
+      pageText: '(not shown in preview)',
+      selection: cachedSelection,
+      pageHistory: pageHistoryStr,
+      page: currentPage,
+      totalPages,
+      title: bookTitle,
+      time: new Date().toLocaleString(),
+      currentBookId: bookId,
+      currentBookTitle: bookTitle,
+      bookCount: allBooks.length,
+      folderCount: allFolders.length,
+      totalSize,
+      totalPageCount,
+    };
     let system = buildViewerSystemPrompt(context);
     if (chatState.summary) {
       system += '\n\n' + SUMMARY_HEADER + '\n' + chatState.summary;
     }
-    return system;
+    return Promise.resolve(system);
   }
 
   function openCompactEditor() {
@@ -447,7 +479,7 @@
         onPageNav={handlePageNav}
         fontSize={chatDisplay.fontSize}
         mono={chatDisplay.mono}
-        books={allBooks}
+        books={allBooks.map(b => ({ id: b.id, title: b.title }))}
         onBookClick={(id) => handleBookChange(id)}
         width={chatWidth}
         onResizeStart={() => chatResizing = true}
