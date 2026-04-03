@@ -1,16 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ChatPanel from '../lib/components/ChatPanel.svelte';
+  import ChatSidebar from '../lib/components/ChatSidebar.svelte';
   import ThemeToggle from '../lib/components/ThemeToggle.svelte';
   import PromptEditor from '../lib/components/PromptEditor.svelte';
-  import ToolsEditor from '../lib/components/ToolsEditor.svelte';
-  import CompactEditor from '../lib/components/CompactEditor.svelte';
-  import { settings, applyTheme, getBookPrompt, getChatPrompt, chatDisplay } from '../lib/state/settings.svelte';
+  import { settings, applyTheme, getBookPrompt, getChatPrompt } from '../lib/state/settings.svelte';
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { library } from '../lib/state/library.svelte';
   import { router } from '../lib/state/router.svelte';
-  import { buildChatMenuItems } from '../lib/core/chat-menu';
   import {
     setCachedSelection,
     setGetPageHistoryFn,
@@ -27,7 +24,6 @@
   import { sendChatMessage } from '../lib/core/chat-send';
   import { createViewerSession } from './viewer-session';
   import {
-    DEFAULT_CHAT_WIDTH,
     LS_VIEWER_CHAT_WIDTH,
     LS_CHAT_OPEN,
     LS_ZOOM,
@@ -52,13 +48,11 @@
   let currentPage = $state(0);
   let totalPages = $state(0);
   let pdfReady = $state(false);
-  let chatOpen = $state(false);
+  let chatResizing = $state(false);
   let pageBeforeJump = $state<number | null>(null);
 
   let pageInputValue = $state('1');
   let pageInputFocused = $state(false);
-  let chatResizing = $state(false);
-  let chatWidth = $state(parseInt(localStorage.getItem(LS_VIEWER_CHAT_WIDTH) || String(DEFAULT_CHAT_WIDTH)));
   let _lastAppliedTheme = '';
   let activeLoadToken = 0;
 
@@ -74,10 +68,8 @@
   let indexingStatus = $state('');
 
 
-  // Modal states
-  let promptEditorMode = $state<'book' | 'chat' | null>(null);
-  let toolsEditorOpen = $state(false);
-  let compactEditorOpen = $state(false);
+  // Book prompt editor (separate from ChatSidebar's chat prompt editor)
+  let bookPromptEditorOpen = $state(false);
 
   const viewerSession = createViewerSession({
     getPdfIframe: () => pdfIframe,
@@ -186,15 +178,6 @@
     router.navigateToLibrary();
   }
 
-  function toggleChat() {
-    if (!chatOpen && !settings.apiKey) {
-      alert('Please set your OpenRouter API key in Settings (on the library page).');
-      return;
-    }
-    chatOpen = !chatOpen;
-    localStorage.setItem(LS_CHAT_OPEN, chatOpen ? '1' : '0');
-  }
-
   async function handleChatSend(text: string) {
     if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
@@ -206,15 +189,6 @@
       },
       addToolSummary: true,
     });
-  }
-
-  function handleChatClear() {
-    if (chatState.messages.length === 0) return;
-    if (!confirm('Clear chat history?')) return;
-    chatState.clearMessages();
-    chatState.setSummary(null);
-    chatState.resetStats();
-    if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }
 
   function handlePageNav(page: number) {
@@ -233,15 +207,7 @@
   }
 
   function openBookPromptEditor() {
-    promptEditorMode = 'book';
-  }
-
-  function openChatPromptEditor() {
-    if (!chatManager.activeChatId) {
-      alert('Create a chat first.');
-      return;
-    }
-    promptEditorMode = 'chat';
+    bookPromptEditorOpen = true;
   }
 
   function buildViewerPromptPreview() {
@@ -279,10 +245,6 @@
       system += '\n\n' + SUMMARY_HEADER + '\n' + chatState.summary;
     }
     return Promise.resolve(system);
-  }
-
-  function openCompactEditor() {
-    compactEditorOpen = true;
   }
 
   // Selection capture
@@ -342,15 +304,6 @@
     } catch {}
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      // Modals handle their own Escape via Modal.svelte
-      if (chatOpen && !compactEditorOpen && !promptEditorMode && !toolsEditorOpen) {
-        chatOpen = false;
-        localStorage.setItem(LS_CHAT_OPEN, '0');
-      }
-    }
-  }
 
   // Sync page number from pdf.js
   let syncInterval: ReturnType<typeof setInterval>;
@@ -377,10 +330,6 @@
         _lastAppliedTheme = settings.theme;
       }
     }, PAGE_SYNC_INTERVAL_MS);
-
-    if (localStorage.getItem(LS_CHAT_OPEN) === '1' && settings.apiKey) {
-      chatOpen = true;
-    }
 
     document.addEventListener('mouseup', captureSelection);
     document.addEventListener('touchend', captureSelection);
@@ -414,8 +363,6 @@
   });
 
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <div class="viewer-app">
   <div class="m-toolbar">
@@ -457,63 +404,44 @@
       style:pointer-events={chatResizing ? 'none' : 'auto'}
     ></iframe>
 
-    {#if chatOpen}
-      <ChatPanel
-        placeholder={chatManager.activeChatId ? 'Ask about this page...' : 'Create a chat to start'}
-        messages={chatState.messages}
-        sending={chatState.sending}
-        onSend={handleChatSend}
-        onClear={handleChatClear}
-        onClose={toggleChat}
-        pageNavEnabled={true}
-        onPageNav={handlePageNav}
-        fontSize={chatDisplay.fontSize}
-        mono={chatDisplay.mono}
-        books={library.books.map(b => ({ id: b.id, title: b.title }))}
-        onBookClick={(id) => handleBookChange(id)}
-        width={chatWidth}
-        onResizeStart={() => chatResizing = true}
-        onResizeEnd={(w) => {
-          chatResizing = false;
-          chatWidth = w;
-          localStorage.setItem(LS_VIEWER_CHAT_WIDTH, String(w));
-        }}
-        onFontSizeChange={(s) => { chatDisplay.fontSize = s; }}
-        onMonoToggle={() => chatDisplay.toggleMono()}
-        stats={chatState.stats}
-        chats={chatManager.chats}
-        activeChatId={chatManager.activeChatId}
-        onSelectChat={chatManager.select}
-        onCreateChat={() => chatManager.create(bookTitle || 'Chat')}
-        onRenameChat={chatManager.rename}
-        onDeleteChat={chatManager.remove}
-        onTruncate={chatManager.truncate}
-        menuItems={buildChatMenuItems({
-          editBookPrompt: openBookPromptEditor,
-          editChatPrompt: openChatPromptEditor,
-          configureTools: () => { toolsEditorOpen = true; },
-          compact: openCompactEditor,
-        })}
-      >
-        {#snippet contextBar()}
-          <div class="context-bar">
-            <div class="context-progress">
-              <div class="context-fill" style:width="{contextPct}%"></div>
-            </div>
-            <span class="context-text">{contextText}</span>
+    <ChatSidebar
+      {chatState}
+      {chatManager}
+      openStorageKey={LS_CHAT_OPEN}
+      widthStorageKey={LS_VIEWER_CHAT_WIDTH}
+      placeholder={chatManager.activeChatId ? 'Ask about this page...' : 'Create a chat to start'}
+      defaultChatName={bookTitle || 'Chat'}
+      onSend={handleChatSend}
+      onBookClick={(id) => handleBookChange(id)}
+      pageNavEnabled={true}
+      onPageNav={handlePageNav}
+      onResizeStart={() => { chatResizing = true; }}
+      onResizeEnd={() => { chatResizing = false; }}
+      promptEditorScopeId={chatManager.activeChatId || ''}
+      promptEditorTitle="System prompt for this chat"
+      buildFullPrompt={buildViewerPromptPreview}
+      compactBookId={chatManager.activeChatId || bookId}
+      extraMenuCallbacks={{ editBookPrompt: openBookPromptEditor }}
+      hasExtraModalsOpen={bookPromptEditorOpen}
+    >
+      {#snippet contextBar()}
+        <div class="context-bar">
+          <div class="context-progress">
+            <div class="context-fill" style:width="{contextPct}%"></div>
           </div>
-        {/snippet}
-        {#snippet toolActivitySnippet()}
-          {#if chatState.toolActivity.length > 0}
-            <div class="tool-activity">
-              {#each chatState.toolActivity as activity}
-                <div>{activity}</div>
-              {/each}
-            </div>
-          {/if}
-        {/snippet}
-      </ChatPanel>
-    {/if}
+          <span class="context-text">{contextText}</span>
+        </div>
+      {/snippet}
+      {#snippet toolActivitySnippet()}
+        {#if chatState.toolActivity.length > 0}
+          <div class="tool-activity">
+            {#each chatState.toolActivity as activity}
+              <div>{activity}</div>
+            {/each}
+          </div>
+        {/if}
+      {/snippet}
+    </ChatSidebar>
   </div>
 
   {#if pageBeforeJump !== null}
@@ -528,29 +456,13 @@
 </div>
 
 <PromptEditor
-  open={promptEditorMode !== null}
-  scope={promptEditorMode || 'book'}
-  scopeId={promptEditorMode === 'chat' ? (chatManager.activeChatId || '') : bookId}
-  title={promptEditorMode === 'chat' ? 'System prompt for this chat' : 'System prompt for this book'}
+  open={bookPromptEditorOpen}
+  scope="book"
+  scopeId={bookId}
+  title="System prompt for this book"
   buildFullPrompt={buildViewerPromptPreview}
-  onClose={() => { promptEditorMode = null; }}
+  onClose={() => { bookPromptEditorOpen = false; }}
 />
-
-<ToolsEditor
-  open={toolsEditorOpen}
-  onClose={() => { toolsEditorOpen = false; }}
-/>
-
-<CompactEditor
-  open={compactEditorOpen}
-  bookId={chatManager.activeChatId || bookId}
-  onClose={() => { compactEditorOpen = false; }}
-  onCompact={() => chatManager.compact(settings.apiKey, settings.model)}
-/>
-
-{#if !chatOpen}
-  <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>
-{/if}
 
 <style>
   .viewer-app {
