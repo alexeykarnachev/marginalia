@@ -9,10 +9,11 @@
 import type { Book, BookMeta, BookData, Folder } from '../types';
 import { IDB_NAME, IDB_VERSION } from './constants';
 import { log } from './logger';
+import { AppError, isPermanentDbError, formatError } from './errors';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 204;
+export const MARGINALIA_VERSION = 205;
 
 // --- Storage backend interface ---
 
@@ -94,22 +95,35 @@ if (typeof document !== 'undefined') {
 }
 
 /**
- * Run an operation against the DB, retrying once on stale connection errors.
- * Permanent errors (QuotaExceededError etc.) are not retried.
+ * Run an operation against the DB, retrying once on transient errors.
+ * Permanent errors (QuotaExceededError, NotAllowedError) are not retried.
  */
 async function _withRetry<T>(op: (db: IDBDatabase) => Promise<T>): Promise<T> {
   try {
     const db = await _getDb();
     return await op(db);
   } catch (err) {
-    const name = (err as DOMException)?.name;
-    // Don't retry permanent errors
-    if (name === 'QuotaExceededError') throw err;
-    // Stale connection — reconnect and retry once
-    log('DB', 'retrying after error:', err);
+    if (isPermanentDbError(err)) {
+      log('DB', 'permanent error, not retrying:', err);
+      throw new AppError(
+        (err as DOMException).name === 'QuotaExceededError'
+          ? 'Storage is full. Delete some books to free space.'
+          : `Database error: ${formatError(err)}`,
+        { severity: 'error', retryable: false, cause: err }
+      );
+    }
+    log('DB', 'transient error, retrying:', err);
     _resetDb();
-    const db = await _getDb();
-    return await op(db);
+    try {
+      const db = await _getDb();
+      return await op(db);
+    } catch (retryErr) {
+      log('DB', 'retry also failed:', retryErr);
+      throw new AppError(
+        `Database operation failed: ${formatError(retryErr)}`,
+        { severity: 'error', retryable: true, cause: retryErr }
+      );
+    }
   }
 }
 

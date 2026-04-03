@@ -17,6 +17,8 @@ import {
 } from '../core/db';
 import { buildLibraryTree } from '../core/library-tree';
 import { log } from '../core/logger';
+import { formatError } from '../core/errors';
+import { appStatus } from './app-status.svelte';
 
 // --- Reactive state ---
 
@@ -24,6 +26,23 @@ let _books = $state<BookMeta[]>([]);
 let _folders = $state<Folder[]>([]);
 let _loaded = $state(false);
 let _libraryTree = $derived(buildLibraryTree(_books, _folders));
+
+/** Run a mutation: update in-memory state first (via `apply`), then persist (via `persist`).
+ *  On persist failure, reload from DB to restore consistency and show a toast. */
+async function _mutate(apply: () => void, persist: () => Promise<void>, label: string) {
+  apply();
+  try {
+    await persist();
+  } catch (err) {
+    log('LIBRARY', `${label} failed, reloading:`, err);
+    appStatus.notify(`${label} failed: ${formatError(err)}`, 'error');
+    // Reload from DB to restore consistency
+    try {
+      _books = await getAllBooksMeta();
+      _folders = await getAllFolders();
+    } catch {}
+  }
+}
 
 // --- Public API ---
 
@@ -44,56 +63,65 @@ export const library = {
 
   // --- Book mutations ---
 
-  /** Add a new book (with PDF data). */
   async addBook(book: Book) {
-    await dbSaveBook(book);
     const { data, ...meta } = book;
-    _books = [..._books, meta];
+    await _mutate(
+      () => { _books = [..._books, meta]; },
+      () => dbSaveBook(book),
+      'Add book',
+    );
   },
 
-  /** Update book metadata fields. No PDF data involved. */
   async updateBook(id: string, patch: Partial<BookMeta>) {
-    await dbUpdateBookMeta(id, patch);
-    _books = _books.map(b => b.id === id ? { ...b, ...patch } : b);
+    await _mutate(
+      () => { _books = _books.map(b => b.id === id ? { ...b, ...patch } : b); },
+      () => dbUpdateBookMeta(id, patch),
+      'Update book',
+    );
   },
 
-  /** Delete a book from DB and in-memory state. */
   async deleteBook(id: string) {
-    await dbDeleteBook(id);
-    deleteBookData(id);
-    _books = _books.filter(b => b.id !== id);
+    await _mutate(
+      () => { _books = _books.filter(b => b.id !== id); },
+      async () => { await dbDeleteBook(id); deleteBookData(id); },
+      'Delete book',
+    );
   },
 
-  /** Batch update metadata for multiple books. */
   async updateBooksBatch(updates: { id: string; patch: Partial<BookMeta> }[]) {
-    const metas: BookMeta[] = [];
     const patchMap = new Map(updates.map(u => [u.id, u.patch]));
-    _books = _books.map(b => {
-      const patch = patchMap.get(b.id);
-      if (patch) {
-        const updated = { ...b, ...patch };
-        metas.push(updated);
-        return updated;
-      }
-      return b;
-    });
-    await dbSaveBooksMetaBatch(metas);
+    const metas: BookMeta[] = [];
+    await _mutate(
+      () => {
+        _books = _books.map(b => {
+          const patch = patchMap.get(b.id);
+          if (patch) {
+            const updated = { ...b, ...patch };
+            metas.push(updated);
+            return updated;
+          }
+          return b;
+        });
+      },
+      () => dbSaveBooksMetaBatch(metas),
+      'Batch update books',
+    );
   },
 
-  /** Save multiple full BookMeta objects (replace in-memory + persist). */
   async saveBooksMetaBatch(metas: BookMeta[]) {
     const idSet = new Set(metas.map(m => m.id));
     const metaMap = new Map(metas.map(m => [m.id, m]));
-    _books = _books.map(b => idSet.has(b.id) ? metaMap.get(b.id)! : b);
-    await dbSaveBooksMetaBatch(metas);
+    await _mutate(
+      () => { _books = _books.map(b => idSet.has(b.id) ? metaMap.get(b.id)! : b); },
+      () => dbSaveBooksMetaBatch(metas),
+      'Batch save books',
+    );
   },
 
-  /** Get a full book (with PDF data) from IndexedDB. For viewer/indexer only. */
   async getFullBook(id: string): Promise<Book | null> {
     return dbGetBook(id);
   },
 
-  /** Get book metadata from in-memory state. */
   getBook(id: string): BookMeta | undefined {
     return _books.find(b => b.id === id);
   },
@@ -101,28 +129,40 @@ export const library = {
   // --- Folder mutations ---
 
   async addFolder(folder: Folder) {
-    await dbSaveFolder(folder);
-    _folders = [..._folders, folder];
+    await _mutate(
+      () => { _folders = [..._folders, folder]; },
+      () => dbSaveFolder(folder),
+      'Add folder',
+    );
   },
 
   async updateFolder(id: string, patch: Partial<Folder>) {
     const folder = _folders.find(f => f.id === id);
     if (!folder) return;
     const updated = { ...folder, ...patch };
-    await dbSaveFolder(updated);
-    _folders = _folders.map(f => f.id === id ? updated : f);
+    await _mutate(
+      () => { _folders = _folders.map(f => f.id === id ? updated : f); },
+      () => dbSaveFolder(updated),
+      'Update folder',
+    );
   },
 
   async deleteFolder(id: string) {
-    await dbDeleteFolder(id);
-    _folders = _folders.filter(f => f.id !== id);
+    await _mutate(
+      () => { _folders = _folders.filter(f => f.id !== id); },
+      () => dbDeleteFolder(id),
+      'Delete folder',
+    );
   },
 
   async saveFoldersBatch(folders: Folder[]) {
-    await dbSaveFolders(folders);
     const idSet = new Set(folders.map(f => f.id));
     const folderMap = new Map(folders.map(f => [f.id, f]));
-    _folders = _folders.map(f => idSet.has(f.id) ? folderMap.get(f.id)! : f);
+    await _mutate(
+      () => { _folders = _folders.map(f => idSet.has(f.id) ? folderMap.get(f.id)! : f); },
+      () => dbSaveFolders(folders),
+      'Batch save folders',
+    );
   },
 
   getFolder(id: string): Folder | undefined {

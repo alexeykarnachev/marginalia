@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import LibraryApp from './library/LibraryApp.svelte';
   import ViewerApp from './viewer/ViewerApp.svelte';
+  import Toast from './lib/components/Toast.svelte';
   import { applyTheme } from './lib/state/settings.svelte';
   import { createChatState } from './lib/state/chat.svelte';
   import { createChatManager } from './lib/state/chat-manager.svelte';
@@ -11,6 +12,7 @@
   import { LS_LIB_FOLDER, LS_ACTIVE_BOOK } from './lib/core/constants';
   import { getPdfjsLib } from './lib/core/pdfjs-loader';
   import { log } from './lib/core/logger';
+  import { appStatus } from './lib/state/app-status.svelte';
 
   // --- Routing ---
   let currentView = $state<'library' | 'viewer'>('library');
@@ -106,11 +108,14 @@
         const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
         log('APP', 'INIT_ERROR', err);
         startupError = msg;
+        appStatus.notify(`Startup failed: ${msg}`, 'fatal', () => location.reload());
         navigateToLibrary();
       }
     })();
   });
 </script>
+
+<Toast />
 
 {#if startupError}
   <div style="position:fixed;top:0;left:0;right:0;background:#fee;color:#900;padding:12px 16px;font-size:14px;z-index:999999;font-family:monospace;word-break:break-all;">

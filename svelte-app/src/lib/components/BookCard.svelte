@@ -49,6 +49,7 @@
   // Read cost and progress once at mount
   let bookCost = $state('');
   let progressPct = $state(-1); // -1 = never opened
+  let coverFailed = $state(false);
   let meta = $derived([pageCount, sizeMB + ' MB', bookCost].filter(Boolean).join(' \u00B7 '));
 
   function loadMeta() {
@@ -178,6 +179,7 @@
         return renderCover(attempt + 1);
       }
       console.warn('Cover render failed permanently for', book.title, err);
+      coverFailed = true;
       return;
     }
     release();
@@ -190,6 +192,10 @@
   <div class="m-card-cover">
     {#if coverUrl}
       <img src={coverUrl} alt={book.title} style="width:100%;height:100%;object-fit:cover;" />
+    {:else if coverFailed}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <span class="cover-retry" onclick={(e) => { e.stopPropagation(); coverFailed = false; renderCover(); }}>&#x21BB;</span>
     {:else}
       <span class="cover-placeholder">&#x1F4C4;</span>
     {/if}
@@ -242,6 +248,11 @@
   .cover-placeholder {
     font-size: 32px;
     color: var(--m-fg-dim);
+  }
+  .cover-retry {
+    font-size: 28px;
+    color: var(--m-fg-dim);
+    cursor: pointer;
   }
   .progress-bar {
     height: 3px;

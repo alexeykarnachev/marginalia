@@ -6,7 +6,10 @@ const lines: string[] = [];
 export function log(tag: string, ...args: any[]) {
   const ts = new Date().toISOString().slice(11, 23);
   const msg = `[${ts}] [${tag}] ${args.map(a => {
-    if (a instanceof Error || (a && typeof a === 'object' && 'message' in a)) return `${a.name || 'Error'}: ${a.message}`;
+    if (a instanceof Error || (a && typeof a === 'object' && 'message' in a)) {
+      const stack = a.stack ? '\n' + a.stack.split('\n').slice(0, 3).join('\n') : '';
+      return `${a.name || 'Error'}: ${a.message}${stack}`;
+    }
     if (typeof a === 'object') try { return JSON.stringify(a); } catch { return String(a); }
     return String(a);
   }).join(' ')}`;

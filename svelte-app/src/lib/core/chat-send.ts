@@ -79,9 +79,15 @@ export async function sendChatMessage(
       }
     }
 
-    await config.onAfterSend?.();
+    try {
+      await config.onAfterSend?.();
+    } catch (afterErr) {
+      // onAfterSend errors are handled by their own error reporting (e.g. toast)
+      // Don't pollute the chat with non-chat errors
+      console.warn('onAfterSend failed:', afterErr);
+    }
   } catch (err: any) {
-    chatState.addMessage({ role: 'system', content: 'Error: ' + err.message });
+    chatState.addMessage({ role: 'system', content: 'Error: ' + (err.message || String(err)) });
   }
 
   chatState.setSending(false);
