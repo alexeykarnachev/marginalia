@@ -100,9 +100,12 @@
   }
 
   async function handleArchiveBook(book: Book) {
+    // Update UI instantly
+    book.archived = !book.archived;
+    books = books;
+    // Persist in background
     const fresh = await getBook(book.id);
-    if (fresh) { fresh.archived = !fresh.archived; await saveBook(fresh); }
-    await refreshLibrary();
+    if (fresh) { fresh.archived = book.archived; await saveBook(fresh); }
   }
 
   async function handleRenameFolder(folder: Folder) {
