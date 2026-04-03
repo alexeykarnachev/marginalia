@@ -5,7 +5,11 @@ const lines: string[] = [];
 
 export function log(tag: string, ...args: any[]) {
   const ts = new Date().toISOString().slice(11, 23);
-  const msg = `[${ts}] [${tag}] ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')}`;
+  const msg = `[${ts}] [${tag}] ${args.map(a => {
+    if (a instanceof Error || (a && typeof a === 'object' && 'message' in a)) return `${a.name || 'Error'}: ${a.message}`;
+    if (typeof a === 'object') try { return JSON.stringify(a); } catch { return String(a); }
+    return String(a);
+  }).join(' ')}`;
   lines.push(msg);
   if (lines.length > MAX) lines.shift();
 }

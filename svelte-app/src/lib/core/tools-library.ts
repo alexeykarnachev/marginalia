@@ -117,19 +117,14 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
 
   async function reparentFolderContents(folderId: string, newParentId: string | null): Promise<void> {
     const books = await helpers.getAllBooks();
-    for (const b of books) {
-      if (b.folder_id === folderId) {
-        b.folder_id = newParentId;
-        await helpers.saveBook(b);
-      }
-    }
+    const booksToSave = books.filter(b => b.folder_id === folderId);
+    for (const b of booksToSave) b.folder_id = newParentId;
+    await helpers.saveBooks(booksToSave);
+
     const folders = await helpers.getAllFolders();
-    for (const f of folders) {
-      if (f.parent_id === folderId) {
-        f.parent_id = newParentId;
-        await helpers.saveFolder(f);
-      }
-    }
+    const foldersToSave = folders.filter(f => f.parent_id === folderId);
+    for (const f of foldersToSave) f.parent_id = newParentId;
+    await helpers.saveFolders(foldersToSave);
   }
 
   register({
@@ -228,6 +223,7 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
         if (!folder) return `Error: folder "${folder_id}" not found`;
       }
       const results: string[] = [];
+      const booksToSave: any[] = [];
       for (const id of book_ids) {
         const book = await helpers.getBook(id);
         if (!book) {
@@ -235,9 +231,10 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
           continue;
         }
         book.folder_id = folder_id || null;
-        await helpers.saveBook(book);
+        booksToSave.push(book);
         results.push(`"${book.title}": moved`);
       }
+      await helpers.saveBooks(booksToSave);
       const dest = folder_id ? `folder "${(await helpers.getFolder(folder_id))!.name}"` : 'root';
       return `Moved ${book_ids.length} book(s) to ${dest}:\n${results.join('\n')}`;
     },
@@ -266,6 +263,7 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
     },
     handler: async ({ renames }: { renames: { book_id: string; new_title: string }[] }) => {
       const results: string[] = [];
+      const booksToSave: any[] = [];
       for (const { book_id, new_title } of renames) {
         const book = await helpers.getBook(book_id);
         if (!book) {
@@ -274,9 +272,10 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
         }
         const old = book.title;
         book.title = new_title;
-        await helpers.saveBook(book);
+        booksToSave.push(book);
         results.push(`"${old}" -> "${new_title}"`);
       }
+      await helpers.saveBooks(booksToSave);
       return `Renamed ${renames.length} book(s):\n${results.join('\n')}`;
     },
   });

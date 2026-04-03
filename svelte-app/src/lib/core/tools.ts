@@ -25,12 +25,15 @@ import {
 } from './constants';
 import {
   getAllBooks,
+  getAllBooksMeta,
   getBook,
   saveBook,
+  saveBooks,
   deleteBook as deleteBookFromDb,
   getAllFolders,
   getFolder,
   saveFolder,
+  saveFolders,
   deleteFolder as deleteFolderFromDb,
   deleteBookData,
 } from './db';
@@ -256,7 +259,7 @@ export function setOnBookChangeFn(fn: ((bookId: string) => void) | null): void {
 
 export async function buildLibraryContext(): Promise<LibraryContext> {
   const folders = await getAllFolders();
-  const books = await getAllBooks();
+  const books = await getAllBooksMeta();
 
   // Library tree
   function buildTree(parentId: string | null, indent: string): string[] {
@@ -452,10 +455,12 @@ const registrationHelpers: ToolRegistrationHelpers = {
   getAllBooks,
   getBook,
   saveBook,
+  saveBooks,
   deleteBook: deleteBookFromDb,
   getAllFolders,
   getFolder,
   saveFolder,
+  saveFolders,
   deleteFolder: deleteFolderFromDb,
   deleteBookData,
   deleteChat,

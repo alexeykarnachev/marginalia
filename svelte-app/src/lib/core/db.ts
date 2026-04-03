@@ -10,7 +10,7 @@ import { IDB_NAME, IDB_VERSION } from './constants';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 194;
+export const MARGINALIA_VERSION = 195;
 
 // --- Storage backend interface ---
 
@@ -62,72 +62,91 @@ function _getDb(): Promise<IDBDatabase> {
   return _openDb();
 }
 
-const _db: {
-  _backend: DbBackend | null;
-  _idb: () => Promise<IDBDatabase>;
-  _idbGetAll: <T>(store: string) => Promise<T[]>;
-  _idbGet: <T>(store: string, id: string) => Promise<T | undefined>;
-  _idbPut: (store: string, obj: unknown) => Promise<void>;
-  _idbDelete: (store: string, id: string) => Promise<void>;
-} = {
-  _backend: null,
+/** Force-drop the cached connection so the next _getDb() opens a fresh one. */
+function _resetDb(): void {
+  if (_cachedDb) {
+    try { _cachedDb.close(); } catch {}
+    _cachedDb = null;
+  }
+}
 
-  _idb: _getDb,
+/**
+ * Run an operation that needs a db, retrying once with a fresh connection on failure.
+ * This handles the case where the cached connection has gone stale (iPad backgrounding,
+ * memory pressure, etc.) — the first attempt fails, we reconnect, second attempt succeeds.
+ */
+async function _withRetry<T>(op: (db: IDBDatabase) => Promise<T>): Promise<T> {
+  try {
+    const db = await _getDb();
+    return await op(db);
+  } catch {
+    _resetDb();
+    const db = await _getDb();
+    return await op(db);
+  }
+}
 
-  async _idbGetAll<T>(store: string): Promise<T[]> {
-    const db = await this._idb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readonly');
-      const req = tx.objectStore(store).getAll();
-      req.onsuccess = () => resolve(req.result as T[]);
-      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
-    });
-  },
+function _txGetAll<T>(db: IDBDatabase, store: string): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result as T[]);
+    tx.onerror = () => reject(tx.error);
+  });
+}
 
-  async _idbGet<T>(store: string, id: string): Promise<T | undefined> {
-    const db = await this._idb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readonly');
-      const req = tx.objectStore(store).get(id);
-      req.onsuccess = () => resolve(req.result as T | undefined);
-      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
-    });
-  },
+function _txGet<T>(db: IDBDatabase, store: string, id: string): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(id);
+    req.onsuccess = () => resolve(req.result as T | undefined);
+    tx.onerror = () => reject(tx.error);
+  });
+}
 
-  async _idbPut(store: string, obj: unknown): Promise<void> {
-    const db = await this._idb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite');
-      tx.objectStore(store).put(obj);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
-    });
-  },
+function _txPut(db: IDBDatabase, store: string, obj: unknown): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(obj);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
 
-  async _idbDelete(store: string, id: string): Promise<void> {
-    const db = await this._idb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(store, 'readwrite');
-      tx.objectStore(store).delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
-    });
-  },
-};
+function _txDelete(db: IDBDatabase, store: string, id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// Safari closes IndexedDB connections when the app is backgrounded.
+// Proactively drop the cached connection so the next operation reconnects cleanly.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && _cachedDb) {
+      _cachedDb.close();
+      _cachedDb = null;
+    }
+  });
+}
+
+let _backend: DbBackend | null = null;
 
 // --- Public API (tools and app code call these) ---
 
 /** Load all books WITH full PDF data (use sparingly — high memory) */
 export async function getAllBooks(): Promise<Book[]> {
-  if (_db._backend) return _db._backend.getAllBooks();
-  return _db._idbGetAll<Book>('books');
+  if (_backend) return _backend.getAllBooks();
+  return _withRetry(db => _txGetAll<Book>(db, 'books'));
 }
 
 /** Load all books WITHOUT PDF data — safe for grid/library display */
 export async function getAllBooksMeta(): Promise<Book[]> {
-  if (_db._backend) return _db._backend.getAllBooks();
-  const db = await _db._idb();
-  return new Promise((resolve, reject) => {
+  if (_backend) return _backend.getAllBooks();
+  return _withRetry(db => new Promise((resolve, reject) => {
     const tx = db.transaction('books', 'readonly');
     const store = tx.objectStore('books');
     const results: Book[] = [];
@@ -135,51 +154,75 @@ export async function getAllBooksMeta(): Promise<Book[]> {
     req.onsuccess = () => {
       const cursor = req.result;
       if (cursor) {
-        const book = cursor.value as Book;
-        // Strip the heavy data field — replace with empty placeholder
-        results.push({ ...book, data: new Blob() });
+        results.push({ ...cursor.value as Book, data: new Blob() });
         cursor.continue();
       } else {
         resolve(results);
       }
     };
-    tx.onerror = () => { _cachedDb = null; reject(tx.error); };
-  });
+    tx.onerror = () => reject(tx.error);
+  }));
 }
 
 export async function getBook(id: string): Promise<Book | null> {
-  if (_db._backend) return _db._backend.getBook(id);
-  return (await _db._idbGet<Book>('books', id)) ?? null;
+  if (_backend) return _backend.getBook(id);
+  return (await _withRetry(db => _txGet<Book>(db, 'books', id))) ?? null;
 }
 
 export async function saveBook(book: Book): Promise<void> {
-  if (_db._backend) return _db._backend.saveBook(book);
-  return _db._idbPut('books', book);
+  if (_backend) return _backend.saveBook(book);
+  return _withRetry(db => _txPut(db, 'books', book));
 }
 
 export async function deleteBook(id: string): Promise<void> {
-  if (_db._backend) return _db._backend.deleteBook(id);
-  return _db._idbDelete('books', id);
+  if (_backend) return _backend.deleteBook(id);
+  return _withRetry(db => _txDelete(db, 'books', id));
 }
 
 export async function getAllFolders(): Promise<Folder[]> {
-  if (_db._backend) return _db._backend.getAllFolders();
-  return _db._idbGetAll<Folder>('folders');
+  if (_backend) return _backend.getAllFolders();
+  return _withRetry(db => _txGetAll<Folder>(db, 'folders'));
 }
 
 export async function getFolder(id: string): Promise<Folder | null> {
-  if (_db._backend) return _db._backend.getFolder(id);
-  return (await _db._idbGet<Folder>('folders', id)) ?? null;
+  if (_backend) return _backend.getFolder(id);
+  return (await _withRetry(db => _txGet<Folder>(db, 'folders', id))) ?? null;
 }
 
 export async function saveFolder(folder: Folder): Promise<void> {
-  if (_db._backend) return _db._backend.saveFolder(folder);
-  return _db._idbPut('folders', folder);
+  if (_backend) return _backend.saveFolder(folder);
+  return _withRetry(db => _txPut(db, 'folders', folder));
 }
 
 export async function deleteFolder(id: string): Promise<void> {
-  if (_db._backend) return _db._backend.deleteFolder(id);
-  return _db._idbDelete('folders', id);
+  if (_backend) return _backend.deleteFolder(id);
+  return _withRetry(db => _txDelete(db, 'folders', id));
+}
+
+/** Save multiple books in a single transaction */
+export async function saveBooks(books: Book[]): Promise<void> {
+  if (_backend) { for (const b of books) await _backend.saveBook(b); return; }
+  if (books.length === 0) return;
+  return _withRetry(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('books', 'readwrite');
+    const store = tx.objectStore('books');
+    for (const b of books) store.put(b);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+/** Save multiple folders in a single transaction */
+export async function saveFolders(folders: Folder[]): Promise<void> {
+  if (_backend) { for (const f of folders) await _backend.saveFolder(f); return; }
+  if (folders.length === 0) return;
+  return _withRetry(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('folders', 'readwrite');
+    const store = tx.objectStore('folders');
+    for (const f of folders) store.put(f);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
 }
 
 export function deleteBookData(bookId: string): void {
@@ -222,5 +265,5 @@ export function createMemoryBackend(): MemoryBackend {
 }
 
 export function setBackend(backend: DbBackend | null): void {
-  _db._backend = backend;
+  _backend = backend;
 }

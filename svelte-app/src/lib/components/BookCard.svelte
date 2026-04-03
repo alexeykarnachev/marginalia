@@ -137,9 +137,11 @@
     return () => observer.disconnect();
   });
 
-  async function renderCover() {
-    log('COVER', 'start', book.id, book.title);
-    // Wait for the global queue — one PDF at a time to avoid memory spikes
+  async function renderCover(attempt = 0) {
+    const MAX_RETRIES = 2;
+    const RETRY_DELAYS = [500, 2000];
+
+    log('COVER', 'start', book.id, book.title, attempt > 0 ? `retry ${attempt}` : '');
     const release = await coverRenderQueue();
     log('COVER', 'queue released', book.id);
 
@@ -147,7 +149,6 @@
       const pdfjsLib = await getPdfjsLib();
       if (!pdfjsLib) { release(); return; }
 
-      // Load PDF data on demand from IndexedDB (not from book.data which is stripped)
       const fullBook = await getBook(book.id);
       if (!fullBook?.data) { release(); return; }
 
@@ -187,10 +188,15 @@
       }
     } catch (err) {
       log('COVER', 'FAILED', book.id, err);
-      console.warn('Cover render failed for', book.title, err);
-    } finally {
       release();
+      if (attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+        return renderCover(attempt + 1);
+      }
+      console.warn('Cover render failed permanently for', book.title, err);
+      return;
     }
+    release();
   }
 </script>
 

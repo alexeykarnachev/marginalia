@@ -37,10 +37,12 @@ export interface ToolRegistrationHelpers {
   getAllBooks: () => Promise<Book[]>;
   getBook: (id: string) => Promise<Book | null>;
   saveBook: (book: Book) => Promise<void>;
+  saveBooks: (books: Book[]) => Promise<void>;
   deleteBook: (id: string) => Promise<void>;
   getAllFolders: () => Promise<Folder[]>;
   getFolder: (id: string) => Promise<Folder | null>;
   saveFolder: (folder: Folder) => Promise<void>;
+  saveFolders: (folders: Folder[]) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
   deleteBookData: (bookId: string) => void;
   deleteChat: (id: string) => void;
