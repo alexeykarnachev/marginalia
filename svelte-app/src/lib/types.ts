@@ -6,6 +6,7 @@ export interface Book {
   size: number;
   pages: string[] | null;
   folder_id: string | null;
+  archived?: boolean;
   createdAt?: number;
 }
 

@@ -43,12 +43,14 @@
     onRename,
     onDelete,
     onMove,
+    onArchive,
   }: {
     book: Book;
     onOpen: (book: Book) => void;
     onRename: (book: Book) => void;
     onDelete: (book: Book) => void;
     onMove: (book: Book) => void;
+    onArchive: (book: Book) => void;
   } = $props();
 
   let cardEl: HTMLDivElement;
@@ -100,6 +102,11 @@
   function handleDelete(e: MouseEvent) {
     e.stopPropagation();
     onDelete(book);
+  }
+
+  function handleArchive(e: MouseEvent) {
+    e.stopPropagation();
+    onArchive(book);
   }
 
   onMount(() => {
@@ -189,7 +196,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="m-card" bind:this={cardEl} onclick={handleCardClick}>
+<div class="m-card" class:archived={book.archived} bind:this={cardEl} onclick={handleCardClick}>
   <div class="m-card-cover">
     {#if coverUrl}
       <img src={coverUrl} alt={book.title} style="width:100%;height:100%;object-fit:cover;" />
@@ -216,6 +223,15 @@
           <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
         </svg>
       </button>
+      <button class="item-btn" title={book.archived ? 'Unarchive' : 'Archive'} onclick={handleArchive}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          {#if book.archived}
+            <path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/><path d="M12 10v4"/>
+          {:else}
+            <path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>
+          {/if}
+        </svg>
+      </button>
       <button class="item-btn item-btn-danger" title="Delete" onclick={handleDelete}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
@@ -227,6 +243,9 @@
 </div>
 
 <style>
+  .archived {
+    opacity: 0.5;
+  }
   .cover-placeholder {
     font-size: 32px;
     color: var(--m-fg-dim);

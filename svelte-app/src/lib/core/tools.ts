@@ -268,7 +268,8 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
     for (const b of books.filter((b) => (b.folder_id || null) === parentId)) {
       const pages = b.pages ? b.pages.length : '?';
       const size = _formatSize(b.size || 0);
-      lines.push(`${indent}[book] ${b.title} (${pages} pages, ${size}, id: ${b.id})`);
+      const tag = b.archived ? '[book, archived]' : '[book]';
+      lines.push(`${indent}${tag} ${b.title} (${pages} pages, ${size}, id: ${b.id})`);
     }
     return lines;
   }

@@ -185,6 +185,26 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
   });
 
   register({
+    name: 'archive_book',
+    description: 'Archive or unarchive a book. Archived books are hidden from the library listing.',
+    parameters: {
+      type: 'object',
+      properties: {
+        book_id: { type: 'string', description: 'Book ID' },
+        archived: { type: 'boolean', description: 'true to archive, false to unarchive' },
+      },
+      required: ['book_id', 'archived'],
+    },
+    handler: async ({ book_id, archived }: { book_id: string; archived: boolean }) => {
+      const book = await helpers.getBook(book_id);
+      if (!book) return `Error: book "${book_id}" not found`;
+      book.archived = archived;
+      await helpers.saveBook(book);
+      return `${archived ? 'Archived' : 'Unarchived'} "${book.title}"`;
+    },
+  });
+
+  register({
     name: 'batch_move_books',
     description: 'Move multiple books to a folder in one operation.',
     parameters: {

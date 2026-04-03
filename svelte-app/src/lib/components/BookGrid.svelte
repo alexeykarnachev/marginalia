@@ -17,6 +17,7 @@
     onRenameBook,
     onDeleteBook,
     onMoveBook,
+    onArchiveBook,
     onNavigateFolder,
     onRenameFolder,
     onDeleteFolder,
@@ -30,6 +31,7 @@
     onRenameBook: (book: Book) => void;
     onDeleteBook: (book: Book) => void;
     onMoveBook: (book: Book) => void;
+    onArchiveBook: (book: Book) => void;
     onNavigateFolder: (folderId: string | null) => void;
     onRenameFolder: (folder: Folder) => void;
     onDeleteFolder: (folder: Folder) => void;
@@ -37,8 +39,11 @@
     loading?: boolean;
   } = $props();
 
+  const LS_SHOW_ARCHIVED = 'marginalia_show_archived';
+
   let sortMode = $state<SortMode>((localStorage.getItem(LS_SORT) as SortMode) || 'name');
   let sortAsc = $state(localStorage.getItem(LS_SORT_ASC) !== '0');
+  let showArchived = $state(localStorage.getItem(LS_SHOW_ARCHIVED) === '1');
 
   function toggleSort() {
     const idx = SORT_ORDER.indexOf(sortMode);
@@ -112,7 +117,7 @@
   });
 
   let childBooks = $derived.by(() => {
-    const filtered = books.filter(b => (b.folder_id || null) === currentFolderId);
+    const filtered = books.filter(b => (b.folder_id || null) === currentFolderId && (showArchived || !b.archived));
     let sorted: Book[];
     if (sortMode === 'date') sorted = sortByDate(filtered);
     else if (sortMode === 'progress') sorted = sortByProgress(filtered);
@@ -120,6 +125,8 @@
     else sorted = sortByName(filtered);
     return applyDirection(sorted);
   });
+
+  let archivedCount = $derived(books.filter(b => b.archived).length);
 
   let breadcrumbs = $derived(buildBreadcrumbs(currentFolderId, folders));
 
@@ -216,6 +223,11 @@
         {/each}
       </div>
     {/if}
+    {#if archivedCount > 0}
+      <button class="sort-btn" class:active={showArchived} onclick={() => { showArchived = !showArchived; localStorage.setItem(LS_SHOW_ARCHIVED, showArchived ? '1' : '0'); }} title={showArchived ? 'Hide archived' : 'Show archived'}>
+        {showArchived ? `Hide ${archivedCount}` : `+${archivedCount}`} archived
+      </button>
+    {/if}
     <button class="sort-btn" onclick={toggleDirection} title="Reverse order">
       {sortAsc ? '\u25B2' : '\u25BC'}
     </button>
@@ -250,6 +262,7 @@
         onRename={onRenameBook}
         onDelete={onDeleteBook}
         onMove={onMoveBook}
+        onArchive={onArchiveBook}
       />
     {/each}
 
@@ -302,6 +315,10 @@
     border-radius: 6px;
     cursor: pointer;
     flex-shrink: 0;
+  }
+  .sort-btn.active {
+    border-color: var(--m-accent);
+    color: var(--m-accent);
   }
   @media (hover: hover) {
     .sort-btn:hover {

@@ -17,6 +17,7 @@ export function humanizeToolAction(name: string, args: Record<string, any>): str
     case 'rename_folder': return `Renaming folder to "${args.new_name}"...`;
     case 'delete_folder': return 'Deleting folder...';
     case 'move_folder': return 'Moving folder...';
+    case 'archive_book': return args.archived ? 'Archiving book...' : 'Unarchiving book...';
     case 'batch_move_books': return `Moving ${args.book_ids?.length || '?'} books...`;
     case 'batch_rename_books': return `Renaming ${args.renames?.length || '?'} books...`;
     default: return `${name}...`;

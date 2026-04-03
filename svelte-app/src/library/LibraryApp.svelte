@@ -99,6 +99,12 @@
     }
   }
 
+  async function handleArchiveBook(book: Book) {
+    const fresh = await getBook(book.id);
+    if (fresh) { fresh.archived = !fresh.archived; await saveBook(fresh); }
+    await refreshLibrary();
+  }
+
   async function handleRenameFolder(folder: Folder) {
     const name = prompt('Rename folder:', folder.name);
     if (name && name.trim()) {
@@ -260,6 +266,7 @@
       onRenameBook={handleRenameBook}
       onDeleteBook={handleDeleteBook}
       onMoveBook={handleMoveBook}
+      onArchiveBook={handleArchiveBook}
       onNavigateFolder={handleNavigateFolder}
       onRenameFolder={handleRenameFolder}
       onDeleteFolder={handleDeleteFolder}
