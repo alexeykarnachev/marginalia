@@ -21,15 +21,20 @@
   let promptText = $state('');
   let showFullPrompt = $state(false);
   let fullPromptText = $state('');
-  let wasOpen = false;
 
+  // Reset only when modal opens — track `open` alone to avoid spurious re-runs
+  let prevOpen = false;
   $effect(() => {
-    if (open && !wasOpen) {
-      promptText = scope === 'chat' ? getChatPrompt(scopeId) : getBookPrompt(scopeId);
-      showFullPrompt = false;
-      fullPromptText = '';
+    const isOpen = open;
+    if (isOpen && !prevOpen) {
+      // Read scope/scopeId outside the tracked dependency to avoid re-triggering
+      queueMicrotask(() => {
+        promptText = scope === 'chat' ? getChatPrompt(scopeId) : getBookPrompt(scopeId);
+        showFullPrompt = false;
+        fullPromptText = '';
+      });
     }
-    wasOpen = open;
+    prevOpen = isOpen;
   });
 
   function handleSave() {
