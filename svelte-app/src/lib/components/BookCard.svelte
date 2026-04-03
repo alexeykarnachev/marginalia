@@ -12,7 +12,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Book } from '../types';
+  import type { BookMeta } from '../types';
   import { lsStatsKey, lsProgressKey } from '../core/constants';
   import { getBook, updateBookMeta } from '../core/db';
   import { log } from '../core/logger';
@@ -29,12 +29,12 @@
     onMove,
     onArchive,
   }: {
-    book: Book;
-    onOpen: (book: Book) => void;
-    onRename: (book: Book) => void;
-    onDelete: (book: Book) => void;
-    onMove: (book: Book) => void;
-    onArchive: (book: Book) => void;
+    book: BookMeta;
+    onOpen: (book: BookMeta) => void;
+    onRename: (book: BookMeta) => void;
+    onDelete: (book: BookMeta) => void;
+    onMove: (book: BookMeta) => void;
+    onArchive: (book: BookMeta) => void;
   } = $props();
 
   let cardEl: HTMLDivElement;

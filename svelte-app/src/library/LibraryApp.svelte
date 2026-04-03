@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import Toolbar from '../lib/components/Toolbar.svelte';
   import BookGrid from '../lib/components/BookGrid.svelte';
   import ChatPanel from '../lib/components/ChatPanel.svelte';
@@ -9,16 +8,15 @@
   import ToolsEditor from '../lib/components/ToolsEditor.svelte';
   import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, chatDisplay, getChatPrompt } from '../lib/state/settings.svelte';
+  import { library } from '../lib/state/library.svelte';
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { deleteChat } from '../lib/core/chat-registry';
-  import { saveBook, updateBookMeta, deleteBook, deleteBookData, saveFolder, deleteFolder } from '../lib/core/db';
-  import { buildLibraryTree } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
   import { indexBook } from '../lib/core/indexer';
   import { buildLibraryAssistantPrompt } from '../lib/core/system-prompts';
-  import type { Book, Folder } from '../lib/types';
+  import type { Book, BookMeta, Folder } from '../lib/types';
   import {
     DEFAULT_CHAT_WIDTH,
     LS_LIB_CHAT_OPEN,
@@ -26,26 +24,18 @@
   } from '../lib/core/constants';
 
   let {
-    books,
-    folders,
-    libraryLoaded,
     currentFolderId,
     chatState,
     chatManager,
-    refreshLibrary,
     version,
     onOpenBook,
     onFolderChange,
   }: {
-    books: Book[];
-    folders: Folder[];
-    libraryLoaded: boolean;
     currentFolderId: string | null;
     chatState: ChatState;
     chatManager: ChatManager;
-    refreshLibrary: () => Promise<void>;
     version: number;
-    onOpenBook: (book: Book) => void;
+    onOpenBook: (book: BookMeta) => void;
     onFolderChange: (id: string | null) => void;
   } = $props();
 
@@ -59,57 +49,46 @@
 
   let uploadInput: HTMLInputElement;
 
-  async function handleRenameBook(book: Book) {
+  async function handleRenameBook(book: BookMeta) {
     const name = prompt('Rename book:', book.title);
     if (name && name.trim()) {
-      await updateBookMeta(book.id, { title: name.trim() });
-      await refreshLibrary();
+      await library.updateBook(book.id, { title: name.trim() });
     }
   }
 
-  async function handleDeleteBook(book: Book) {
+  async function handleDeleteBook(book: BookMeta) {
     if (!confirm(`Delete "${book.title}"?`)) return;
-    await deleteBook(book.id);
+    await library.deleteBook(book.id);
     deleteChat(book.id);
-    deleteBookData(book.id);
-    await refreshLibrary();
     chatManager.init();
   }
 
-  async function handleMoveBook(book: Book) {
+  async function handleMoveBook(book: BookMeta) {
     const target = prompt(
       'Move to folder (type folder name, or empty for root):\n' +
-      'Folders: ' + (folders.length ? folders.map(f => f.name).join(', ') : '(none)')
+      'Folders: ' + (library.folders.length ? library.folders.map(f => f.name).join(', ') : '(none)')
     );
     if (target === null) return;
     if (target.trim() === '') {
-      await updateBookMeta(book.id, { folder_id: null });
-      await refreshLibrary();
+      await library.updateBook(book.id, { folder_id: null });
       return;
     }
-    const folder = folders.find(f => f.name.toLowerCase() === target.trim().toLowerCase());
+    const folder = library.folders.find(f => f.name.toLowerCase() === target.trim().toLowerCase());
     if (folder) {
-      await updateBookMeta(book.id, { folder_id: folder.id });
-      await refreshLibrary();
+      await library.updateBook(book.id, { folder_id: folder.id });
     } else {
       alert(`Folder "${target}" not found.`);
     }
   }
 
-  async function handleArchiveBook(book: Book) {
-    // Update UI instantly
-    book.archived = !book.archived;
-    books = books;
-    // Persist in background
-    await updateBookMeta(book.id, { archived: book.archived });
+  async function handleArchiveBook(book: BookMeta) {
+    await library.updateBook(book.id, { archived: !book.archived });
   }
 
   async function handleRenameFolder(folder: Folder) {
     const name = prompt('Rename folder:', folder.name);
     if (name && name.trim()) {
-      folder.name = name.trim();
-      await saveFolder(folder);
-      await refreshLibrary();
+      await library.updateFolder(folder.id, { name: name.trim() });
     }
   }
 
@@ -117,20 +96,18 @@
     if (!confirm(`Delete folder "${folder.name}"? Books inside will move here.`)) return;
     const targetFolderId = folder.parent_id || null;
     // Move children up
-    const childBooks = books.filter(b => b.folder_id === folder.id);
-    for (const b of childBooks) {
-      await updateBookMeta(b.id, { folder_id: targetFolderId });
+    const childBooks = library.books.filter(b => b.folder_id === folder.id);
+    if (childBooks.length > 0) {
+      await library.updateBooksBatch(childBooks.map(b => ({ id: b.id, patch: { folder_id: targetFolderId } })));
     }
-    const childFolders = folders.filter(f => f.parent_id === folder.id);
-    for (const f of childFolders) {
-      f.parent_id = targetFolderId;
-      await saveFolder(f);
+    const childFolders = library.folders.filter(f => f.parent_id === folder.id);
+    if (childFolders.length > 0) {
+      await library.saveFoldersBatch(childFolders.map(f => ({ ...f, parent_id: targetFolderId })));
     }
-    await deleteFolder(folder.id);
+    await library.deleteFolder(folder.id);
     if (currentFolderId === folder.id) {
-      handleNavigateFolder(targetFolderId);
+      onFolderChange(targetFolderId);
     }
-    await refreshLibrary();
   }
 
   function handleNavigateFolder(folderId: string | null) {
@@ -141,14 +118,13 @@
     const name = prompt('New folder name:');
     if (!name || !name.trim()) return;
     const id = crypto.randomUUID();
-    await saveFolder({ id, name: name.trim(), parent_id: currentFolderId, createdAt: Date.now() });
-    await refreshLibrary();
+    await library.addFolder({ id, name: name.trim(), parent_id: currentFolderId, createdAt: Date.now() });
   }
 
   async function handleUpload(file: File) {
     const data = await file.arrayBuffer();
     const id = crypto.randomUUID();
-    await saveBook({
+    await library.addBook({
       id,
       title: file.name.replace(/\.pdf$/i, ''),
       filename: file.name,
@@ -158,9 +134,8 @@
       folder_id: currentFolderId,
       createdAt: Date.now(),
     });
-    await refreshLibrary();
-    // Index in background — refresh library when done to show page count
-    indexBook(id).then(() => refreshLibrary());
+    // Index in background — store updates pages when done
+    indexBook(id).then(() => library.load());
   }
 
   function handleUploadInput(e: Event) {
@@ -190,7 +165,6 @@
           getChatPrompt(chatManager.activeChatId!),
         ),
       storageKey: chatManager.activeChatId,
-      onAfterSend: refreshLibrary,
     });
   }
 
@@ -204,7 +178,7 @@
 
   function buildLibraryPromptPreview() {
     return Promise.resolve(buildLibraryAssistantPrompt(
-      buildLibraryTree(books, folders),
+      library.libraryTree,
       chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '',
       chatState.summary,
     ));
@@ -256,8 +230,8 @@
 
   <div class="app-body">
     <BookGrid
-      {books}
-      {folders}
+      books={library.books}
+      folders={library.folders}
       {currentFolderId}
       onOpenBook={onOpenBook}
       onRenameBook={handleRenameBook}
@@ -268,7 +242,7 @@
       onRenameFolder={handleRenameFolder}
       onDeleteFolder={handleDeleteFolder}
       onUpload={handleUpload}
-      loading={!libraryLoaded}
+      loading={!library.loaded}
     />
 
     {#if chatOpen}
@@ -282,8 +256,8 @@
         width={chatWidth}
         fontSize={chatDisplay.fontSize}
         mono={chatDisplay.mono}
-        books={books.map(b => ({ id: b.id, title: b.title }))}
-        onBookClick={(id) => onOpenBook({ id } as Book)}
+        books={library.books.map(b => ({ id: b.id, title: b.title }))}
+        onBookClick={(id) => onOpenBook({ id } as BookMeta)}
         onResizeStart={() => {}}
         onResizeEnd={(w) => {
           chatWidth = w;

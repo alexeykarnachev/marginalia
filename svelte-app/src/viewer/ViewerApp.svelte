@@ -8,10 +8,9 @@
   import { settings, applyTheme, getBookPrompt, getChatPrompt, chatDisplay } from '../lib/state/settings.svelte';
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
-  import type { Book, Folder } from '../lib/types';
+  import { library } from '../lib/state/library.svelte';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import {
-    buildLibraryTree,
     setCachedSelection,
     setGetPageHistoryFn,
     setOnBookChangeFn,
@@ -39,22 +38,16 @@
 
   let {
     bookId,
-    allBooks,
-    allFolders,
     chatState,
     chatManager,
     onGoBack,
     onBookChange,
-    onLibraryRefresh,
   }: {
     bookId: string;
-    allBooks: Book[];
-    allFolders: Folder[];
     chatState: ChatState;
     chatManager: ChatManager;
     onGoBack: () => void;
     onBookChange: (id: string) => void;
-    onLibraryRefresh?: () => Promise<void>;
   } = $props();
 
   let bookTitle = $state('');
@@ -254,21 +247,20 @@
   }
 
   function buildViewerPromptPreview() {
-    const libraryTree = buildLibraryTree(allBooks, allFolders);
     const history = getPageHistory();
     const pageHistoryStr = history.length
       ? history.slice(-10).map((p: number) => `p.${p}`).join(' -> ') + ` -> p.${currentPage} (current)`
       : '';
-    const totalSize = allBooks.reduce((s, b) => s + (b.size || 0), 0);
-    const totalPageCount = allBooks.reduce((s, b) => s + (b.pages ? b.pages.length : 0), 0);
+    const totalSize = library.books.reduce((s, b) => s + (b.size || 0), 0);
+    const totalPageCount = library.books.reduce((s, b) => s + (b.pages ? b.pages.length : 0), 0);
     const focusParts = [
       `Reading: "${bookTitle}" (id: ${bookId})`,
       `Page: ${currentPage} of ${totalPages}`,
       `Time: ${new Date().toLocaleString()}`,
-      `Library: ${allBooks.length} books, ${allFolders.length} folders, ${totalPageCount} pages`,
+      `Library: ${library.books.length} books, ${library.folders.length} folders, ${totalPageCount} pages`,
     ];
     const context = {
-      libraryTree,
+      libraryTree: library.libraryTree,
       focusContext: focusParts.join('\n'),
       pageText: '(not shown in preview)',
       selection: cachedSelection,
@@ -279,8 +271,8 @@
       time: new Date().toLocaleString(),
       currentBookId: bookId,
       currentBookTitle: bookTitle,
-      bookCount: allBooks.length,
-      folderCount: allFolders.length,
+      bookCount: library.books.length,
+      folderCount: library.folders.length,
       totalSize,
       totalPageCount,
     };
@@ -479,7 +471,7 @@
         onPageNav={handlePageNav}
         fontSize={chatDisplay.fontSize}
         mono={chatDisplay.mono}
-        books={allBooks.map(b => ({ id: b.id, title: b.title }))}
+        books={library.books.map(b => ({ id: b.id, title: b.title }))}
         onBookClick={(id) => handleBookChange(id)}
         width={chatWidth}
         onResizeStart={() => chatResizing = true}

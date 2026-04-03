@@ -12,7 +12,7 @@ import { log } from './logger';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 203;
+export const MARGINALIA_VERSION = 204;
 
 // --- Storage backend interface ---
 

@@ -24,20 +24,10 @@ import {
   TOC_HEADING_CONTEXT_CHARS,
 } from './constants';
 import {
-  getAllBooksMeta,
-  getBookMeta,
-  getBook,
-  saveBook,
-  updateBookMeta,
-  saveBooksMetaBatch,
-  deleteBook as deleteBookFromDb,
-  getAllFolders,
-  getFolder,
-  saveFolder,
-  saveFolders,
-  deleteFolder as deleteFolderFromDb,
+  getBook as dbGetBook,
   deleteBookData,
 } from './db';
+import { library } from '../state/library.svelte';
 import { deleteChat } from './chat-registry';
 import type { PDFViewerApp } from './tools-shared';
 import type { ToolRegistrationHelpers } from './tools-shared';
@@ -235,11 +225,7 @@ async function _resolveBookTitle(bookId: string): Promise<string> {
 // --- Library context (injected into system prompt, used by UI) ---
 // Single source of truth for all library/reading state.
 
-function _formatSize(bytes: number): string {
-  if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
-  if (bytes >= 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return bytes + ' B';
-}
+import { formatSize as _formatSize } from './library-tree';
 
 // External hooks — set by the app layer
 let _cachedSelection = '';
@@ -258,31 +244,12 @@ export function setOnBookChangeFn(fn: ((bookId: string) => void) | null): void {
   _onBookChangeFn = fn;
 }
 
-/** Build a text tree from in-memory books and folders. No DB access. */
-export function buildLibraryTree(books: Book[], folders: Folder[]): string {
-  function buildTree(parentId: string | null, indent: string): string[] {
-    const lines: string[] = [];
-    for (const f of folders.filter((f) => (f.parent_id || null) === parentId)) {
-      lines.push(`${indent}[folder] ${f.name} (id: ${f.id})`);
-      lines.push(...buildTree(f.id, indent + '  '));
-    }
-    for (const b of books.filter((b) => (b.folder_id || null) === parentId)) {
-      const pages = b.pages ? b.pages.length : '?';
-      const size = _formatSize(b.size || 0);
-      const tag = b.archived ? '[book, archived]' : '[book]';
-      lines.push(`${indent}${tag} ${b.title} (${pages} pages, ${size}, id: ${b.id})`);
-    }
-    return lines;
-  }
-  const treeLines = buildTree(null, '');
-  return treeLines.length ? treeLines.join('\n') : '(empty library)';
-}
+export { buildLibraryTree } from './library-tree';
 
 export async function buildLibraryContext(): Promise<LibraryContext> {
-  const folders = await getAllFolders();
-  const books = await getAllBooksMeta();
-
-  const libraryTree = buildLibraryTree(books, folders);
+  const books = library.books;
+  const folders = library.folders;
+  const libraryTree = library.libraryTree;
 
   // Storage stats
   const totalSize = books.reduce((s, b) => s + (b.size || 0), 0);
@@ -458,18 +425,24 @@ const registrationHelpers: ToolRegistrationHelpers = {
   getAllPageTexts: _getAllPageTexts,
   buildRegex: _buildRegex,
   extractSnippet: _extractSnippet,
-  getAllBooksMeta,
-  getBookMeta,
-  getBook,
-  saveBook,
-  updateBookMeta,
-  saveBooksMetaBatch,
-  deleteBook: deleteBookFromDb,
-  getAllFolders,
-  getFolder,
-  saveFolder,
-  saveFolders,
-  deleteFolder: deleteFolderFromDb,
+  getAllBooksMeta: async () => library.books,
+  getBookMeta: async (id: string) => library.getBook(id) ?? null,
+  getBook: (id: string) => dbGetBook(id),
+  saveBook: (book) => library.addBook(book),
+  updateBookMeta: (id: string, partial: any) => library.updateBook(id, partial),
+  saveBooksMetaBatch: (metas: any) => library.saveBooksMetaBatch(metas),
+  deleteBook: (id: string) => library.deleteBook(id),
+  getAllFolders: async () => library.folders,
+  getFolder: async (id: string) => library.getFolder(id) ?? null,
+  saveFolder: async (folder: any) => {
+    if (library.getFolder(folder.id)) {
+      await library.updateFolder(folder.id, folder);
+    } else {
+      await library.addFolder(folder);
+    }
+  },
+  saveFolders: (folders: any) => library.saveFoldersBatch(folders),
+  deleteFolder: (id: string) => library.deleteFolder(id),
   deleteBookData,
   deleteChat,
   getOnBookChange: () => _onBookChangeFn,

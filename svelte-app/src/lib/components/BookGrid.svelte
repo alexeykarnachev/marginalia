@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Book, Folder } from '../types';
+  import type { BookMeta, Folder } from '../types';
   import BookCard from './BookCard.svelte';
   import { lsStatsKey, lsProgressKey } from '../core/constants';
 
@@ -24,14 +24,14 @@
     onUpload,
     loading = false,
   }: {
-    books: Book[];
+    books: BookMeta[];
     folders: Folder[];
     currentFolderId: string | null;
-    onOpenBook: (book: Book) => void;
-    onRenameBook: (book: Book) => void;
-    onDeleteBook: (book: Book) => void;
-    onMoveBook: (book: Book) => void;
-    onArchiveBook: (book: Book) => void;
+    onOpenBook: (book: BookMeta) => void;
+    onRenameBook: (book: BookMeta) => void;
+    onDeleteBook: (book: BookMeta) => void;
+    onMoveBook: (book: BookMeta) => void;
+    onArchiveBook: (book: BookMeta) => void;
     onNavigateFolder: (folderId: string | null) => void;
     onRenameFolder: (folder: Folder) => void;
     onDeleteFolder: (folder: Folder) => void;
@@ -79,7 +79,7 @@
     return [...items].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
 
-  function sortByProgress(items: Book[]): Book[] {
+  function sortByProgress(items: BookMeta[]): BookMeta[] {
     return [...items].sort((a, b) => {
       const pa = getProgress(a.id), pb = getProgress(b.id);
       // Never-opened (-1) always last regardless of direction
@@ -100,7 +100,7 @@
     } catch { return -1; }
   }
 
-  function sortByRecent(items: Book[]): Book[] {
+  function sortByRecent(items: BookMeta[]): BookMeta[] {
     return [...items].sort((a, b) => {
       const ta = getLastOpen(a.id), tb = getLastOpen(b.id);
       if (ta < 0 && tb < 0) return 0;
@@ -118,7 +118,7 @@
 
   let childBooks = $derived.by(() => {
     const filtered = books.filter(b => (b.folder_id || null) === currentFolderId && (showArchived || !b.archived));
-    let sorted: Book[];
+    let sorted: BookMeta[];
     if (sortMode === 'date') sorted = sortByDate(filtered);
     else if (sortMode === 'progress') sorted = sortByProgress(filtered);
     else if (sortMode === 'recent') sorted = sortByRecent(filtered);
