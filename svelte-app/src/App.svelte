@@ -101,6 +101,9 @@
       }
     });
 
+    // Chat loads from localStorage — no async, do it immediately
+    chatManager.init();
+
     // Load data and preload pdf.js
     void (async () => {
       try {
@@ -110,7 +113,6 @@
         if (activeBookId && !books.some(b => b.id === activeBookId)) {
           navigateToLibrary();
         }
-        chatManager.init();
         getPdfjsLib();
       } catch (err: any) {
         const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
