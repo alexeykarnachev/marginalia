@@ -9,6 +9,7 @@
   import CompactEditor from '../lib/components/CompactEditor.svelte';
   import { settings, chatDisplay, getChatPrompt } from '../lib/state/settings.svelte';
   import { library } from '../lib/state/library.svelte';
+  import { router } from '../lib/state/router.svelte';
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { deleteChat } from '../lib/core/chat-registry';
@@ -24,19 +25,13 @@
   } from '../lib/core/constants';
 
   let {
-    currentFolderId,
     chatState,
     chatManager,
     version,
-    onOpenBook,
-    onFolderChange,
   }: {
-    currentFolderId: string | null;
     chatState: ChatState;
     chatManager: ChatManager;
     version: number;
-    onOpenBook: (book: BookMeta) => void;
-    onFolderChange: (id: string | null) => void;
   } = $props();
 
   let chatOpen = $state(localStorage.getItem(LS_LIB_CHAT_OPEN) === '1');
@@ -105,20 +100,21 @@
       await library.saveFoldersBatch(childFolders.map(f => ({ ...f, parent_id: targetFolderId })));
     }
     await library.deleteFolder(folder.id);
-    if (currentFolderId === folder.id) {
-      onFolderChange(targetFolderId);
+    if (router.currentFolderId === folder.id) {
+      router.setFolder(targetFolderId);
     }
   }
 
   function handleNavigateFolder(folderId: string | null) {
-    onFolderChange(folderId);
+    router.setFolder(folderId);
   }
+
 
   async function handleNewFolder() {
     const name = prompt('New folder name:');
     if (!name || !name.trim()) return;
     const id = crypto.randomUUID();
-    await library.addFolder({ id, name: name.trim(), parent_id: currentFolderId, createdAt: Date.now() });
+    await library.addFolder({ id, name: name.trim(), parent_id: router.currentFolderId, createdAt: Date.now() });
   }
 
   async function handleUpload(file: File) {
@@ -131,7 +127,7 @@
       data,
       size: data.byteLength,
       pages: null,
-      folder_id: currentFolderId,
+      folder_id: router.currentFolderId,
       createdAt: Date.now(),
     });
     // Index in background — store updates pages when done
@@ -232,8 +228,8 @@
     <BookGrid
       books={library.books}
       folders={library.folders}
-      {currentFolderId}
-      onOpenBook={onOpenBook}
+      currentFolderId={router.currentFolderId}
+      onOpenBook={(book) => router.navigateToViewer(book.id)}
       onRenameBook={handleRenameBook}
       onDeleteBook={handleDeleteBook}
       onMoveBook={handleMoveBook}
@@ -257,7 +253,7 @@
         fontSize={chatDisplay.fontSize}
         mono={chatDisplay.mono}
         books={library.books.map(b => ({ id: b.id, title: b.title }))}
-        onBookClick={(id) => onOpenBook({ id } as BookMeta)}
+        onBookClick={(id) => router.navigateToViewer(id)}
         onResizeStart={() => {}}
         onResizeEnd={(w) => {
           chatWidth = w;

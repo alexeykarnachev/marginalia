@@ -1,11 +1,9 @@
 <script lang="ts">
   import type { BookMeta, Folder } from '../types';
   import BookCard from './BookCard.svelte';
-  import { lsStatsKey, lsProgressKey } from '../core/constants';
+  import { lsStatsKey, lsProgressKey, LS_SORT, LS_SORT_ASC, LS_SHOW_ARCHIVED } from '../core/constants';
 
   type SortMode = 'name' | 'date' | 'progress' | 'recent';
-  const LS_SORT = 'marginalia_sort';
-  const LS_SORT_ASC = 'marginalia_sort_asc';
   const SORT_LABELS: Record<SortMode, string> = { name: 'A-Z', date: 'Date', progress: '%', recent: 'Recent' };
   const SORT_ORDER: SortMode[] = ['name', 'date', 'progress', 'recent'];
 
@@ -38,8 +36,6 @@
     onUpload: (file: File) => void;
     loading?: boolean;
   } = $props();
-
-  const LS_SHOW_ARCHIVED = 'marginalia_show_archived';
 
   let sortMode = $state<SortMode>((localStorage.getItem(LS_SORT) as SortMode) || 'name');
   let sortAsc = $state(localStorage.getItem(LS_SORT_ASC) !== '0');

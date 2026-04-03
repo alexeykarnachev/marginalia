@@ -9,6 +9,7 @@
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { library } from '../lib/state/library.svelte';
+  import { router } from '../lib/state/router.svelte';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import {
     setCachedSelection,
@@ -29,6 +30,7 @@
     DEFAULT_CHAT_WIDTH,
     LS_VIEWER_CHAT_WIDTH,
     LS_CHAT_OPEN,
+    LS_ZOOM,
     lsProgressKey,
   } from '../lib/core/constants';
 
@@ -40,14 +42,10 @@
     bookId,
     chatState,
     chatManager,
-    onGoBack,
-    onBookChange,
   }: {
     bookId: string;
     chatState: ChatState;
     chatManager: ChatManager;
-    onGoBack: () => void;
-    onBookChange: (id: string) => void;
   } = $props();
 
   let bookTitle = $state('');
@@ -85,12 +83,12 @@
     getPdfIframe: () => pdfIframe,
     getCurrentBookId: () => bookId,
     setCurrentBookId: (newBookId) => {
-      onBookChange(newBookId);
+      router.switchBook(newBookId);
     },
     applyThemeToIframe,
     onPdfReady: restoreZoom,
     captureSelection,
-    onBookMissing: () => { onGoBack(); },
+    onBookMissing: () => { router.navigateToLibrary(); },
     onBookLoaded: (title) => {
       bookTitle = title;
       document.title = title + ' - Marginalia';
@@ -150,12 +148,12 @@
   function saveZoom() {
     const app = getPdfApp();
     if (app?.pdfViewer) {
-      localStorage.setItem('marginalia_zoom', String(app.pdfViewer.currentScale));
+      localStorage.setItem(LS_ZOOM, String(app.pdfViewer.currentScale));
     }
   }
 
   function restoreZoom() {
-    const saved = localStorage.getItem('marginalia_zoom');
+    const saved = localStorage.getItem(LS_ZOOM);
     if (!saved) return;
     const app = getPdfApp();
     if (app?.pdfViewer) {
@@ -185,7 +183,7 @@
   }
 
   function goBack() {
-    onGoBack();
+    router.navigateToLibrary();
   }
 
   function toggleChat() {
@@ -306,7 +304,7 @@
 
   // onBookChange handler
   function handleBookChange(newBookId: string) {
-    onBookChange(newBookId);
+    router.switchBook(newBookId);
     clearPageHistory();
     pageBeforeJump = null;
     cachedSelection = '';
@@ -393,7 +391,7 @@
 
     void (async () => {
       if (!bookId) {
-        onGoBack();
+        router.navigateToLibrary();
         return;
       }
 
