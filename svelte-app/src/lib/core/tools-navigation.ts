@@ -56,7 +56,7 @@ export function registerNavigationTools(register: ToolRegistrar, helpers: ToolRe
       required: ['book_id'],
     },
     handler: async ({ book_id }: { book_id: string }) => {
-      const book = await helpers.getBook(book_id);
+      const book = await helpers.getBookMeta(book_id);
       if (!book) return `Error: book "${book_id}" not found`;
       helpers.getOnBookChange()?.(book_id);
       return `Opened "${book.title}"`;

@@ -1,13 +1,25 @@
-export interface Book {
+/** Book metadata — everything except the PDF binary data. */
+export interface BookMeta {
   id: string;
   title: string;
   filename: string;
-  data: ArrayBuffer | Blob;
   size: number;
   pages: string[] | null;
   folder_id: string | null;
   archived?: boolean;
   createdAt?: number;
+  coverDataUrl?: string;
+}
+
+/** PDF binary data, stored separately from metadata. */
+export interface BookData {
+  id: string;
+  data: ArrayBuffer | Blob;
+}
+
+/** Full book = metadata + PDF data. Used by the viewer and indexer. */
+export interface Book extends BookMeta {
+  data: ArrayBuffer | Blob;
 }
 
 export interface Folder {

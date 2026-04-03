@@ -12,7 +12,7 @@
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
   import { deleteChat } from '../lib/core/chat-registry';
-  import { getBook, saveBook, deleteBook, deleteBookData, saveFolder, deleteFolder } from '../lib/core/db';
+  import { saveBook, updateBookMeta, deleteBook, deleteBookData, saveFolder, deleteFolder } from '../lib/core/db';
   import { buildLibraryTree } from '../lib/core/tools';
   import { buildChatMenuItems } from '../lib/core/chat-menu';
   import { sendChatMessage } from '../lib/core/chat-send';
@@ -62,8 +62,7 @@
   async function handleRenameBook(book: Book) {
     const name = prompt('Rename book:', book.title);
     if (name && name.trim()) {
-      const fresh = await getBook(book.id);
-      if (fresh) { fresh.title = name.trim(); await saveBook(fresh); }
+      await updateBookMeta(book.id, { title: name.trim() });
       await refreshLibrary();
     }
   }
@@ -84,15 +83,13 @@
     );
     if (target === null) return;
     if (target.trim() === '') {
-      const fresh = await getBook(book.id);
-      if (fresh) { fresh.folder_id = null; await saveBook(fresh); }
+      await updateBookMeta(book.id, { folder_id: null });
       await refreshLibrary();
       return;
     }
     const folder = folders.find(f => f.name.toLowerCase() === target.trim().toLowerCase());
     if (folder) {
-      const fresh = await getBook(book.id);
-      if (fresh) { fresh.folder_id = folder.id; await saveBook(fresh); }
+      await updateBookMeta(book.id, { folder_id: folder.id });
       await refreshLibrary();
     } else {
       alert(`Folder "${target}" not found.`);
@@ -104,8 +101,7 @@
     book.archived = !book.archived;
     books = books;
     // Persist in background
-    const fresh = await getBook(book.id);
-    if (fresh) { fresh.archived = book.archived; await saveBook(fresh); }
+    await updateBookMeta(book.id, { archived: book.archived });
   }
 
   async function handleRenameFolder(folder: Folder) {
@@ -123,8 +119,7 @@
     // Move children up
     const childBooks = books.filter(b => b.folder_id === folder.id);
     for (const b of childBooks) {
-      b.folder_id = targetFolderId;
-      await saveBook(b);
+      await updateBookMeta(b.id, { folder_id: targetFolderId });
     }
     const childFolders = folders.filter(f => f.parent_id === folder.id);
     for (const f of childFolders) {

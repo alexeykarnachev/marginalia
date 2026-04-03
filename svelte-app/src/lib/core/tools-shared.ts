@@ -1,4 +1,4 @@
-import type { Book, Folder, ToolDefinition } from '../types';
+import type { Book, BookMeta, Folder, ToolDefinition } from '../types';
 
 export interface PDFOutlineItem {
   title: string;
@@ -34,10 +34,12 @@ export interface ToolRegistrationHelpers {
   getAllPageTexts: (bookId: string) => Promise<string[]>;
   buildRegex: (query: string) => RegExp;
   extractSnippet: (text: string, match: RegExpMatchArray, contextChars?: number) => string;
-  getAllBooks: () => Promise<Book[]>;
+  getAllBooksMeta: () => Promise<BookMeta[]>;
+  getBookMeta: (id: string) => Promise<BookMeta | null>;
   getBook: (id: string) => Promise<Book | null>;
   saveBook: (book: Book) => Promise<void>;
-  saveBooks: (books: Book[]) => Promise<void>;
+  updateBookMeta: (id: string, partial: Partial<BookMeta>) => Promise<void>;
+  saveBooksMetaBatch: (metas: BookMeta[]) => Promise<void>;
   deleteBook: (id: string) => Promise<void>;
   getAllFolders: () => Promise<Folder[]>;
   getFolder: (id: string) => Promise<Folder | null>;

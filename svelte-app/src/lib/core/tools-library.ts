@@ -1,3 +1,4 @@
+import type { BookMeta } from '../types';
 import type { ToolRegistrar, ToolRegistrationHelpers } from './tools-shared';
 
 export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegistrationHelpers): void {
@@ -13,10 +14,9 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       required: ['book_id', 'new_title'],
     },
     handler: async ({ book_id, new_title }: { book_id: string; new_title: string }) => {
-      const book = await helpers.getBook(book_id);
-      if (!book) return `Error: book "${book_id}" not found`;
-      book.title = new_title;
-      await helpers.saveBook(book);
+      const meta = await helpers.getBookMeta(book_id);
+      if (!meta) return `Error: book "${book_id}" not found`;
+      await helpers.updateBookMeta(book_id, { title: new_title });
       return `Renamed to "${new_title}"`;
     },
   });
@@ -36,16 +36,15 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       required: ['book_id', 'folder_id'],
     },
     handler: async ({ book_id, folder_id }: { book_id: string; folder_id: string | null }) => {
-      const book = await helpers.getBook(book_id);
-      if (!book) return `Error: book "${book_id}" not found`;
+      const meta = await helpers.getBookMeta(book_id);
+      if (!meta) return `Error: book "${book_id}" not found`;
       if (folder_id) {
         const folder = await helpers.getFolder(folder_id);
         if (!folder) return `Error: folder "${folder_id}" not found`;
       }
-      book.folder_id = folder_id || null;
-      await helpers.saveBook(book);
+      await helpers.updateBookMeta(book_id, { folder_id: folder_id || null });
       const dest = folder_id ? `folder "${(await helpers.getFolder(folder_id))!.name}"` : 'root';
-      return `Moved "${book.title}" to ${dest}`;
+      return `Moved "${meta.title}" to ${dest}`;
     },
   });
 
@@ -58,12 +57,12 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       required: ['book_id'],
     },
     handler: async ({ book_id }: { book_id: string }) => {
-      const book = await helpers.getBook(book_id);
-      if (!book) return `Error: book "${book_id}" not found`;
+      const meta = await helpers.getBookMeta(book_id);
+      if (!meta) return `Error: book "${book_id}" not found`;
       await helpers.deleteBook(book_id);
       helpers.deleteChat(book_id);
       helpers.deleteBookData(book_id);
-      return `Deleted "${book.title}"`;
+      return `Deleted "${meta.title}"`;
     },
   });
 
@@ -116,10 +115,10 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
   });
 
   async function reparentFolderContents(folderId: string, newParentId: string | null): Promise<void> {
-    const books = await helpers.getAllBooks();
-    const booksToSave = books.filter(b => b.folder_id === folderId);
+    const allMeta = await helpers.getAllBooksMeta();
+    const booksToSave = allMeta.filter(b => b.folder_id === folderId);
     for (const b of booksToSave) b.folder_id = newParentId;
-    await helpers.saveBooks(booksToSave);
+    await helpers.saveBooksMetaBatch(booksToSave);
 
     const folders = await helpers.getAllFolders();
     const foldersToSave = folders.filter(f => f.parent_id === folderId);
@@ -191,11 +190,10 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       required: ['book_id', 'archived'],
     },
     handler: async ({ book_id, archived }: { book_id: string; archived: boolean }) => {
-      const book = await helpers.getBook(book_id);
-      if (!book) return `Error: book "${book_id}" not found`;
-      book.archived = archived;
-      await helpers.saveBook(book);
-      return `${archived ? 'Archived' : 'Unarchived'} "${book.title}"`;
+      const meta = await helpers.getBookMeta(book_id);
+      if (!meta) return `Error: book "${book_id}" not found`;
+      await helpers.updateBookMeta(book_id, { archived });
+      return `${archived ? 'Archived' : 'Unarchived'} "${meta.title}"`;
     },
   });
 
@@ -223,18 +221,18 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
         if (!folder) return `Error: folder "${folder_id}" not found`;
       }
       const results: string[] = [];
-      const booksToSave: any[] = [];
+      const metasToSave: BookMeta[] = [];
       for (const id of book_ids) {
-        const book = await helpers.getBook(id);
-        if (!book) {
+        const meta = await helpers.getBookMeta(id);
+        if (!meta) {
           results.push(`${id}: not found`);
           continue;
         }
-        book.folder_id = folder_id || null;
-        booksToSave.push(book);
-        results.push(`"${book.title}": moved`);
+        meta.folder_id = folder_id || null;
+        metasToSave.push(meta);
+        results.push(`"${meta.title}": moved`);
       }
-      await helpers.saveBooks(booksToSave);
+      await helpers.saveBooksMetaBatch(metasToSave);
       const dest = folder_id ? `folder "${(await helpers.getFolder(folder_id))!.name}"` : 'root';
       return `Moved ${book_ids.length} book(s) to ${dest}:\n${results.join('\n')}`;
     },
@@ -263,19 +261,19 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
     },
     handler: async ({ renames }: { renames: { book_id: string; new_title: string }[] }) => {
       const results: string[] = [];
-      const booksToSave: any[] = [];
+      const metasToSave: BookMeta[] = [];
       for (const { book_id, new_title } of renames) {
-        const book = await helpers.getBook(book_id);
-        if (!book) {
+        const meta = await helpers.getBookMeta(book_id);
+        if (!meta) {
           results.push(`${book_id}: not found`);
           continue;
         }
-        const old = book.title;
-        book.title = new_title;
-        booksToSave.push(book);
+        const old = meta.title;
+        meta.title = new_title;
+        metasToSave.push(meta);
         results.push(`"${old}" -> "${new_title}"`);
       }
-      await helpers.saveBooks(booksToSave);
+      await helpers.saveBooksMetaBatch(metasToSave);
       return `Renamed ${renames.length} book(s):\n${results.join('\n')}`;
     },
   });

@@ -1,4 +1,4 @@
-import { getBook, saveBook } from '../lib/core/db';
+import { getBook, updateBookMeta } from '../lib/core/db';
 
 export interface ViewerSessionOptions {
   getPdfIframe: () => HTMLIFrameElement | undefined;
@@ -119,11 +119,7 @@ export function createViewerSession(options: ViewerSessionOptions): ViewerSessio
         options.onIndexingStatus('');
         return;
       }
-      const book = await getBook(bookId);
-      if (book) {
-        book.pages = pages;
-        await saveBook(book);
-      }
+      await updateBookMeta(bookId, { pages });
       options.onIndexingStatus(`Indexed ${total} pages`);
       setTimeout(() => options.onIndexingStatus(''), INDEXING_STATUS_CLEAR_MS);
     } catch (err) {

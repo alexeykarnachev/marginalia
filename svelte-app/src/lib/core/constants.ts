@@ -41,7 +41,7 @@ export const DEFAULT_MODEL = 'x-ai/grok-4.1-fast';
 
 // ── IndexedDB ──────────────────────────────────────────────────────
 export const IDB_NAME = 'marginalia';
-export const IDB_VERSION = 2;
+export const IDB_VERSION = 3;
 
 // ── localStorage keys ──────────────────────────────────────────────
 export const LS_THEME = 'marginalia_theme';

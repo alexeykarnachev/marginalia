@@ -1,7 +1,7 @@
 // Book indexer — extracts page text from PDF using pdf.js
 // Works standalone (no viewer iframe needed)
 
-import { getBook, saveBook } from './db';
+import { getBook, getBookMeta, updateBookMeta } from './db';
 import { getPdfjsLib } from './pdfjs-loader';
 
 /**
@@ -12,8 +12,12 @@ export async function indexBook(
   bookId: string,
   onProgress?: (status: string) => void,
 ): Promise<void> {
+  // Check metadata first to avoid loading full PDF if already indexed
+  const meta = await getBookMeta(bookId);
+  if (!meta || meta.pages) return; // already indexed or not found
+
   const book = await getBook(bookId);
-  if (!book || book.pages) return; // already indexed or not found
+  if (!book) return;
 
   const pdfjsLib = await getPdfjsLib();
   if (!pdfjsLib) return;
@@ -34,12 +38,8 @@ export async function indexBook(
       pages.push(content.items.map((item: { str: string }) => item.str).join(' '));
     }
 
-    // Re-fetch to avoid overwriting concurrent changes
-    const fresh = await getBook(bookId);
-    if (fresh) {
-      fresh.pages = pages;
-      await saveBook(fresh);
-    }
+    // Only update the pages field in metadata — no need to re-read the full PDF
+    await updateBookMeta(bookId, { pages });
     onProgress?.(`Indexed ${total} pages`);
   } catch (err) {
     console.warn('Indexing failed:', err);

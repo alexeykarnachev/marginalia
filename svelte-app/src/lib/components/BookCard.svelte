@@ -1,7 +1,4 @@
 <script module lang="ts">
-  const coverCache = new Map<string, string>();
-  const COVER_PREFIX = 'mcover_';
-
   // Sequential queue — only one PDF open at a time to avoid memory spikes on iPad
   let renderQueue: Promise<void> = Promise.resolve();
   function coverRenderQueue(): Promise<() => void> {
@@ -11,26 +8,13 @@
     renderQueue = renderQueue.then(() => gate);
     return ticket.then(() => release!);
   }
-
-  function getCachedCover(id: string): string | null {
-    const mem = coverCache.get(id);
-    if (mem) return mem;
-    const stored = sessionStorage.getItem(COVER_PREFIX + id);
-    if (stored) { coverCache.set(id, stored); return stored; }
-    return null;
-  }
-
-  function setCachedCover(id: string, dataUrl: string) {
-    coverCache.set(id, dataUrl);
-    try { sessionStorage.setItem(COVER_PREFIX + id, dataUrl); } catch {}
-  }
 </script>
 
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Book } from '../types';
   import { lsStatsKey, lsProgressKey } from '../core/constants';
-  import { getBook } from '../core/db';
+  import { getBook, updateBookMeta } from '../core/db';
   import { log } from '../core/logger';
   import { getPdfjsLib } from '../core/pdfjs-loader';
 
@@ -113,10 +97,9 @@
     log('CARD', 'mount', book.id, book.title);
     loadMeta();
 
-    // Check cache first (memory + sessionStorage)
-    const cached = getCachedCover(book.id);
-    if (cached) {
-      coverUrl = cached;
+    // Cover already persisted in metadata?
+    if (book.coverDataUrl) {
+      coverUrl = book.coverDataUrl;
       visible = true;
       return;
     }
@@ -130,7 +113,7 @@
           renderCover();
         }
       },
-      { rootMargin: '200px' }, // start loading 200px before visible
+      { rootMargin: '200px' },
     );
     observer.observe(cardEl);
 
@@ -177,7 +160,8 @@
         log('COVER', 'rendered', book.id, 'dataUrl length:', dataUrl.length);
         if (dataUrl.length > 100) {
           coverUrl = dataUrl;
-          setCachedCover(book.id, dataUrl);
+          // Persist cover in metadata so it loads instantly next time
+          updateBookMeta(book.id, { coverDataUrl: dataUrl }).catch(() => {});
         } else {
           log('COVER', 'empty render, skipping', book.id);
         }

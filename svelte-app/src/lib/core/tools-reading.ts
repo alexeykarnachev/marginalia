@@ -238,7 +238,7 @@ export function registerReadingTools(register: ToolRegistrar, helpers: ToolRegis
       if (!query) return 'Error: empty query';
       const maxPerBook = Math.min(limit_per_book || SEARCH_ALL_BOOKS_DEFAULT_LIMIT, SEARCH_ALL_BOOKS_MAX_LIMIT);
       const re = helpers.buildRegex(query);
-      const books = await helpers.getAllBooks();
+      const books = await helpers.getAllBooksMeta();
       const targets = book_ids ? books.filter((b) => book_ids.includes(b.id)) : books;
 
       const sections: string[] = [];
