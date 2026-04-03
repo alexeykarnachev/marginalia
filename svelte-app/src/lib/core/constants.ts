@@ -55,6 +55,7 @@ export const LS_LIB_CHAT_WIDTH = 'marginalia_lib_chat_width';
 export const LS_CHAT_OPEN = 'marginalia_chat_open';
 export const LS_LIB_CHAT_OPEN = 'marginalia_lib_chat_open';
 export const LS_LIB_FOLDER = 'marginalia_lib_folder';
+export const LS_ACTIVE_BOOK = 'marginalia_active_book';
 
 // localStorage key builders (per-book)
 export const lsChatKey = (bookId: string) => `marginalia_chat_${bookId}`;

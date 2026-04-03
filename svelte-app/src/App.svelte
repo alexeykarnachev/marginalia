@@ -7,7 +7,7 @@
   import { createChatManager } from './lib/state/chat-manager.svelte';
   import { getAllBooksMeta, getAllFolders, saveBook, MARGINALIA_VERSION } from './lib/core/db';
   import { setOnBookChangeFn } from './lib/core/tools';
-  import { LS_LIB_FOLDER } from './lib/core/constants';
+  import { LS_LIB_FOLDER, LS_ACTIVE_BOOK } from './lib/core/constants';
   import { getPdfjsLib } from './lib/core/pdfjs-loader';
   import { log } from './lib/core/logger';
   import type { Book, Folder } from './lib/types';
@@ -19,12 +19,14 @@
   function navigateToViewer(bookId: string) {
     activeBookId = bookId;
     currentView = 'viewer';
+    localStorage.setItem(LS_ACTIVE_BOOK, bookId);
     history.pushState(null, '', '#book/' + bookId);
   }
 
   function navigateToLibrary() {
     currentView = 'library';
     activeBookId = null;
+    localStorage.removeItem(LS_ACTIVE_BOOK);
     document.title = 'Marginalia';
     history.pushState(null, '', '#');
   }
@@ -70,11 +72,16 @@
     log('APP', 'onMount');
     applyTheme();
 
-    // Restore state from URL hash
+    // Restore state from URL hash or localStorage
     const hash = location.hash;
+    const savedBook = localStorage.getItem(LS_ACTIVE_BOOK);
     if (hash.startsWith('#book/')) {
       activeBookId = hash.slice(6);
       currentView = 'viewer';
+    } else if (savedBook) {
+      activeBookId = savedBook;
+      currentView = 'viewer';
+      history.replaceState(null, '', '#book/' + savedBook);
     }
 
     // Global book change handler (used by chat tools)
