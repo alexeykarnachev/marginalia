@@ -102,11 +102,21 @@
 
     // Load data and preload pdf.js
     void (async () => {
-      await loadDefaultBook();
-      await refreshLibrary();
-      chatManager.init();
-      // Preload pdf.js so cover rendering doesn't inject a script tag later
-      getPdfjsLib();
+      try {
+        await loadDefaultBook();
+        await refreshLibrary();
+        // Validate restored book still exists
+        if (activeBookId && !books.some(b => b.id === activeBookId)) {
+          navigateToLibrary();
+        }
+        chatManager.init();
+        getPdfjsLib();
+      } catch (err) {
+        log('APP', 'INIT_ERROR', err);
+        // Fall back to library so the user at least sees something
+        navigateToLibrary();
+        libraryLoaded = true;
+      }
     })();
   });
 </script>
