@@ -12,7 +12,7 @@ import { log } from './logger';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 201;
+export const MARGINALIA_VERSION = 202;
 
 // --- Storage backend interface ---
 
@@ -89,10 +89,9 @@ function _openDb(): Promise<IDBDatabase> {
         };
       }
 
-      // Clean up old store after migration
-      if (oldVersion >= 2 && db.objectStoreNames.contains('books')) {
-        db.deleteObjectStore('books');
-      }
+      // Note: old 'books' store is left in place during v2→v3 migration
+      // because deleteObjectStore cannot run while a cursor is active.
+      // It will be cleaned up in a future version bump.
     };
     req.onsuccess = () => {
       const db = req.result;
