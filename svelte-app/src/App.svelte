@@ -7,6 +7,7 @@
   import { createChatManager } from './lib/state/chat-manager.svelte';
   import { getAllBooksMeta, getAllFolders, saveBook, MARGINALIA_VERSION } from './lib/core/db';
   import { setOnBookChangeFn } from './lib/core/tools';
+  import { LS_LIB_FOLDER } from './lib/core/constants';
   import { getPdfjsLib } from './lib/core/pdfjs-loader';
   import { log } from './lib/core/logger';
   import type { Book, Folder } from './lib/types';
@@ -32,7 +33,7 @@
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
   let libraryLoaded = $state(false);
-  let currentFolderId = $state<string | null>(null);
+  let currentFolderId = $state<string | null>(localStorage.getItem(LS_LIB_FOLDER));
 
   const chatState = createChatState();
   const chatManager = createChatManager(chatState);
@@ -114,7 +115,7 @@
     {refreshLibrary}
     version={MARGINALIA_VERSION}
     onOpenBook={(book) => navigateToViewer(book.id)}
-    onFolderChange={(id) => { currentFolderId = id; }}
+    onFolderChange={(id) => { currentFolderId = id; id ? localStorage.setItem(LS_LIB_FOLDER, id) : localStorage.removeItem(LS_LIB_FOLDER); }}
   />
 {:else if activeBookId}
   <ViewerApp

@@ -186,6 +186,7 @@
           getChatPrompt(chatManager.activeChatId!),
         ),
       storageKey: chatManager.activeChatId,
+      onAfterSend: refreshLibrary,
     });
   }
 
