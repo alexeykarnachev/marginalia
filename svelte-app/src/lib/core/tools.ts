@@ -7,14 +7,12 @@
 import type { Book, Folder, ToolDefinition, LibraryContext } from '../types';
 import {
   LS_DISABLED_TOOLS,
-  MAX_PAGE_HISTORY,
   PAGE_HISTORY_DISPLAY_LIMIT,
   READ_PAGES_MAX,
   SEARCH_BOOK_DEFAULT_LIMIT,
   SEARCH_BOOK_MAX_LIMIT,
   SEARCH_ALL_BOOKS_DEFAULT_LIMIT,
   SEARCH_ALL_BOOKS_MAX_LIMIT,
-  SEARCH_SNIPPET_CONTEXT_CHARS,
   CROSS_BOOK_SNIPPET_CONTEXT_CHARS,
   TOC_HEADING_MAX,
   TOC_SCAN_FIRST_PAGES,
@@ -29,7 +27,6 @@ import {
 } from './db';
 import { library } from '../state/library.svelte';
 import { deleteChat } from './chat-registry';
-import type { PDFViewerApp } from './tools-shared';
 import type { ToolRegistrationHelpers } from './tools-shared';
 import { registerReadingTools } from './tools-reading';
 import { registerNavigationTools } from './tools-navigation';
@@ -39,20 +36,22 @@ declare const pdfjsLib: {
   getDocument: (params: { data: Uint8Array }) => { promise: Promise<{ getPage: (num: number) => Promise<{ getTextContent: () => Promise<{ items: { str: string }[] }> }>; numPages: number }> };
 };
 
-// --- PDF app accessor (set by Svelte ViewerApp to provide iframe's PDFViewerApplication) ---
+import {
+  getPdfApp as _getPdfApp,
+  getCurrentBookId as _viewerGetCurrentBookId,
+  getCachedSelection,
+  getPageHistoryFromViewer,
+  getOnBookChangeFn,
+} from '../state/viewer-hooks';
 
-let _pdfAppGetter: (() => PDFViewerApp | null) | null = null;
-
-export function setPdfAppGetter(getter: (() => PDFViewerApp | null) | null): void {
-  _pdfAppGetter = getter;
-}
-
-function _getPdfApp(): PDFViewerApp | undefined {
-  if (_pdfAppGetter) {
-    return _pdfAppGetter() ?? undefined;
-  }
-  return (window as unknown as { PDFViewerApplication?: PDFViewerApp }).PDFViewerApplication;
-}
+// Re-export setters for ViewerApp/App to use
+export {
+  setPdfAppGetter,
+  setCurrentBookIdFn,
+  setCachedSelection,
+  setGetPageHistoryFn,
+  setOnBookChangeFn,
+} from '../state/viewer-hooks';
 
 // --- Tool registry ---
 
@@ -134,14 +133,8 @@ export function setBookPageProvider(provider: BookPageProvider | null): void {
   _bookPageProvider = provider;
 }
 
-let _currentBookIdFn: (() => string | null) | null = null;
-
-export function setCurrentBookIdFn(fn: (() => string | null) | null): void {
-  _currentBookIdFn = fn;
-}
-
 async function _getCurrentBookId(): Promise<string | null> {
-  return _currentBookIdFn ? _currentBookIdFn() : null;
+  return _viewerGetCurrentBookId();
 }
 
 async function _getPageTextFromViewer(pageNum: number): Promise<string> {
@@ -177,7 +170,7 @@ export async function getBookPageText(bookId: string, pageNum: number): Promise<
   }
   // Non-current book: use pre-extracted pages if available, else extract from PDF
   try {
-    const book = await getBook(bookId);
+    const book = await dbGetBook(bookId);
     if (!book) return '(book not found)';
     if (book.pages && book.pages[pageNum - 1] !== undefined) {
       return book.pages[pageNum - 1];
@@ -200,7 +193,7 @@ export async function getBookPageCount(bookId: string): Promise<number> {
     return _getPageCountFromViewer();
   }
   try {
-    const book = await getBook(bookId);
+    const book = await dbGetBook(bookId);
     if (!book) return 0;
     if (book.pages) return book.pages.length;
     // Fallback: count from raw PDF
@@ -218,8 +211,8 @@ async function _resolveBookId(bookId?: string): Promise<string | null> {
 }
 
 async function _resolveBookTitle(bookId: string): Promise<string> {
-  const book = await getBook(bookId);
-  return book ? book.title : bookId;
+  const meta = library.getBook(bookId);
+  return meta ? meta.title : bookId;
 }
 
 // --- Library context (injected into system prompt, used by UI) ---
@@ -227,22 +220,6 @@ async function _resolveBookTitle(bookId: string): Promise<string> {
 
 import { formatSize as _formatSize } from './library-tree';
 
-// External hooks — set by the app layer
-let _cachedSelection = '';
-let _getPageHistoryFn: (() => number[]) | null = null;
-let _onBookChangeFn: ((bookId: string) => void) | null = null;
-
-export function setCachedSelection(selection: string): void {
-  _cachedSelection = selection;
-}
-
-export function setGetPageHistoryFn(fn: (() => number[]) | null): void {
-  _getPageHistoryFn = fn;
-}
-
-export function setOnBookChangeFn(fn: ((bookId: string) => void) | null): void {
-  _onBookChangeFn = fn;
-}
 
 export { buildLibraryTree } from './library-tree';
 
@@ -278,10 +255,10 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
   }
 
   // Selection: use cached selection (captured before focus moves to chat input)
-  const selection = _cachedSelection || '';
+  const selection = getCachedSelection();
 
   // Page history
-  const history = _getPageHistoryFn ? _getPageHistoryFn() : [];
+  const history = getPageHistoryFromViewer();
   const pageHistoryStr = history.length
     ? history.slice(-PAGE_HISTORY_DISPLAY_LIMIT).map((p) => `p.${p}`).join(' -> ') + ` -> p.${currentPage} (current)`
     : '';
@@ -332,7 +309,7 @@ async function _getAllPageTexts(bookId: string): Promise<string[]> {
     for (let i = 0; i < count; i++) pages.push(await _bookPageProvider.getPageText(bookId, i + 1));
     return pages;
   }
-  const book = await getBook(bookId);
+  const book = await dbGetBook(bookId);
   if (book?.pages) return book.pages;
   const count = await getBookPageCount(bookId);
   const pages: string[] = [];
@@ -340,80 +317,18 @@ async function _getAllPageTexts(bookId: string): Promise<string[]> {
   return pages;
 }
 
-// Shared regex builder
-function _buildRegex(query: string): RegExp {
-  try {
-    return new RegExp(query, 'gi');
-  } catch {
-    return new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-  }
-}
-
-function _extractSnippet(text: string, match: RegExpMatchArray, contextChars = SEARCH_SNIPPET_CONTEXT_CHARS): string {
-  const start = Math.max(0, match.index! - contextChars);
-  const end = Math.min(text.length, match.index! + match[0].length + contextChars);
-  return (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '');
-}
+import { buildRegex as _buildRegex, extractSnippet as _extractSnippet } from './text-utils';
 
 // --- Tool definitions (composed from domain modules) ---
 
-// --- Page navigation history ---
-
-const pageHistory: number[] = [];
-const MAX_HISTORY = MAX_PAGE_HISTORY;
-let _lastTrackedPage: number | null = null;
-let _pageTrackingApp: PDFViewerApp | null = null;
-let _pageTrackingHandler: (() => void) | null = null;
-let _suppressNextTrackedPageChange = false;
-
-export function trackPageChange(): void {
-  const app = _getPdfApp();
-  if (!app) return;
-  const current = app.page!;
-  if (current !== _lastTrackedPage) {
-    if (_lastTrackedPage !== null) {
-      if (_suppressNextTrackedPageChange) {
-        _suppressNextTrackedPageChange = false;
-      } else {
-        pageHistory.push(_lastTrackedPage);
-        if (pageHistory.length > MAX_HISTORY) pageHistory.shift();
-      }
-    }
-    _lastTrackedPage = current;
-  }
-}
-
-export function getPageHistory(): number[] {
-  return [...pageHistory];
-}
-
-export function clearPageHistory(): void {
-  pageHistory.length = 0;
-  _lastTrackedPage = null;
-  _suppressNextTrackedPageChange = false;
-}
-
-export function disposePageTracking(): void {
-  if (_pageTrackingApp && _pageTrackingHandler) {
-    _pageTrackingApp.eventBus?.off?.('pagechanging', _pageTrackingHandler);
-  }
-  _pageTrackingApp = null;
-  _pageTrackingHandler = null;
-  _suppressNextTrackedPageChange = false;
-}
-
-export function initPageTracking(): void {
-  const app = _getPdfApp();
-  if (app) {
-    _lastTrackedPage = app.page!;
-    if (_pageTrackingApp !== app) {
-      disposePageTracking();
-      _pageTrackingApp = app;
-      _pageTrackingHandler = () => trackPageChange();
-      app.eventBus?.on('pagechanging', _pageTrackingHandler);
-    }
-  }
-}
+// Re-export page tracking functions for ViewerApp
+export {
+  initPageTracking,
+  disposePageTracking,
+  getPageHistory,
+  clearPageHistory,
+} from './page-tracker';
+import { pageHistory, setSuppressNextTrackedPageChange } from './page-tracker';
 
 const registrationHelpers: ToolRegistrationHelpers = {
   getPdfApp: _getPdfApp,
@@ -445,11 +360,9 @@ const registrationHelpers: ToolRegistrationHelpers = {
   deleteFolder: (id: string) => library.deleteFolder(id),
   deleteBookData,
   deleteChat,
-  getOnBookChange: () => _onBookChangeFn,
+  getOnBookChange: getOnBookChangeFn,
   pageHistory,
-  setSuppressNextTrackedPageChange: (value: boolean) => {
-    _suppressNextTrackedPageChange = value;
-  },
+  setSuppressNextTrackedPageChange,
 };
 
 registerReadingTools(registerTool, registrationHelpers);
