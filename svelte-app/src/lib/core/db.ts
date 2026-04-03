@@ -12,7 +12,7 @@ import { log } from './logger';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 202;
+export const MARGINALIA_VERSION = 203;
 
 // --- Storage backend interface ---
 
@@ -44,54 +44,21 @@ let _cachedDb: IDBDatabase | null = null;
 function _openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-    req.onupgradeneeded = (event) => {
+    req.onupgradeneeded = () => {
       const db = req.result;
-      const oldVersion = event.oldVersion;
-
-      // Fresh install
-      if (oldVersion < 2) {
-        if (!db.objectStoreNames.contains('books_meta')) {
-          db.createObjectStore('books_meta', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('books_data')) {
-          db.createObjectStore('books_data', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('folders')) {
-          db.createObjectStore('folders', { keyPath: 'id' });
-        }
+      if (!db.objectStoreNames.contains('books_meta')) {
+        db.createObjectStore('books_meta', { keyPath: 'id' });
       }
-
-      // Migration from v2 (single books store) to v3 (split stores)
-      if (oldVersion === 2) {
-        if (!db.objectStoreNames.contains('books_meta')) {
-          db.createObjectStore('books_meta', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('books_data')) {
-          db.createObjectStore('books_data', { keyPath: 'id' });
-        }
-
-        // Migrate data from old 'books' store
-        const tx = (req.transaction as IDBTransaction);
-        const oldStore = tx.objectStore('books');
-        const metaStore = tx.objectStore('books_meta');
-        const dataStore = tx.objectStore('books_data');
-
-        const cursorReq = oldStore.openCursor();
-        cursorReq.onsuccess = () => {
-          const cursor = cursorReq.result;
-          if (cursor) {
-            const book = cursor.value as Book;
-            const { data, ...meta } = book;
-            metaStore.put(meta);
-            dataStore.put({ id: book.id, data });
-            cursor.continue();
-          }
-        };
+      if (!db.objectStoreNames.contains('books_data')) {
+        db.createObjectStore('books_data', { keyPath: 'id' });
       }
-
-      // Note: old 'books' store is left in place during v2→v3 migration
-      // because deleteObjectStore cannot run while a cursor is active.
-      // It will be cleaned up in a future version bump.
+      if (!db.objectStoreNames.contains('folders')) {
+        db.createObjectStore('folders', { keyPath: 'id' });
+      }
+      // Clean up legacy store from v2
+      if (db.objectStoreNames.contains('books')) {
+        db.deleteObjectStore('books');
+      }
     };
     req.onsuccess = () => {
       const db = req.result;
