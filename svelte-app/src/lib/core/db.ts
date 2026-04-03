@@ -10,7 +10,7 @@ import { IDB_NAME, IDB_VERSION } from './constants';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 192;
+export const MARGINALIA_VERSION = 193;
 
 // --- Storage backend interface ---
 
@@ -32,6 +32,36 @@ export interface MemoryBackend extends DbBackend {
 
 // --- Storage backend (swappable for tests) ---
 
+let _cachedDb: IDBDatabase | null = null;
+
+function _openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('books')) {
+        db.createObjectStore('books', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('folders')) {
+        db.createObjectStore('folders', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onclose = () => { _cachedDb = null; };
+      db.onerror = () => { _cachedDb = null; };
+      _cachedDb = db;
+      resolve(db);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function _getDb(): Promise<IDBDatabase> {
+  if (_cachedDb) return Promise.resolve(_cachedDb);
+  return _openDb();
+}
+
 const _db: {
   _backend: DbBackend | null;
   _idb: () => Promise<IDBDatabase>;
@@ -42,22 +72,7 @@ const _db: {
 } = {
   _backend: null,
 
-  async _idb(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(IDB_NAME, IDB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains('books')) {
-          db.createObjectStore('books', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('folders')) {
-          db.createObjectStore('folders', { keyPath: 'id' });
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  },
+  _idb: _getDb,
 
   async _idbGetAll<T>(store: string): Promise<T[]> {
     const db = await this._idb();
@@ -65,7 +80,7 @@ const _db: {
       const tx = db.transaction(store, 'readonly');
       const req = tx.objectStore(store).getAll();
       req.onsuccess = () => resolve(req.result as T[]);
-      req.onerror = () => reject(req.error);
+      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
     });
   },
 
@@ -75,7 +90,7 @@ const _db: {
       const tx = db.transaction(store, 'readonly');
       const req = tx.objectStore(store).get(id);
       req.onsuccess = () => resolve(req.result as T | undefined);
-      req.onerror = () => reject(req.error);
+      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
     });
   },
 
@@ -85,7 +100,7 @@ const _db: {
       const tx = db.transaction(store, 'readwrite');
       tx.objectStore(store).put(obj);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
     });
   },
 
@@ -95,7 +110,7 @@ const _db: {
       const tx = db.transaction(store, 'readwrite');
       tx.objectStore(store).delete(id);
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => { _cachedDb = null; reject(tx.error); };
     });
   },
 };
@@ -128,7 +143,7 @@ export async function getAllBooksMeta(): Promise<Book[]> {
         resolve(results);
       }
     };
-    req.onerror = () => reject(req.error);
+    tx.onerror = () => { _cachedDb = null; reject(tx.error); };
   });
 }
 
