@@ -224,8 +224,8 @@
       </div>
     {/if}
     {#if archivedCount > 0}
-      <button class="sort-btn" class:active={showArchived} onclick={() => { showArchived = !showArchived; localStorage.setItem(LS_SHOW_ARCHIVED, showArchived ? '1' : '0'); }} title={showArchived ? 'Hide archived' : 'Show archived'}>
-        {showArchived ? `Hide ${archivedCount}` : `+${archivedCount}`} archived
+      <button class="sort-btn" class:active={showArchived} onclick={() => { showArchived = !showArchived; localStorage.setItem(LS_SHOW_ARCHIVED, showArchived ? '1' : '0'); }} title={showArchived ? 'Hide hidden books' : 'Show hidden books'}>
+        +{archivedCount} hidden
       </button>
     {/if}
     <button class="sort-btn" onclick={toggleDirection} title="Reverse order">
