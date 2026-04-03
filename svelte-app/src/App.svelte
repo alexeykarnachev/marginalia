@@ -35,6 +35,7 @@
   let books = $state<Book[]>([]);
   let folders = $state<Folder[]>([]);
   let libraryLoaded = $state(false);
+  let startupError = $state<string | null>(null);
   let currentFolderId = $state<string | null>(localStorage.getItem(LS_LIB_FOLDER));
 
   const chatState = createChatState();
@@ -111,15 +112,23 @@
         }
         chatManager.init();
         getPdfjsLib();
-      } catch (err) {
+      } catch (err: any) {
+        const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
         log('APP', 'INIT_ERROR', err);
-        // Fall back to library so the user at least sees something
+        startupError = msg;
         navigateToLibrary();
         libraryLoaded = true;
       }
     })();
   });
 </script>
+
+{#if startupError}
+  <div style="position:fixed;top:0;left:0;right:0;background:#fee;color:#900;padding:12px 16px;font-size:14px;z-index:999999;font-family:monospace;word-break:break-all;">
+    Startup error: {startupError}
+    <button onclick={() => location.reload()} style="margin-left:12px;padding:4px 12px;">Reload</button>
+  </div>
+{/if}
 
 {#if currentView === 'library'}
   <LibraryApp
