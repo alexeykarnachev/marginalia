@@ -366,9 +366,14 @@ export async function agentLoop(
 export async function simpleLLMCall(
   apiKey: string,
   model: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  externalSignal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
   const controller = new AbortController();
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
   const timeout = setTimeout(() => controller.abort(), SIMPLE_LLM_TIMEOUT_MS);
   try {
     const res = await fetch(OPENROUTER_URL, {

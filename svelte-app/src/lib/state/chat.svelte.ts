@@ -117,10 +117,11 @@ export function createChatState(): ChatState {
     async compact(apiKey: string, model: string, bookId: string) {
       if (!apiKey) return;
       sending = true;
+      abortController = new AbortController();
       messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];
       try {
         const msgsForCompact = messages.filter(m => m.content !== 'Compacting conversation...');
-        const result = await compactConversation(apiKey, model, bookId, msgsForCompact);
+        const result = await compactConversation(apiKey, model, bookId, msgsForCompact, abortController.signal);
         messages = [
           { role: 'system', content: `Compacted (${result.inputTokens} in / ${result.outputTokens} out tokens)` },
           { role: 'assistant', content: result.summary },
@@ -133,11 +134,16 @@ export function createChatState(): ChatState {
         };
       } catch (err: any) {
         messages = messages.filter(m => m.content !== 'Compacting conversation...');
-        const msg = (err as Error).name === 'AbortError'
-          ? 'Compact timed out (30s). Try again or reduce conversation length.'
-          : `Compact failed: ${(err as Error).message}`;
-        messages = [...messages, { role: 'system', content: msg }];
+        if (abortController?.signal.aborted) {
+          messages = [...messages, { role: 'system', content: 'Compact stopped.' }];
+        } else {
+          const msg = (err as Error).name === 'AbortError'
+            ? 'Compact timed out (30s). Try again or reduce conversation length.'
+            : `Compact failed: ${(err as Error).message}`;
+          messages = [...messages, { role: 'system', content: msg }];
+        }
       } finally {
+        abortController = null;
         sending = false;
       }
     },

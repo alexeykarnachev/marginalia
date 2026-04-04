@@ -23,6 +23,7 @@ export async function compactConversation(
   model: string,
   bookId: string,
   messages: ChatMessage[],
+  signal?: AbortSignal,
 ): Promise<CompactResult> {
   const conv = messages.filter(m => m.role === 'user' || m.role === 'assistant');
   if (conv.length < 2) {
@@ -37,7 +38,7 @@ export async function compactConversation(
     { role: 'user', content: prompt },
   ];
 
-  const data = await simpleLLMCall(apiKey, model, summarizeMessages);
+  const data = await simpleLLMCall(apiKey, model, summarizeMessages, signal);
   const summary = (data as any).choices?.[0]?.message?.content || '';
   if (!summary) throw new Error('LLM returned empty summary');
 
