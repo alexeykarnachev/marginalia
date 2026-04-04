@@ -672,7 +672,7 @@
               />
             </div>
           {:else}
-            <button class="model-dropdown-add" onclick={() => { addingModel = true; }}>+ Add model</button>
+            <button class="model-dropdown-add" onclick={(e) => { e.stopPropagation(); addingModel = true; }}>+ Add model</button>
           {/if}
         </div>
       {/if}
