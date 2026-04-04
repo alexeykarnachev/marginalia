@@ -1,7 +1,17 @@
 import type { BookMeta } from '../types';
 import type { ToolRegistrar, ToolRegistrationHelpers } from './tools-shared';
+import { library } from '../state/library.svelte';
 
 export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegistrationHelpers): void {
+  register({
+    name: 'get_library',
+    description: 'Get the full library tree showing all folders and books with their IDs, sizes, and page counts.',
+    parameters: { type: 'object', properties: {}, required: [] },
+    handler: async () => {
+      return library.libraryTree || '(empty library)';
+    },
+  });
+
   register({
     name: 'rename_book',
     description: 'Rename a book in the library.',

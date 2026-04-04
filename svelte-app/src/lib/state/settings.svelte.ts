@@ -3,10 +3,9 @@
 import {
   LS_THEME,
   LS_API_KEY,
-  LS_MODEL,
+  LS_MODELS,
   LS_CHAT_FONT,
   LS_CHAT_MONO,
-  DEFAULT_MODEL,
   DEFAULT_CHAT_FONT_SIZE,
   lsPromptKey,
   lsChatPromptKey,
@@ -23,7 +22,38 @@ function loadValue<T>(key: string, defaultValue: T): T {
 
 let _theme = $state(loadValue(LS_THEME, 'dark'));
 let _apiKey = $state(loadValue(LS_API_KEY, ''));
-let _model = $state(loadValue(LS_MODEL, DEFAULT_MODEL));
+
+function loadModels(): { models: string[]; active: number } {
+  try {
+    const raw = localStorage.getItem(LS_MODELS);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) {
+        // Migrate from old format (plain array) — active index defaults to 0
+        return { models: data, active: 0 };
+      }
+      if (data && Array.isArray(data.models) && data.models.length > 0) {
+        return { models: data.models, active: data.active ?? 0 };
+      }
+    }
+  } catch {}
+  // Migrate from old LS_MODEL key
+  const old = localStorage.getItem('openrouter_model');
+  if (old) {
+    localStorage.removeItem('openrouter_model');
+    return { models: [old], active: 0 };
+  }
+  return { models: ['x-ai/grok-4.1-fast'], active: 0 };
+}
+
+function saveModels() {
+  localStorage.setItem(LS_MODELS, JSON.stringify({ models: _models, active: _activeModelIndex }));
+}
+
+const loaded = loadModels();
+let _models = $state<string[]>(loaded.models);
+let _activeModelIndex = $state(Math.min(loaded.active, Math.max(0, loaded.models.length - 1)));
+
 export const settings = {
   get theme() { return _theme; },
   set theme(v: string) { _theme = v; localStorage.setItem(LS_THEME, v); applyTheme(); },
@@ -31,8 +61,29 @@ export const settings = {
   get apiKey() { return _apiKey; },
   set apiKey(v: string) { _apiKey = v; localStorage.setItem(LS_API_KEY, v); },
 
-  get model() { return _model; },
-  set model(v: string) { _model = v; localStorage.setItem(LS_MODEL, v); },
+  get model() { return _models[_activeModelIndex] ?? ''; },
+  set model(v: string) {
+    const idx = _models.indexOf(v);
+    if (idx >= 0) { _activeModelIndex = idx; saveModels(); }
+  },
+
+  get models() { return _models; },
+  addModel(v: string) {
+    const m = v.trim();
+    if (!m || _models.includes(m)) return;
+    _models = [..._models, m];
+    _activeModelIndex = _models.length - 1;
+    saveModels();
+  },
+  removeModel(v: string) {
+    const idx = _models.indexOf(v);
+    if (idx < 0) return;
+    _models = _models.filter(m => m !== v);
+    if (_activeModelIndex >= _models.length) {
+      _activeModelIndex = Math.max(0, _models.length - 1);
+    }
+    saveModels();
+  },
 };
 
 export function toggleTheme(): void {

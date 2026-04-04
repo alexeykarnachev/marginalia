@@ -221,12 +221,9 @@ async function _resolveBookTitle(bookId: string): Promise<string> {
 import { formatSize as _formatSize } from './library-tree';
 
 
-export { buildLibraryTree } from './library-tree';
-
 export async function buildLibraryContext(): Promise<LibraryContext> {
   const books = library.books;
   const folders = library.folders;
-  const libraryTree = library.libraryTree;
 
   // Storage stats
   const totalSize = books.reduce((s, b) => s + (b.size || 0), 0);
@@ -279,7 +276,6 @@ export async function buildLibraryContext(): Promise<LibraryContext> {
 
   const context: LibraryContext = {
     // For system prompt template
-    libraryTree,
     focusContext,
     pageText,
     selection,

@@ -123,9 +123,8 @@
   async function handleChatSend(text: string) {
     if (!chatManager.activeChatId) return;
     await sendChatMessage(chatState, text, {
-      buildSystemPrompt: (context: any) =>
+      buildSystemPrompt: () =>
         buildLibraryAssistantPrompt(
-          context.libraryTree,
           getChatPrompt(chatManager.activeChatId!),
         ),
       storageKey: chatManager.activeChatId,
@@ -134,7 +133,6 @@
 
   function buildPromptPreview() {
     return Promise.resolve(buildLibraryAssistantPrompt(
-      library.libraryTree,
       chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '',
       chatState.summary,
     ));

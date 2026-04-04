@@ -224,7 +224,6 @@
       `Library: ${library.books.length} books, ${library.folders.length} folders, ${totalPageCount} pages`,
     ];
     const context = {
-      libraryTree: library.libraryTree,
       focusContext: focusParts.join('\n'),
       pageText: '(not shown in preview)',
       selection: cachedSelection,

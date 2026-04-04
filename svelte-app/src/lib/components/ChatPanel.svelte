@@ -6,6 +6,7 @@
   import type { ChatMessage } from '../types';
   import type { ChatEntry } from '../core/chat-registry';
   import { getModelContextLength } from '../core/model-info';
+  import { settings } from '../state/settings.svelte';
   import {
     DEFAULT_CHAT_WIDTH,
     DEFAULT_CHAT_FONT_SIZE,
@@ -91,6 +92,9 @@
   let inputText = $state('');
   let menuOpen = $state(false);
   let modelContextLength = $state(0);
+  let modelDropdownOpen = $state(false);
+  let addingModel = $state(false);
+  let newModelInput = $state('');
 
   // Fetch model context length when model changes
   $effect(() => {
@@ -218,6 +222,11 @@
     }
     if (!target.closest('.chat-selector-btn') && !target.closest('.chat-list-popover')) {
       chatListOpen = false;
+    }
+    if (!target.closest('.model-selector-wrapper')) {
+      modelDropdownOpen = false;
+      addingModel = false;
+      newModelInput = '';
     }
   }
 
@@ -617,6 +626,61 @@
       {/if}
     </div>
   {/if}
+
+  <div class="model-selector-row">
+    <div class="model-selector-wrapper">
+      <button class="model-selector-btn" onclick={() => { modelDropdownOpen = !modelDropdownOpen; }}>
+        <span class="model-selector-name">{settings.model ? settings.model.replace(/^.*\//, '') : 'Select model'}</span>
+        <span class="model-selector-arrow">{modelDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+      </button>
+      {#if modelDropdownOpen}
+        <div class="model-dropdown">
+          {#each settings.models as m}
+            <div class="model-dropdown-item" class:active={m === settings.model}>
+              <button
+                class="model-dropdown-name"
+                onclick={() => { settings.model = m; modelDropdownOpen = false; }}
+              >{m}</button>
+              <button
+                class="model-dropdown-remove"
+                onclick={(e) => { e.stopPropagation(); settings.removeModel(m); }}
+                title="Remove model"
+              >&times;</button>
+            </div>
+          {/each}
+          {#if addingModel}
+            <div class="model-dropdown-add-input">
+              <!-- svelte-ignore a11y_autofocus -->
+              <input
+                type="text"
+                class="model-add-input"
+                bind:value={newModelInput}
+                placeholder="provider/model-name"
+                autofocus
+                onkeydown={(e) => {
+                  if (e.key === 'Enter') {
+                    const v = newModelInput.trim();
+                    if (v) {
+                      settings.addModel(v);
+                      settings.model = v;
+                    }
+                    newModelInput = '';
+                    addingModel = false;
+                    modelDropdownOpen = false;
+                  } else if (e.key === 'Escape') {
+                    newModelInput = '';
+                    addingModel = false;
+                  }
+                }}
+              />
+            </div>
+          {:else}
+            <button class="model-dropdown-add" onclick={() => { addingModel = true; }}>+ Add model</button>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </div>
 
   <div class="m-chat-input-area">
     <textarea
@@ -1097,5 +1161,124 @@
   .m-chat-send.done {
     background: var(--m-success);
     transition: background 0.3s;
+  }
+
+  .model-selector-row {
+    display: flex;
+    padding: 4px 12px 0;
+    flex-shrink: 0;
+  }
+  .model-selector-wrapper {
+    position: relative;
+  }
+  .model-selector-btn {
+    background: none;
+    border: 1px solid var(--m-border-light);
+    color: var(--m-fg-muted);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 260px;
+  }
+  @media (hover: hover) {
+    .model-selector-btn:hover { border-color: var(--m-accent); color: var(--m-fg); }
+  }
+  .model-selector-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .model-selector-arrow {
+    font-size: 8px;
+    flex-shrink: 0;
+  }
+  .model-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 4px;
+    background: var(--m-bg-1);
+    border: 1px solid var(--m-border-light);
+    border-radius: 8px;
+    padding: 4px 0;
+    min-width: 280px;
+    max-width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 -4px 16px var(--m-shadow);
+    z-index: 200;
+  }
+  .model-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 0 4px 0 0;
+  }
+  .model-dropdown-item.active {
+    background: var(--m-bg-2);
+  }
+  @media (hover: hover) {
+    .model-dropdown-item:hover { background: var(--m-bg-2); }
+  }
+  .model-dropdown-name {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--m-fg);
+    font-size: 12px;
+    padding: 6px 10px;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .model-dropdown-remove {
+    background: none;
+    border: none;
+    color: var(--m-fg-dim);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    opacity: 0;
+  }
+  @media (hover: hover) {
+    .model-dropdown-item:hover .model-dropdown-remove { opacity: 1; }
+    .model-dropdown-remove:hover { color: var(--m-error); background: var(--m-bg-3); }
+  }
+  @media (hover: none) {
+    .model-dropdown-remove { opacity: 0.7; }
+  }
+  .model-dropdown-add {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--m-fg-dim);
+    font-size: 12px;
+    padding: 6px 10px;
+    text-align: left;
+    cursor: pointer;
+  }
+  @media (hover: hover) {
+    .model-dropdown-add:hover { background: var(--m-bg-2); color: var(--m-fg); }
+  }
+  .model-dropdown-add-input {
+    padding: 4px 8px;
+  }
+  .model-add-input {
+    width: 100%;
+    background: var(--m-input-bg);
+    color: var(--m-fg);
+    border: 1px solid var(--m-border-light);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: inherit;
   }
 </style>

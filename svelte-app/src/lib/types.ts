@@ -67,7 +67,6 @@ export interface LibraryContext {
   time: string;
   pageText: string;
   pageHistory: string;
-  libraryTree: string;
   focusContext: string;
   currentBookId: string;
   currentBookTitle: string;

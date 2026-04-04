@@ -13,10 +13,11 @@
 <body>
     <div id="app"></div>
     <script>
-    window.onerror = function(msg, src, line) {
+    window.onerror = function(msg, src, line, col, error) {
+      var stack = error && error.stack ? '\n\nStack:\n' + error.stack : '';
       document.getElementById('app').innerHTML =
-        '<div style="padding:24px;font-family:monospace;color:#900;">' +
-        '<h3>Failed to start</h3><pre>' + msg + '\n' + src + ':' + line + '</pre>' +
+        '<div style="padding:24px;font-family:monospace;color:#900;white-space:pre-wrap;word-break:break-all;">' +
+        '<h3>Failed to start</h3><pre>' + msg + '\n' + src + ':' + line + ':' + col + stack + '</pre>' +
         '<button onclick="location.reload()">Reload</button></div>';
     };
     </script>

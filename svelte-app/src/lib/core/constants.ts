@@ -36,9 +36,6 @@ export const PAGE_HISTORY_DISPLAY_LIMIT = 20;
 export const DEFAULT_CHAT_WIDTH = 380;
 export const DEFAULT_CHAT_FONT_SIZE = 14;
 
-// ── Default model ──────────────────────────────────────────────────
-export const DEFAULT_MODEL = 'x-ai/grok-4.1-fast';
-
 // ── IndexedDB ──────────────────────────────────────────────────────
 export const IDB_NAME = 'marginalia';
 export const IDB_VERSION = 4;
@@ -46,7 +43,7 @@ export const IDB_VERSION = 4;
 // ── localStorage keys ──────────────────────────────────────────────
 export const LS_THEME = 'marginalia_theme';
 export const LS_API_KEY = 'openrouter_api_key';
-export const LS_MODEL = 'openrouter_model';
+export const LS_MODELS = 'openrouter_models';
 export const LS_CHAT_FONT = 'marginalia_chat_font';
 export const LS_CHAT_MONO = 'marginalia_chat_mono';
 export const LS_DISABLED_TOOLS = 'marginalia_disabled_tools';

@@ -26,16 +26,13 @@ export function buildReadingAssistantPrompt(
 }
 
 export function buildLibraryAssistantPrompt(
-  libraryTree: string,
   chatPrompt: string,
   summary?: string | null,
 ): string {
   let system = `You are Marginalia, an AI library assistant. Help the user manage and explore their book library.
 You have access to tools for searching, organizing, and reading books.
-Respond in the user's language. Be concise.
-
-## Library
-${libraryTree}`;
+Use the get_library tool to see the full library tree when needed.
+Respond in the user's language. Be concise.`;
   system = appendSection(system, CHAT_PROMPT_HEADER, chatPrompt);
   system = appendSection(system, SUMMARY_HEADER, summary);
   return system;

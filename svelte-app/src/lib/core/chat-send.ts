@@ -30,6 +30,10 @@ export async function sendChatMessage(
     alert('Set your OpenRouter API key in Settings first.');
     return;
   }
+  if (!settings.model) {
+    alert('Add a model in the model selector first.');
+    return;
+  }
 
   chatState.addMessage({ role: 'user', content: text });
   chatState.setSending(true);

@@ -11,18 +11,15 @@
   } = $props();
 
   let apiKey = $state(settings.apiKey);
-  let model = $state(settings.model);
 
   $effect(() => {
     if (open) {
       apiKey = settings.apiKey;
-      model = settings.model;
     }
   });
 
   function handleSave() {
     settings.apiKey = apiKey.trim();
-    settings.model = model.trim();
     onClose();
   }
 </script>
@@ -32,10 +29,6 @@
   <label class="settings-label">
     OpenRouter API Key
     <input type="text" class="prompt-textarea settings-input" bind:value={apiKey} placeholder="sk-or-v1-..." />
-  </label>
-  <label class="settings-label">
-    Model
-    <input type="text" class="prompt-textarea settings-input" bind:value={model} placeholder="x-ai/grok-4.1-fast" />
   </label>
   <div class="prompt-buttons">
     <button class="prompt-btn prompt-btn-primary" onclick={handleSave}>Save</button>
