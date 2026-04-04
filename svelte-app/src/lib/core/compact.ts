@@ -6,14 +6,7 @@ import type { ChatMessage } from '../types';
 import { simpleLLMCall } from './agent';
 import { getCompactPrompt } from '../state/settings.svelte';
 
-export const DEFAULT_COMPACT_PROMPT = `Summarize this reading assistant conversation into a structured reference.
-Preserve ALL of:
-- Page numbers and citations mentioned
-- Key conclusions and analysis
-- Book titles and IDs referenced
-- Folder/library changes made
-- Any specific facts or arguments discussed
-Format as a bulleted list grouped by topic. Be specific, cite pages.`;
+export const DEFAULT_COMPACT_PROMPT = `Provide a detailed but concise summary of our conversation above. Focus on information that would be helpful for continuing the conversation, including what we discussed, what books and pages we referenced, what conclusions were reached, and what we're going to do next.`;
 
 export interface CompactResult {
   summary: string;
@@ -22,8 +15,8 @@ export interface CompactResult {
 }
 
 /**
- * Compact a conversation: LLM summarizes all messages into a summary.
- * Returns the summary and token usage.
+ * Compact a conversation: append the summarization prompt as a user message
+ * to the actual conversation, so the LLM sees the full original context.
  */
 export async function compactConversation(
   apiKey: string,
@@ -39,11 +32,9 @@ export async function compactConversation(
   const customPrompt = getCompactPrompt(bookId);
   const prompt = customPrompt || DEFAULT_COMPACT_PROMPT;
 
-  const historyText = conv.map(m => `${m.role}: ${m.content}`).join('\n\n');
-
   const summarizeMessages: ChatMessage[] = [
-    { role: 'system', content: prompt },
-    { role: 'user', content: historyText },
+    ...conv,
+    { role: 'user', content: prompt },
   ];
 
   const data = await simpleLLMCall(apiKey, model, summarizeMessages);
