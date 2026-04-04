@@ -44,7 +44,7 @@ export async function sendChatMessage(
     config.onBeforeSend?.();
 
     const system = config.buildSystemPrompt(context);
-    const apiMessages = buildApiMessages(system, chatState.messages, chatState.summary);
+    const apiMessages = buildApiMessages(system, chatState.messages);
 
     const result = await agentLoop(settings.apiKey, settings.model, apiMessages as ChatMessage[], {
       onDelta: (_delta: string, full: string) => {

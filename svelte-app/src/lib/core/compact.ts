@@ -30,7 +30,6 @@ export async function compactConversation(
   model: string,
   bookId: string,
   messages: ChatMessage[],
-  existingSummary: string | null,
 ): Promise<CompactResult> {
   const conv = messages.filter(m => m.role === 'user' || m.role === 'assistant');
   if (conv.length < 2) {
@@ -39,14 +38,11 @@ export async function compactConversation(
 
   const customPrompt = getCompactPrompt(bookId);
   const prompt = customPrompt || DEFAULT_COMPACT_PROMPT;
-  const previousSummary = existingSummary
-    ? `\n\nPrevious conversation summary (incorporate and extend this):\n${existingSummary}`
-    : '';
 
   const historyText = conv.map(m => `${m.role}: ${m.content}`).join('\n\n');
 
   const summarizeMessages: ChatMessage[] = [
-    { role: 'system', content: prompt + previousSummary },
+    { role: 'system', content: prompt },
     { role: 'user', content: historyText },
   ];
 

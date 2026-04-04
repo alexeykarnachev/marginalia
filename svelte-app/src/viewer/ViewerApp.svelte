@@ -19,7 +19,6 @@
     getPageHistory,
     clearPageHistory,
   } from '../lib/core/tools';
-  import { SUMMARY_HEADER } from '../lib/core/prompt';
   import { buildReadingAssistantPrompt } from '../lib/core/system-prompts';
   import { sendChatMessage } from '../lib/core/chat-send';
   import { createViewerSession } from './viewer-session';
@@ -239,10 +238,7 @@
       totalSize,
       totalPageCount,
     };
-    let system = buildViewerSystemPrompt(context);
-    if (chatState.summary) {
-      system += '\n\n' + SUMMARY_HEADER + '\n' + chatState.summary;
-    }
+    const system = buildViewerSystemPrompt(context);
     return Promise.resolve(system);
   }
 

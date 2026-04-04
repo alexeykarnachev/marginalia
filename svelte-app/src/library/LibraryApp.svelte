@@ -134,7 +134,6 @@
   function buildPromptPreview() {
     return Promise.resolve(buildLibraryAssistantPrompt(
       chatManager.activeChatId ? getChatPrompt(chatManager.activeChatId) : '',
-      chatState.summary,
     ));
   }
 </script>

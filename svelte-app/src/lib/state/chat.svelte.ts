@@ -7,7 +7,6 @@ import { lsChatKey, lsStatsKey } from '../core/constants';
 
 export interface ChatState {
   readonly messages: ChatMessage[];
-  readonly summary: string | null;
   readonly stats: ChatStats;
   readonly sending: boolean;
   readonly toolActivity: string[];
@@ -15,7 +14,6 @@ export interface ChatState {
   updateLastMessage: (content: string) => void;
   setMessages: (msgs: ChatMessage[]) => void;
   clearMessages: () => void;
-  setSummary: (s: string | null) => void;
   setSending: (v: boolean) => void;
   updateStats: (partial: Partial<ChatStats>) => void;
   resetStats: () => void;
@@ -38,14 +36,12 @@ const defaultStats: ChatStats = {
 
 export function createChatState(): ChatState {
   let messages = $state<ChatMessage[]>([]);
-  let summary = $state<string | null>(null);
   let stats = $state<ChatStats>({ ...defaultStats });
   let sending = $state(false);
   let toolActivity = $state<string[]>([]);
 
   return {
     get messages() { return messages; },
-    get summary() { return summary; },
     get stats() { return stats; },
     get sending() { return sending; },
     get toolActivity() { return toolActivity; },
@@ -66,10 +62,6 @@ export function createChatState(): ChatState {
 
     clearMessages() {
       messages = [];
-    },
-
-    setSummary(s: string | null) {
-      summary = s;
     },
 
     setSending(v: boolean) {
@@ -93,10 +85,7 @@ export function createChatState(): ChatState {
     },
 
     saveToStorage(bookId: string) {
-      localStorage.setItem(lsChatKey(bookId), JSON.stringify({
-        messages,
-        summary,
-      }));
+      localStorage.setItem(lsChatKey(bookId), JSON.stringify({ messages }));
       localStorage.setItem(lsStatsKey(bookId), JSON.stringify(stats));
     },
 
@@ -106,10 +95,12 @@ export function createChatState(): ChatState {
         if (Array.isArray(raw)) {
           // Legacy format: bare array
           messages = raw;
-          summary = null;
         } else if (raw && raw.messages) {
           messages = raw.messages;
-          summary = raw.summary || null;
+          // Migrate old summary: prepend as assistant message
+          if (raw.summary) {
+            messages = [{ role: 'assistant', content: raw.summary }, ...messages];
+          }
         }
       } catch { /* ignore parse errors */ }
       try {
@@ -123,8 +114,7 @@ export function createChatState(): ChatState {
       messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];
       try {
         const msgsForCompact = messages.filter(m => m.content !== 'Compacting conversation...');
-        const result = await compactConversation(apiKey, model, bookId, msgsForCompact, summary);
-        summary = result.summary;
+        const result = await compactConversation(apiKey, model, bookId, msgsForCompact);
         messages = [
           { role: 'system', content: `Compacted (${result.inputTokens} in / ${result.outputTokens} out tokens)` },
           { role: 'assistant', content: result.summary },

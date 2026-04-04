@@ -4,8 +4,6 @@ import type { ChatMessage } from '../types';
 
 export const BOOK_PROMPT_HEADER = '## Book-specific instructions (MUST FOLLOW)';
 export const CHAT_PROMPT_HEADER = '## Chat-specific instructions (MUST FOLLOW)';
-export const SUMMARY_HEADER = '## Previous conversation summary';
-
 export const SYSTEM_PROMPT = `You are Marginalia, an AI reading assistant.
 
 ## Environment
@@ -89,29 +87,16 @@ export function renderPrompt(template: string, context: Record<string, string>):
 /**
  * Build API messages:
  * 1. System prompt
- * 2. Summary of compacted history (if exists)
- * 3. All conversation messages in full
- *
- * No trimming — if context is too long, user should compact manually.
+ * 2. All conversation messages (user + assistant only)
  */
 export function buildApiMessages(
   systemPrompt: string,
   messages: ChatMessage[],
-  summary: string | null,
 ): ChatMessage[] {
   const convMessages = messages.filter(m => m.role === 'user' || m.role === 'assistant');
-
-  // Inject summary into the system prompt if available
-  let fullSystem = systemPrompt;
-  if (summary) {
-    fullSystem += '\n\n' + SUMMARY_HEADER + '\n' + summary;
-  }
-
-  const result: ChatMessage[] = [{ role: 'system', content: fullSystem }];
-
+  const result: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
   for (const m of convMessages) {
     result.push({ role: m.role, content: m.content });
   }
-
   return result;
 }

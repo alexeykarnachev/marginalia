@@ -38,7 +38,7 @@ export function createChatManager(chatState: ChatState): ChatManager {
     activeChatId = id;
     setActiveChat(id);
     chatState.clearMessages();
-    chatState.setSummary(null);
+
     chatState.resetStats();
     chatState.loadFromStorage(id);
   }
@@ -88,7 +88,7 @@ export function createChatManager(chatState: ChatState): ChatManager {
       refresh();
       if (activeChatId === id) {
         chatState.clearMessages();
-        chatState.setSummary(null);
+    
         chatState.resetStats();
         activeChatId = chats.length > 0 ? chats[0].id : null;
         setActiveChat(activeChatId);

@@ -85,7 +85,6 @@
     if (chatState.messages.length === 0) return;
     if (!confirm('Clear conversation?')) return;
     chatState.clearMessages();
-    chatState.setSummary(null);
     chatState.resetStats();
     if (chatManager.activeChatId) chatState.saveToStorage(chatManager.activeChatId);
   }

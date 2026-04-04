@@ -614,24 +614,10 @@
     {/if}
   </div>
 
-  {#if stats && stats.model}
-    {@const fmt = (n: number) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : Math.round(n / 1000) + 'k'}
-    <div class="chat-stats-bar">
-      <span class="chat-stats-model">{stats.model.replace(/-\d{8}$/, '')}</span>
-      <span class="chat-stats-ctx">
-        {fmt(stats.lastContextTokens)}{#if modelContextLength > 0}{' / '}{fmt(modelContextLength)}{' ('}{Math.round(stats.lastContextTokens / modelContextLength * 100)}%){/if}
-      </span>
-      {#if stats.cost > 0}
-        <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
-      {/if}
-    </div>
-  {/if}
-
-  <div class="model-selector-row">
+  <div class="chat-stats-bar">
     <div class="model-selector-wrapper">
-      <button class="model-selector-btn" onclick={() => { modelDropdownOpen = !modelDropdownOpen; }}>
-        <span class="model-selector-name">{settings.model ? settings.model.replace(/^.*\//, '') : 'Select model'}</span>
-        <span class="model-selector-arrow">{modelDropdownOpen ? '\u25B4' : '\u25BE'}</span>
+      <button class="chat-stats-model" onclick={() => { modelDropdownOpen = !modelDropdownOpen; }}>
+        {settings.model ? settings.model.replace(/-\d{8}$/, '') : 'Select model'} <span class="model-selector-arrow">{modelDropdownOpen ? '\u25B4' : '\u25BE'}</span>
       </button>
       {#if modelDropdownOpen}
         <div class="model-dropdown">
@@ -680,6 +666,15 @@
         </div>
       {/if}
     </div>
+    {#if stats && stats.model}
+      {@const fmt = (n: number) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : Math.round(n / 1000) + 'k'}
+      <span class="chat-stats-ctx">
+        {fmt(stats.lastContextTokens)}{#if modelContextLength > 0}{' / '}{fmt(modelContextLength)}{' ('}{Math.round(stats.lastContextTokens / modelContextLength * 100)}%){/if}
+      </span>
+      {#if stats.cost > 0}
+        <span class="chat-stats-cost">${stats.cost.toFixed(4)}</span>
+      {/if}
+    {/if}
   </div>
 
   <div class="m-chat-input-area">
@@ -1119,7 +1114,18 @@
     border-top: 1px solid var(--m-border);
     flex-shrink: 0;
   }
-  .chat-stats-model { color: var(--m-link); }
+  .chat-stats-model {
+    background: none;
+    border: none;
+    color: var(--m-link);
+    font-size: inherit;
+    padding: 0;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  @media (hover: hover) {
+    .chat-stats-model:hover { text-decoration: underline; }
+  }
   .chat-stats-ctx { color: var(--m-fg-dim); }
   .chat-stats-cost { margin-left: auto; }
 
@@ -1163,38 +1169,11 @@
     transition: background 0.3s;
   }
 
-  .model-selector-row {
-    display: flex;
-    padding: 4px 12px 0;
-    flex-shrink: 0;
-  }
   .model-selector-wrapper {
     position: relative;
   }
-  .model-selector-btn {
-    background: none;
-    border: 1px solid var(--m-border-light);
-    color: var(--m-fg-muted);
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    max-width: 260px;
-  }
-  @media (hover: hover) {
-    .model-selector-btn:hover { border-color: var(--m-accent); color: var(--m-fg); }
-  }
-  .model-selector-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   .model-selector-arrow {
     font-size: 8px;
-    flex-shrink: 0;
   }
   .model-dropdown {
     position: absolute;
