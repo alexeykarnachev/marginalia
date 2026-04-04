@@ -67,6 +67,7 @@
   let promptEditorOpen = $state(false);
   let toolsEditorOpen = $state(false);
   let compactEditorOpen = $state(false);
+  let chatPanelRef: ChatPanel;
 
   export function isOpen() { return chatOpen; }
   export function isResizing() { return _resizing; }
@@ -118,6 +119,7 @@
 
 {#if chatOpen}
   <ChatPanel
+    bind:this={chatPanelRef}
     {placeholder}
     messages={chatState.messages}
     sending={chatState.sending}
@@ -164,7 +166,7 @@
   onClose={() => { promptEditorOpen = false; }}
 />
 <ToolsEditor open={toolsEditorOpen} onClose={() => { toolsEditorOpen = false; }} />
-<CompactEditor open={compactEditorOpen} bookId={compactBookId} onClose={() => { compactEditorOpen = false; }} onCompact={() => chatManager.compact(settings.apiKey, settings.model)} />
+<CompactEditor open={compactEditorOpen} bookId={compactBookId} onClose={() => { compactEditorOpen = false; }} onCompact={() => { chatPanelRef?.scrollToBottom(); chatManager.compact(settings.apiKey, settings.model); }} />
 
 {#if !chatOpen}
   <button class="m-chat-fab" title="Chat" onclick={toggleChat}>💬</button>

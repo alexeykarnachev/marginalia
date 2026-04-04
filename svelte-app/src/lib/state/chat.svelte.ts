@@ -125,6 +125,12 @@ export function createChatState(): ChatState {
           { role: 'system', content: `Compacted (${result.inputTokens} in / ${result.outputTokens} out tokens)` },
           { role: 'assistant', content: result.summary },
         ];
+        stats = {
+          ...stats,
+          inputTokens: stats.inputTokens + result.inputTokens,
+          outputTokens: stats.outputTokens + result.outputTokens,
+          lastContextTokens: result.inputTokens,
+        };
       } catch (err: any) {
         messages = messages.filter(m => m.content !== 'Compacting conversation...');
         const msg = (err as Error).name === 'AbortError'

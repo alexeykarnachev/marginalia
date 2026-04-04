@@ -169,6 +169,9 @@
 
   let anchor: ReturnType<typeof scrollAnchor> | null = null;
 
+  export function scrollToBottom() {
+    anchor?.scrollToBottom();
+  }
 
   function handleSend() {
     const text = inputText.trim();
