@@ -111,6 +111,7 @@ export function createChatState(): ChatState {
 
     async compact(apiKey: string, model: string, bookId: string) {
       if (!apiKey) return;
+      sending = true;
       messages = [...messages, { role: 'system', content: 'Compacting conversation...' }];
       try {
         const msgsForCompact = messages.filter(m => m.content !== 'Compacting conversation...');
@@ -125,6 +126,8 @@ export function createChatState(): ChatState {
           ? 'Compact timed out (30s). Try again or reduce conversation length.'
           : `Compact failed: ${(err as Error).message}`;
         messages = [...messages, { role: 'system', content: msg }];
+      } finally {
+        sending = false;
       }
     },
 
