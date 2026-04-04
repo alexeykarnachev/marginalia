@@ -122,6 +122,7 @@
     messages={chatState.messages}
     sending={chatState.sending}
     onSend={onSend}
+    onStop={() => chatState.abort()}
     onClear={handleChatClear}
     onClose={toggleChat}
     width={chatWidth}

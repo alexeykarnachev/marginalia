@@ -38,6 +38,7 @@ export async function sendChatMessage(
   chatState.addMessage({ role: 'user', content: text });
   chatState.setSending(true);
   chatState.resetToolActivity();
+  const signal = chatState.createAbortSignal();
 
   try {
     const context = await buildLibraryContext();
@@ -60,7 +61,7 @@ export async function sendChatMessage(
       onUsage: (usage: any, model: string) => {
         chatState.trackUsage(usage, model);
       },
-    });
+    }, signal);
 
     // Finalize tool activity as a system message if configured
     if (config.addToolSummary && chatState.toolActivity.length > 0) {
@@ -91,7 +92,11 @@ export async function sendChatMessage(
       console.warn('onAfterSend failed:', afterErr);
     }
   } catch (err: any) {
-    chatState.addMessage({ role: 'system', content: 'Error: ' + (err.message || String(err)) });
+    if (signal.aborted) {
+      chatState.addMessage({ role: 'system', content: 'Stopped.' });
+    } else {
+      chatState.addMessage({ role: 'system', content: 'Error: ' + (err.message || String(err)) });
+    }
   }
 
   chatState.setSending(false);

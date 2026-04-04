@@ -34,6 +34,7 @@
     messages,
     sending,
     onSend,
+    onStop,
     onClear,
     menuItems = [],
     onClose,
@@ -63,6 +64,7 @@
     messages: ChatMessage[];
     sending: boolean;
     onSend: (text: string) => void;
+    onStop?: () => void;
     onClear: () => void;
     menuItems?: MenuItem[];
     onClose: () => void;
@@ -173,9 +175,15 @@
     if (!text || sending || !activeChatId) return;
     inputText = '';
     onSend(text);
-    // Scroll to bottom after the message is added to DOM
+    if (inputEl) inputEl.style.height = '';
     tick().then(() => anchor?.scrollToBottom());
     inputEl?.focus();
+  }
+
+  function autoResize() {
+    if (!inputEl) return;
+    inputEl.style.height = '';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
   }
 
   function isTouchDevice() {
@@ -684,14 +692,23 @@
       bind:value={inputText}
       {placeholder}
       onkeydown={handleKeydown}
+      oninput={autoResize}
     ></textarea>
-    <button
-      class="m-chat-send"
-      class:done={sendDone}
-      disabled={sending || !activeChatId}
-      onmousedown={(e) => e.preventDefault()}
-      onclick={handleSend}
-    >{sendDone ? '\u2713' : 'Send'}</button>
+    {#if sending && onStop}
+      <button
+        class="m-chat-send m-chat-stop"
+        onmousedown={(e) => e.preventDefault()}
+        onclick={onStop}
+      >Stop</button>
+    {:else}
+      <button
+        class="m-chat-send"
+        class:done={sendDone}
+        disabled={sending || !activeChatId}
+        onmousedown={(e) => e.preventDefault()}
+        onclick={handleSend}
+      >{sendDone ? '\u2713' : 'Send'}</button>
+    {/if}
   </div>
 </div>
 
@@ -1167,6 +1184,13 @@
   .m-chat-send.done {
     background: var(--m-success);
     transition: background 0.3s;
+  }
+  .m-chat-stop {
+    background: var(--m-error);
+    opacity: 1;
+  }
+  @media (hover: hover) {
+    .m-chat-stop:hover { opacity: 0.85; }
   }
 
   .model-selector-wrapper {

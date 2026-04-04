@@ -24,6 +24,10 @@ export interface ChatState {
   compact: (apiKey: string, model: string, bookId: string) => Promise<void>;
   handleDelta: (full: string) => void;
   trackUsage: (usage: any, model: string) => void;
+  /** Create a new AbortController for the current request. Returns its signal. */
+  createAbortSignal: () => AbortSignal;
+  /** Abort the current request. */
+  abort: () => void;
 }
 
 const defaultStats: ChatStats = {
@@ -39,6 +43,7 @@ export function createChatState(): ChatState {
   let stats = $state<ChatStats>({ ...defaultStats });
   let sending = $state(false);
   let toolActivity = $state<string[]>([]);
+  let abortController: AbortController | null = null;
 
   return {
     get messages() { return messages; },
@@ -150,6 +155,16 @@ export function createChatState(): ChatState {
         lastContextTokens: usage.prompt_tokens || 0,
         model: model || stats.model,
       };
+    },
+
+    createAbortSignal() {
+      abortController = new AbortController();
+      return abortController.signal;
+    },
+
+    abort() {
+      abortController?.abort();
+      abortController = null;
     },
   };
 }

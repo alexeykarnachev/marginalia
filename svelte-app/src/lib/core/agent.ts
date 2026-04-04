@@ -115,9 +115,15 @@ export async function llmCall(
   model: string,
   messages: ChatMessage[],
   tools: ReturnType<typeof getToolDefinitions> | null,
-  onDelta?: (delta: string, full: string) => void
+  onDelta?: (delta: string, full: string) => void,
+  signal?: AbortSignal,
 ): Promise<LLMResult> {
   const controller = new AbortController();
+  // Link external signal to our controller
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
   let timeout = setTimeout(() => controller.abort(), AGENT_LLM_TIMEOUT_MS);
 
   try {
@@ -270,7 +276,8 @@ export async function agentLoop(
   apiKey: string,
   model: string,
   messages: ChatMessage[],
-  callbacks: AgentCallbacks
+  callbacks: AgentCallbacks,
+  signal?: AbortSignal,
 ): Promise<AgentResult> {
   const tools = getToolDefinitions();
   let totalInputTokens = 0;
@@ -291,10 +298,9 @@ export async function agentLoop(
     if (callbacks.onThinking) callbacks.onThinking(i);
 
     const result = await llmCall(apiKey, model, messages, tools, (delta, full) => {
-      // Only stream text to UI if this is a final response (no tool calls yet parsed)
       // During streaming we don't know yet if tools will be called, so always stream
       if (callbacks.onDelta) callbacks.onDelta(delta, full);
-    });
+    }, signal);
 
     // Track usage
     if (result.usage) {
