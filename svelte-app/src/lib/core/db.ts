@@ -13,7 +13,7 @@ import { AppError, isPermanentDbError, formatError } from './errors';
 
 const BOOK_DATA_PREFIXES = ['chat', 'stats', 'model', 'prompt', 'compact_prompt'] as const;
 
-export const MARGINALIA_VERSION = 220;
+export const MARGINALIA_VERSION = 221;
 
 // --- Storage backend interface ---
 

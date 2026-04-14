@@ -1,7 +1,7 @@
 <script lang="ts">
   import { settings } from '../state/settings.svelte';
   import { getLogs } from '../core/logger';
-  import { copyDbDump } from '../core/debug';
+  import { buildDbDump, tryCopyToClipboard } from '../core/debug';
   import Modal from './Modal.svelte';
 
   let {
@@ -15,6 +15,8 @@
   let apiKey = $state(settings.apiKey);
   let logsLabel = $state('Copy logs');
   let dbLabel = $state('Copy DB');
+  let fallbackText = $state<string | null>(null);
+  let fallbackInfo = $state('');
 
   $effect(() => {
     if (open) {
@@ -31,25 +33,40 @@
 
   async function handleCopyLogs() {
     logsLabel = 'Copying...';
-    try {
-      const text = getLogs();
-      await navigator.clipboard.writeText(text);
+    const text = getLogs();
+    const ok = await tryCopyToClipboard(text);
+    if (ok) {
       logsLabel = `Copied (${text.length} chars)`;
-    } catch (err) {
-      logsLabel = 'Failed: ' + (err as Error).message;
+      setTimeout(() => { logsLabel = 'Copy logs'; }, 2000);
+    } else {
+      logsLabel = 'Copy logs';
+      fallbackText = text;
+      fallbackInfo = `${text.length} chars — select all and copy manually`;
     }
-    setTimeout(() => { logsLabel = 'Copy logs'; }, 2000);
   }
 
   async function handleCopyDb() {
     dbLabel = 'Copying...';
     try {
-      const { books, folders } = await copyDbDump();
-      dbLabel = `Copied ${books}b / ${folders}f`;
+      const { json, books, folders } = await buildDbDump();
+      const ok = await tryCopyToClipboard(json);
+      if (ok) {
+        dbLabel = `Copied ${books}b / ${folders}f`;
+        setTimeout(() => { dbLabel = 'Copy DB'; }, 2000);
+      } else {
+        dbLabel = 'Copy DB';
+        fallbackText = json;
+        fallbackInfo = `${books} books, ${folders} folders — select all and copy manually`;
+      }
     } catch (err) {
       dbLabel = 'Failed: ' + (err as Error).message;
+      setTimeout(() => { dbLabel = 'Copy DB'; }, 3000);
     }
-    setTimeout(() => { dbLabel = 'Copy DB'; }, 2000);
+  }
+
+  function closeFallback() {
+    fallbackText = null;
+    fallbackInfo = '';
   }
 </script>
 
@@ -69,6 +86,15 @@
   <div class="prompt-buttons">
     <button class="prompt-btn prompt-btn-primary" onclick={handleSave}>Save</button>
     <button class="prompt-btn" onclick={onClose}>Cancel</button>
+  </div>
+</Modal>
+
+<Modal open={fallbackText !== null} onClose={closeFallback}>
+  <h3>Manual copy</h3>
+  <div class="fallback-info">{fallbackInfo}</div>
+  <textarea class="fallback-textarea" readonly value={fallbackText ?? ''}></textarea>
+  <div class="prompt-buttons">
+    <button class="prompt-btn" onclick={closeFallback}>Close</button>
   </div>
 </Modal>
 
@@ -105,5 +131,24 @@
   .settings-debug-row {
     display: flex;
     gap: 8px;
+  }
+
+  .fallback-info {
+    font-size: 12px;
+    color: var(--m-fg-muted);
+    margin-bottom: 8px;
+  }
+
+  .fallback-textarea {
+    width: 100%;
+    height: 300px;
+    font-family: monospace;
+    font-size: 11px;
+    background: var(--m-bg);
+    color: var(--m-fg);
+    border: 1px solid var(--m-border);
+    border-radius: 4px;
+    padding: 8px;
+    resize: vertical;
   }
 </style>
