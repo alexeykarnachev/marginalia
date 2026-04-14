@@ -1,6 +1,7 @@
 <script lang="ts">
   import { settings } from '../state/settings.svelte';
-  import { copyLogs, dumpIndexedDB } from '../core/logger';
+  import { copyLogs } from '../core/logger';
+  import { dumpIndexedDB } from '../core/debug';
   import Modal from './Modal.svelte';
 
   let {
