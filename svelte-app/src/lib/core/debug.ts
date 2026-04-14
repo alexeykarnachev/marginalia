@@ -19,34 +19,12 @@ export async function buildDbDump(): Promise<{ json: string; books: number; fold
   return { json, books: books.length, folders: folders.length };
 }
 
-/** Try to write text to clipboard. Returns true on success, false on failure
- *  (e.g. iOS Safari gesture/permission restrictions). */
-export async function tryCopyToClipboard(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch (err) {
-    log('DEBUG', 'navigator.clipboard.writeText failed:', err);
-  }
-  // Fallback: hidden textarea + execCommand('copy'). Deprecated but still works on iOS
-  // when async clipboard API is blocked.
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.top = '0';
-    ta.style.left = '0';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    const ok = document.execCommand('copy');
-    document.body.removeChild(ta);
-    return ok;
-  } catch (err) {
-    log('DEBUG', 'execCommand copy fallback failed:', err);
-    return false;
-  }
+/** Write text to clipboard using ClipboardItem with a Promise, so iOS Safari
+ *  accepts it even when the data is resolved after an async gap.
+ *  The key: the ClipboardItem is created SYNCHRONOUSLY during the user gesture,
+ *  and iOS honors the Promise inside it. */
+export function copyTextViaPromise(textPromise: Promise<string>): Promise<void> {
+  const blobPromise = textPromise.then(text => new Blob([text], { type: 'text/plain' }));
+  const item = new ClipboardItem({ 'text/plain': blobPromise });
+  return navigator.clipboard.write([item]);
 }
