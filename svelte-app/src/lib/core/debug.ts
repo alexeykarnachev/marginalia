@@ -3,10 +3,22 @@
 import { getAllBooksMeta, getAllFolders } from './db';
 import { log } from './logger';
 
-/** Build a JSON string with the raw IndexedDB contents (books_meta + folders, no PDF data).
- *  Bypasses the in-memory library state so it reflects on-disk truth. */
+/** Build a JSON string with the raw IndexedDB contents (books_meta + folders).
+ *  Strips heavy fields (page text, cover image) — we only need the structural
+ *  metadata for debugging library state issues. */
 export async function buildDbDump(): Promise<{ json: string; books: number; folders: number }> {
-  const [books, folders] = await Promise.all([getAllBooksMeta(), getAllFolders()]);
+  const [rawBooks, folders] = await Promise.all([getAllBooksMeta(), getAllFolders()]);
+  const books = rawBooks.map(b => ({
+    id: b.id,
+    title: b.title,
+    filename: b.filename,
+    size: b.size,
+    folder_id: b.folder_id,
+    archived: b.archived,
+    createdAt: b.createdAt,
+    pages_count: Array.isArray(b.pages) ? b.pages.length : null,
+    has_cover: !!b.coverDataUrl,
+  }));
   const payload = {
     timestamp: new Date().toISOString(),
     books_count: books.length,
