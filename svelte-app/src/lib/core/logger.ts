@@ -21,10 +21,6 @@ export function getLogs(): string {
   return lines.join('\n');
 }
 
-export function copyLogs() {
-  navigator.clipboard.writeText(getLogs()).catch(() => {});
-}
-
 // Intercept console.warn to capture pdf.js warnings
 const origWarn = console.warn;
 console.warn = (...args: any[]) => {
