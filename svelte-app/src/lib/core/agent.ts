@@ -4,6 +4,7 @@
 
 import type { ChatMessage, AgentCallbacks } from '../types';
 import { getToolDefinitions, executeTool } from './tools';
+import { log } from './logger';
 import {
   AGENT_LLM_TIMEOUT_MS,
   MAX_AGENT_ITERATIONS,
@@ -282,6 +283,8 @@ export async function agentLoop(
   const tools = getToolDefinitions();
   let totalInputTokens = 0;
 
+  log('AGENT', `loop start: model=${model}, ${messages.length} msgs, ${tools.length} tools`);
+
   for (let i = 0; i < MAX_AGENT_ITERATIONS; i++) {
     // Compress old tool results from previous iterations (keeps latest round full)
     if (i > 0) _compressOldToolResults(messages);
@@ -307,6 +310,8 @@ export async function agentLoop(
       totalInputTokens += result.usage.prompt_tokens || 0;
       if (callbacks.onUsage) callbacks.onUsage(result.usage, result.model);
     }
+
+    log('AGENT', `iter ${i}: ${result.toolCalls.length} tool calls, content=${(result.content || '').length} chars, in=${result.usage?.prompt_tokens ?? '?'} out=${result.usage?.completion_tokens ?? '?'}`);
 
     // If the model wants to call tools
     if (result.toolCalls.length > 0) {
@@ -353,9 +358,11 @@ export async function agentLoop(
     }
 
     // No tool calls — final text response
+    log('AGENT', `loop done: final content=${(result.content || '').length} chars, total in=${totalInputTokens}`);
     return { content: result.content, messages };
   }
 
+  log('AGENT', `loop hit MAX_AGENT_ITERATIONS (${MAX_AGENT_ITERATIONS})`);
   return {
     content: '(Agent reached maximum iterations without producing a final response)',
     messages,

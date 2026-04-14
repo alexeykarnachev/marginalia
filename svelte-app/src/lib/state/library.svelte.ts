@@ -40,7 +40,11 @@ async function _mutate(apply: () => void, persist: () => Promise<void>, label: s
     try {
       _books = await getAllBooksMeta();
       _folders = await getAllFolders();
-    } catch {}
+      log('LIBRARY', `reload after ${label} failure: ${_books.length} books, ${_folders.length} folders`);
+    } catch (reloadErr) {
+      log('LIBRARY', `CRITICAL: reload after ${label} failure ALSO failed:`, reloadErr);
+      appStatus.notify(`Reload failed: ${formatError(reloadErr)}`, 'error');
+    }
   }
 }
 

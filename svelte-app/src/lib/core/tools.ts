@@ -5,6 +5,7 @@
 // by loading their data from IndexedDB and extracting text via pdf.js.
 
 import type { Book, Folder, ToolDefinition, LibraryContext } from '../types';
+import { log } from './logger';
 import {
   LS_DISABLED_TOOLS,
   PAGE_HISTORY_DISPLAY_LIMIT,
@@ -109,11 +110,22 @@ export function getAllTools(): { name: string; description: string; enabled: boo
 
 export async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
   const tool = toolRegistry.find((t) => t.name === name);
-  if (!tool) return `Error: unknown tool "${name}"`;
+  if (!tool) {
+    log('TOOL', `unknown tool "${name}"`);
+    return `Error: unknown tool "${name}"`;
+  }
+  const argsStr = (() => {
+    try { return JSON.stringify(args); } catch { return '[unserializable]'; }
+  })();
+  log('TOOL', `call ${name}(${argsStr.slice(0, 500)})`);
   try {
-    return await tool.handler(args);
+    const result = await tool.handler(args);
+    log('TOOL', `ok ${name} -> ${String(result).slice(0, 200)}`);
+    return result;
   } catch (err) {
-    return `Error executing ${name}: ${(err as Error).message}`;
+    const e = err as Error;
+    log('TOOL', `FAIL ${name}: ${e.name}: ${e.message}${e.stack ? '\n' + e.stack : ''}`);
+    return `Error executing ${name}: ${e.message}`;
   }
 }
 
