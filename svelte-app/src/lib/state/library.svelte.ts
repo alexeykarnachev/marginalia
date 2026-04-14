@@ -66,12 +66,14 @@ export const library = {
   },
 
   /** Scan for orphaned books (books whose folder_id points to a non-existent folder)
-   *  and un-archive them and move them back to root. Returns the list of repaired titles. */
+   *  and move them back to root. Returns the list of repaired titles. */
   async repairOrphans(): Promise<string[]> {
     const folderIds = new Set(_folders.map(f => f.id));
     const orphans = _books.filter(b => b.folder_id && !folderIds.has(b.folder_id));
     if (orphans.length === 0) return [];
-    const fixed: BookMeta[] = orphans.map(b => ({ ...b, folder_id: null }));
+    // $state.snapshot strips Svelte reactive proxies — required for structured
+    // clone (IndexedDB) to accept the object, otherwise DataCloneError.
+    const fixed: BookMeta[] = orphans.map(b => ({ ...$state.snapshot(b), folder_id: null }));
     await _mutate(
       () => {
         const idSet = new Set(fixed.map(f => f.id));
@@ -90,7 +92,7 @@ export const library = {
   async unarchiveAll(): Promise<number> {
     const archived = _books.filter(b => b.archived);
     if (archived.length === 0) return 0;
-    const fixed: BookMeta[] = archived.map(b => ({ ...b, archived: false }));
+    const fixed: BookMeta[] = archived.map(b => ({ ...$state.snapshot(b), archived: false }));
     await _mutate(
       () => {
         const idSet = new Set(fixed.map(f => f.id));
@@ -140,7 +142,9 @@ export const library = {
           const patch = patchMap.get(b.id);
           if (patch) {
             const updated = { ...b, ...patch };
-            metas.push(updated);
+            // Snapshot before pushing to the persist list so IndexedDB
+            // sees a plain object rather than a Svelte reactive proxy.
+            metas.push($state.snapshot(updated) as BookMeta);
             return updated;
           }
           return b;
@@ -152,11 +156,13 @@ export const library = {
   },
 
   async saveBooksMetaBatch(metas: BookMeta[]) {
-    const idSet = new Set(metas.map(m => m.id));
-    const metaMap = new Map(metas.map(m => [m.id, m]));
+    // Snapshot incoming metas in case the caller passed reactive refs.
+    const plain = metas.map(m => $state.snapshot(m) as BookMeta);
+    const idSet = new Set(plain.map(m => m.id));
+    const metaMap = new Map(plain.map(m => [m.id, m]));
     await _mutate(
       () => { _books = _books.map(b => idSet.has(b.id) ? metaMap.get(b.id)! : b); },
-      () => dbSaveBooksMetaBatch(metas),
+      () => dbSaveBooksMetaBatch(plain),
       'Batch save books',
     );
   },
