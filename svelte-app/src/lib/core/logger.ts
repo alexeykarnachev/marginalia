@@ -28,6 +28,8 @@ console.warn = (...args: any[]) => {
   origWarn.apply(console, args);
 };
 
-// Intercept errors
-window.addEventListener('error', (e) => log('ERROR', e.message, e.filename, e.lineno));
-window.addEventListener('unhandledrejection', (e) => log('REJECT', e.reason));
+// Intercept errors (browser-only — skip under Node.js test runs)
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('error', (e) => log('ERROR', e.message, e.filename, e.lineno));
+  window.addEventListener('unhandledrejection', (e) => log('REJECT', e.reason));
+}

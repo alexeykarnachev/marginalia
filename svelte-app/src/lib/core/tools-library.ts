@@ -1,6 +1,29 @@
-import type { BookMeta } from '../types';
+import type { BookMeta, Folder } from '../types';
 import type { ToolRegistrar, ToolRegistrationHelpers } from './tools-shared';
-import { library } from '../state/library.svelte';
+import { buildLibraryTree } from './library-tree';
+import { log } from './logger';
+
+/** Find and repair orphaned books (books whose folder_id points to a non-existent folder).
+ *  Returns the list of repaired book titles so callers can report what happened. */
+export async function repairOrphans(helpers: ToolRegistrationHelpers): Promise<string[]> {
+  const [books, folders] = await Promise.all([helpers.getAllBooksMeta(), helpers.getAllFolders()]);
+  const folderIds = new Set(folders.map(f => f.id));
+  const orphans = books.filter(b => b.folder_id && !folderIds.has(b.folder_id));
+  if (orphans.length === 0) return [];
+  const fixed: BookMeta[] = orphans.map(b => ({ ...b, folder_id: null }));
+  await helpers.saveBooksMetaBatch(fixed);
+  const titles = orphans.map(b => b.title);
+  log('LIBRARY', `repaired ${orphans.length} orphan book(s): ${titles.join(', ')}`);
+  return titles;
+}
+
+/** Format a short suffix describing orphan-repair results, for inclusion in tool result strings. */
+export function orphanSuffix(titles: string[]): string {
+  if (titles.length === 0) return '';
+  const preview = titles.slice(0, 3).join(', ');
+  const more = titles.length > 3 ? ` (+${titles.length - 3} more)` : '';
+  return ` [Integrity check: auto-repaired ${titles.length} orphan(s) back to root: ${preview}${more}]`;
+}
 
 export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegistrationHelpers): void {
   register({
@@ -8,7 +31,11 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
     description: 'Get the full library tree showing all folders and books with their IDs, sizes, and page counts.',
     parameters: { type: 'object', properties: {}, required: [] },
     handler: async () => {
-      return library.libraryTree || '(empty library)';
+      const [books, folders] = await Promise.all([
+        helpers.getAllBooksMeta(),
+        helpers.getAllFolders(),
+      ]);
+      return buildLibraryTree(books, folders) || '(empty library)';
     },
   });
 
@@ -48,13 +75,17 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
     handler: async ({ book_id, folder_id }: { book_id: string; folder_id: string | null }) => {
       const meta = await helpers.getBookMeta(book_id);
       if (!meta) return `Error: book "${book_id}" not found`;
+      let destName = 'root';
       if (folder_id) {
         const folder = await helpers.getFolder(folder_id);
         if (!folder) return `Error: folder "${folder_id}" not found`;
+        destName = `folder "${folder.name}"`;
       }
       await helpers.updateBookMeta(book_id, { folder_id: folder_id || null });
-      const dest = folder_id ? `folder "${(await helpers.getFolder(folder_id))!.name}"` : 'root';
-      return `Moved "${meta.title}" to ${dest}`;
+      const repaired = await repairOrphans(helpers);
+      const allMeta = await helpers.getAllBooksMeta();
+      const destCount = allMeta.filter(b => (b.folder_id || null) === (folder_id || null)).length;
+      return `Moved "${meta.title}" to ${destName}. ${destName} now contains ${destCount} book(s).${orphanSuffix(repaired)}`;
     },
   });
 
@@ -72,7 +103,8 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       await helpers.deleteBook(book_id);
       helpers.deleteChat(book_id);
       helpers.deleteBookData(book_id);
-      return `Deleted "${meta.title}"`;
+      const remaining = (await helpers.getAllBooksMeta()).length;
+      return `Deleted "${meta.title}". ${remaining} book(s) remain in the library.`;
     },
   });
 
@@ -124,33 +156,81 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
     },
   });
 
-  async function reparentFolderContents(folderId: string, newParentId: string | null): Promise<void> {
+  async function reparentFolderContents(
+    folderId: string,
+    newParentId: string | null
+  ): Promise<{ books: BookMeta[]; folders: Folder[] }> {
+    // Clone the filtered records so we don't mutate reactive state in place.
     const allMeta = await helpers.getAllBooksMeta();
-    const booksToSave = allMeta.filter(b => b.folder_id === folderId);
-    for (const b of booksToSave) b.folder_id = newParentId;
-    await helpers.saveBooksMetaBatch(booksToSave);
+    const booksToSave: BookMeta[] = allMeta
+      .filter(b => b.folder_id === folderId)
+      .map(b => ({ ...b, folder_id: newParentId }));
+    if (booksToSave.length > 0) await helpers.saveBooksMetaBatch(booksToSave);
 
     const folders = await helpers.getAllFolders();
-    const foldersToSave = folders.filter(f => f.parent_id === folderId);
-    for (const f of foldersToSave) f.parent_id = newParentId;
-    await helpers.saveFolders(foldersToSave);
+    const foldersToSave: Folder[] = folders
+      .filter(f => f.parent_id === folderId)
+      .map(f => ({ ...f, parent_id: newParentId }));
+    if (foldersToSave.length > 0) await helpers.saveFolders(foldersToSave);
+
+    return { books: booksToSave, folders: foldersToSave };
   }
 
   register({
     name: 'delete_folder',
-    description: 'Delete a folder. Contents (books and subfolders) move to the parent folder.',
+    description:
+      'Delete a folder. Refuses to delete a non-empty folder unless recursive=true. ' +
+      'When recursive=true, contents (books and subfolders) are moved to the parent folder before deletion.',
     parameters: {
       type: 'object',
-      properties: { folder_id: { type: 'string', description: 'Folder ID' } },
+      properties: {
+        folder_id: { type: 'string', description: 'Folder ID' },
+        recursive: {
+          type: 'boolean',
+          description:
+            'If true, reparent contents to the parent folder before deletion. ' +
+            'If false or omitted, the folder must be empty or the call will fail.',
+        },
+      },
       required: ['folder_id'],
     },
-    handler: async ({ folder_id }: { folder_id: string }) => {
+    handler: async ({
+      folder_id,
+      recursive,
+    }: {
+      folder_id: string;
+      recursive?: boolean;
+    }) => {
       const folder = await helpers.getFolder(folder_id);
       if (!folder) return `Error: folder "${folder_id}" not found`;
       const parentId = folder.parent_id || null;
-      await reparentFolderContents(folder_id, parentId);
+
+      const allBooks = await helpers.getAllBooksMeta();
+      const allFolders = await helpers.getAllFolders();
+      const childBooks = allBooks.filter(b => b.folder_id === folder_id);
+      const childFolders = allFolders.filter(f => f.parent_id === folder_id);
+
+      if ((childBooks.length > 0 || childFolders.length > 0) && !recursive) {
+        const bookList = childBooks.slice(0, 5).map(b => `"${b.title}"`).join(', ');
+        const moreBooks = childBooks.length > 5 ? ` (+${childBooks.length - 5} more)` : '';
+        const folderList = childFolders.map(f => `"${f.name}"`).join(', ');
+        return (
+          `Error: folder "${folder.name}" is not empty ` +
+          `(${childBooks.length} book(s), ${childFolders.length} subfolder(s)). ` +
+          `To delete anyway, pass recursive=true. ` +
+          `Books: ${bookList}${moreBooks}. Subfolders: ${folderList || 'none'}.`
+        );
+      }
+
+      const reparented = await reparentFolderContents(folder_id, parentId);
       await helpers.deleteFolder(folder_id);
-      return `Deleted folder "${folder.name}"`;
+      const repaired = await repairOrphans(helpers);
+      const destName = parentId ? `parent folder "${folder.name}"` : 'root';
+      const moved =
+        reparented.books.length === 0 && reparented.folders.length === 0
+          ? ''
+          : ` Reparented ${reparented.books.length} book(s) and ${reparented.folders.length} subfolder(s) to ${destName}.`;
+      return `Deleted folder "${folder.name}".${moved}${orphanSuffix(repaired)}`;
     },
   });
 
@@ -226,9 +306,11 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
       required: ['book_ids', 'folder_id'],
     },
     handler: async ({ book_ids, folder_id }: { book_ids: string[]; folder_id: string | null }) => {
+      let destName = 'root';
       if (folder_id) {
         const folder = await helpers.getFolder(folder_id);
         if (!folder) return `Error: folder "${folder_id}" not found`;
+        destName = `folder "${folder.name}"`;
       }
       const results: string[] = [];
       const metasToSave: BookMeta[] = [];
@@ -238,13 +320,17 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
           results.push(`${id}: not found`);
           continue;
         }
-        meta.folder_id = folder_id || null;
-        metasToSave.push(meta);
+        metasToSave.push({ ...meta, folder_id: folder_id || null });
         results.push(`"${meta.title}": moved`);
       }
-      await helpers.saveBooksMetaBatch(metasToSave);
-      const dest = folder_id ? `folder "${(await helpers.getFolder(folder_id))!.name}"` : 'root';
-      return `Moved ${book_ids.length} book(s) to ${dest}:\n${results.join('\n')}`;
+      if (metasToSave.length > 0) await helpers.saveBooksMetaBatch(metasToSave);
+      const repaired = await repairOrphans(helpers);
+      const allMeta = await helpers.getAllBooksMeta();
+      const destCount = allMeta.filter(b => (b.folder_id || null) === (folder_id || null)).length;
+      return (
+        `Moved ${metasToSave.length}/${book_ids.length} book(s) to ${destName}. ` +
+        `${destName} now contains ${destCount} book(s).\n${results.join('\n')}${orphanSuffix(repaired)}`
+      );
     },
   });
 
@@ -279,12 +365,11 @@ export function registerLibraryTools(register: ToolRegistrar, helpers: ToolRegis
           continue;
         }
         const old = meta.title;
-        meta.title = new_title;
-        metasToSave.push(meta);
+        metasToSave.push({ ...meta, title: new_title });
         results.push(`"${old}" -> "${new_title}"`);
       }
-      await helpers.saveBooksMetaBatch(metasToSave);
-      return `Renamed ${renames.length} book(s):\n${results.join('\n')}`;
+      if (metasToSave.length > 0) await helpers.saveBooksMetaBatch(metasToSave);
+      return `Renamed ${metasToSave.length}/${renames.length} book(s):\n${results.join('\n')}`;
     },
   });
 }

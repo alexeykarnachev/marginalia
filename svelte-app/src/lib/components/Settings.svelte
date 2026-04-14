@@ -2,6 +2,7 @@
   import { settings } from '../state/settings.svelte';
   import { getLogs } from '../core/logger';
   import { buildDbDump, copyTextViaPromise } from '../core/debug';
+  import { library } from '../state/library.svelte';
   import Modal from './Modal.svelte';
 
   let {
@@ -15,12 +16,16 @@
   let apiKey = $state(settings.apiKey);
   let logsLabel = $state('Copy logs');
   let dbLabel = $state('Copy DB');
+  let repairLabel = $state('Repair library');
+  let unarchiveAll = $state(false);
 
   $effect(() => {
     if (open) {
       apiKey = settings.apiKey;
       logsLabel = 'Copy logs';
       dbLabel = 'Copy DB';
+      repairLabel = 'Repair library';
+      unarchiveAll = false;
     }
   });
 
@@ -68,6 +73,24 @@
       });
     dbLabel = 'Copying...';
   }
+
+  async function handleRepair() {
+    repairLabel = 'Repairing...';
+    try {
+      const orphans = await library.repairOrphans();
+      let unarchived = 0;
+      if (unarchiveAll) {
+        unarchived = await library.unarchiveAll();
+      }
+      const parts: string[] = [];
+      parts.push(`${orphans.length} orphan(s)`);
+      if (unarchiveAll) parts.push(`${unarchived} unarchived`);
+      repairLabel = `Done: ${parts.join(', ')}`;
+    } catch (err) {
+      repairLabel = 'Failed: ' + (err as Error).message;
+    }
+    setTimeout(() => { repairLabel = 'Repair library'; }, 3000);
+  }
 </script>
 
 <Modal {open} {onClose}>
@@ -81,6 +104,16 @@
     <div class="settings-debug-row">
       <button class="prompt-btn" onclick={handleCopyLogs}>{logsLabel}</button>
       <button class="prompt-btn" onclick={handleCopyDb}>{dbLabel}</button>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-label">Recovery</div>
+    <label class="settings-check">
+      <input type="checkbox" bind:checked={unarchiveAll} />
+      Also unarchive all archived books
+    </label>
+    <div class="settings-debug-row">
+      <button class="prompt-btn" onclick={handleRepair}>{repairLabel}</button>
     </div>
   </div>
   <div class="prompt-buttons">
@@ -122,5 +155,14 @@
   .settings-debug-row {
     display: flex;
     gap: 8px;
+  }
+
+  .settings-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--m-fg-muted);
+    margin-bottom: 8px;
   }
 </style>

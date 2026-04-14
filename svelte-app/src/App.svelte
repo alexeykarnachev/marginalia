@@ -48,6 +48,15 @@
     void (async () => {
       try {
         await library.load();
+        const repaired = await library.repairOrphans();
+        if (repaired.length > 0) {
+          const preview = repaired.slice(0, 3).join(', ');
+          const more = repaired.length > 3 ? ` (+${repaired.length - 3} more)` : '';
+          appStatus.notify(
+            `Library integrity check: recovered ${repaired.length} orphaned book(s) to root: ${preview}${more}`,
+            'info',
+          );
+        }
         await loadDefaultBook();
         if (router.activeBookId && !library.books.some(b => b.id === router.activeBookId)) {
           router.navigateToLibrary();

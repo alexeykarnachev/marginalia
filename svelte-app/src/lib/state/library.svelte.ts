@@ -65,6 +65,45 @@ export const library = {
     log('LIBRARY', 'load DONE', _books.length, 'books', _folders.length, 'folders');
   },
 
+  /** Scan for orphaned books (books whose folder_id points to a non-existent folder)
+   *  and un-archive them and move them back to root. Returns the list of repaired titles. */
+  async repairOrphans(): Promise<string[]> {
+    const folderIds = new Set(_folders.map(f => f.id));
+    const orphans = _books.filter(b => b.folder_id && !folderIds.has(b.folder_id));
+    if (orphans.length === 0) return [];
+    const fixed: BookMeta[] = orphans.map(b => ({ ...b, folder_id: null }));
+    await _mutate(
+      () => {
+        const idSet = new Set(fixed.map(f => f.id));
+        const map = new Map(fixed.map(f => [f.id, f]));
+        _books = _books.map(b => idSet.has(b.id) ? map.get(b.id)! : b);
+      },
+      () => dbSaveBooksMetaBatch(fixed),
+      'Repair orphans',
+    );
+    const titles = orphans.map(b => b.title);
+    log('LIBRARY', `repaired ${orphans.length} orphan(s): ${titles.join(', ')}`);
+    return titles;
+  },
+
+  /** Un-archive every archived book. Returns the count. */
+  async unarchiveAll(): Promise<number> {
+    const archived = _books.filter(b => b.archived);
+    if (archived.length === 0) return 0;
+    const fixed: BookMeta[] = archived.map(b => ({ ...b, archived: false }));
+    await _mutate(
+      () => {
+        const idSet = new Set(fixed.map(f => f.id));
+        const map = new Map(fixed.map(f => [f.id, f]));
+        _books = _books.map(b => idSet.has(b.id) ? map.get(b.id)! : b);
+      },
+      () => dbSaveBooksMetaBatch(fixed),
+      'Unarchive all',
+    );
+    log('LIBRARY', `unarchived ${archived.length} book(s)`);
+    return archived.length;
+  },
+
   // --- Book mutations ---
 
   async addBook(book: Book) {
