@@ -8,10 +8,12 @@
   import { router } from '../lib/state/router.svelte';
   import type { ChatState } from '../lib/state/chat.svelte';
   import type { ChatManager } from '../lib/state/chat-manager.svelte';
-  import { deleteChat } from '../lib/core/chat-registry';
+  import { bookScope, clearScopeActive, libraryScope } from '../lib/core/chat-registry';
+  import { onMount } from 'svelte';
   import { sendChatMessage } from '../lib/core/chat-send';
   import { indexBook } from '../lib/core/indexer';
   import { buildLibraryAssistantPrompt } from '../lib/core/system-prompts';
+  import { log } from '../lib/core/logger';
   import type { BookMeta, Folder } from '../lib/types';
   import { LS_LIB_CHAT_OPEN, LS_LIB_CHAT_WIDTH } from '../lib/core/constants';
 
@@ -27,6 +29,10 @@
 
   let settingsOpen = $state(false);
 
+  onMount(() => {
+    chatManager.setScope(libraryScope());
+  });
+
   async function handleRenameBook(book: BookMeta) {
     const name = prompt('Rename book:', book.title);
     if (name && name.trim()) {
@@ -37,8 +43,8 @@
   async function handleDeleteBook(book: BookMeta) {
     if (!confirm(`Delete "${book.title}"?`)) return;
     await library.deleteBook(book.id);
-    deleteChat(book.id);
-    chatManager.init();
+    // Book gone — forget any per-book active-chat pointer aimed at it.
+    clearScopeActive(bookScope(book.id));
   }
 
   async function handleMoveBook(book: BookMeta) {
@@ -107,7 +113,9 @@
       folder_id: router.currentFolderId,
       createdAt: Date.now(),
     });
-    indexBook(id).then(() => library.load());
+    indexBook(id)
+      .then(() => library.load())
+      .catch((err) => log('LIBRARY', `indexBook(${id}) failed:`, err));
   }
 
   function handleUploadInput(e: Event) {

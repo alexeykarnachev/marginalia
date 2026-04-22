@@ -57,6 +57,8 @@ export const LS_SORT = 'marginalia_sort';
 export const LS_SORT_ASC = 'marginalia_sort_asc';
 export const LS_SHOW_ARCHIVED = 'marginalia_show_archived';
 export const LS_ZOOM = 'marginalia_zoom';
+export const LS_CHAT_SCOPE_MODE = 'marginalia_chat_scope_mode';
+export const LS_ACTIVE_CHAT_GLOBAL = 'marginalia_active_chat';
 
 // localStorage key builders (per-book)
 export const lsChatKey = (bookId: string) => `marginalia_chat_${bookId}`;
@@ -65,4 +67,5 @@ export const lsPromptKey = (bookId: string) => `marginalia_prompt_${bookId}`;
 export const lsChatPromptKey = (chatId: string) => `marginalia_chat_prompt_${chatId}`;
 export const lsCompactPromptKey = (bookId: string) => `marginalia_compact_prompt_${bookId}`;
 export const lsProgressKey = (bookId: string) => `marginalia_progress_${bookId}`;
+export const lsActiveChatScopedKey = (scope: string) => `marginalia_active_chat:${scope}`;
 

@@ -22,6 +22,7 @@
   import { buildReadingAssistantPrompt } from '../lib/core/system-prompts';
   import { sendChatMessage } from '../lib/core/chat-send';
   import { createViewerSession } from './viewer-session';
+  import { bookScope } from '../lib/core/chat-registry';
   import {
     LS_VIEWER_CHAT_WIDTH,
     LS_CHAT_OPEN,
@@ -42,6 +43,10 @@
     chatState: ChatState;
     chatManager: ChatManager;
   } = $props();
+
+  $effect(() => {
+    if (bookId) chatManager.setScope(bookScope(bookId));
+  });
 
   let bookTitle = $state('');
   let currentPage = $state(0);

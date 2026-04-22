@@ -100,6 +100,19 @@
     <input type="text" class="prompt-textarea settings-input" bind:value={apiKey} placeholder="sk-or-v1-..." />
   </label>
   <div class="settings-section">
+    <div class="settings-section-label">Chats</div>
+    <label class="settings-check">
+      <input
+        type="checkbox"
+        checked={settings.chatScopeMode === 'per-book'}
+        onchange={(e) => {
+          settings.chatScopeMode = (e.currentTarget as HTMLInputElement).checked ? 'per-book' : 'global';
+        }}
+      />
+      Remember the last chat per book (otherwise: one shared recent chat)
+    </label>
+  </div>
+  <div class="settings-section">
     <div class="settings-section-label">Debug</div>
     <div class="settings-debug-row">
       <button class="prompt-btn" onclick={handleCopyLogs}>{logsLabel}</button>

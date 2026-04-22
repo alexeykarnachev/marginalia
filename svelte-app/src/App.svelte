@@ -43,6 +43,8 @@
     applyTheme();
     router.init();
     setOnBookChangeFn((bookId: string) => router.navigateToViewer(bookId));
+    // Seed chat registry. Each view will call chatManager.setScope(...) on mount
+    // to pick the right active chat for its scope.
     chatManager.init();
 
     void (async () => {

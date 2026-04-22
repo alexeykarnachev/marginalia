@@ -188,7 +188,9 @@ export const library = {
   async updateFolder(id: string, patch: Partial<Folder>) {
     const folder = _folders.find(f => f.id === id);
     if (!folder) return;
-    const updated = { ...folder, ...patch };
+    // Snapshot before spread — otherwise the updated object inherits reactive
+    // proxy refs and IndexedDB rejects it with DataCloneError.
+    const updated: Folder = { ...$state.snapshot(folder), ...patch };
     await _mutate(
       () => { _folders = _folders.map(f => f.id === id ? updated : f); },
       () => dbSaveFolder(updated),
@@ -205,11 +207,13 @@ export const library = {
   },
 
   async saveFoldersBatch(folders: Folder[]) {
-    const idSet = new Set(folders.map(f => f.id));
-    const folderMap = new Map(folders.map(f => [f.id, f]));
+    // Snapshot incoming folders in case the caller passed reactive refs.
+    const plain = folders.map(f => $state.snapshot(f) as Folder);
+    const idSet = new Set(plain.map(f => f.id));
+    const folderMap = new Map(plain.map(f => [f.id, f]));
     await _mutate(
       () => { _folders = _folders.map(f => idSet.has(f.id) ? folderMap.get(f.id)! : f); },
-      () => dbSaveFolders(folders),
+      () => dbSaveFolders(plain),
       'Batch save folders',
     );
   },

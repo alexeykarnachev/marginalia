@@ -1,9 +1,26 @@
 // Chat registry — manages the list of user-created chats.
 // Each chat has an id, name, and timestamp. Messages stored separately via lsChatKey.
 
-import { lsChatKey, lsStatsKey, lsChatPromptKey, lsCompactPromptKey } from './constants';
+import {
+  lsChatKey,
+  lsStatsKey,
+  lsChatPromptKey,
+  lsCompactPromptKey,
+  lsActiveChatScopedKey,
+  LS_ACTIVE_CHAT_GLOBAL,
+} from './constants';
 
 const LS_REGISTRY = 'marginalia_chats';
+
+/** Scope for the active-chat pointer.
+ *  null  — global (back-compat, single pointer).
+ *  'library' — library view in per-book mode.
+ *  'book:<id>' — viewer for a specific book in per-book mode.
+ */
+export type ChatScope = string | null;
+
+export function libraryScope(): string { return 'library'; }
+export function bookScope(bookId: string): string { return `book:${bookId}`; }
 
 export interface ChatEntry {
   id: string;
@@ -55,16 +72,35 @@ export function deleteChat(id: string): void {
   localStorage.removeItem(lsStatsKey(id));
   localStorage.removeItem(lsChatPromptKey(id));
   localStorage.removeItem(lsCompactPromptKey(id));
-}
-
-export function getActiveChat(): string | null {
-  return localStorage.getItem('marginalia_active_chat') || null;
-}
-
-export function setActiveChat(id: string | null): void {
-  if (id) {
-    localStorage.setItem('marginalia_active_chat', id);
-  } else {
-    localStorage.removeItem('marginalia_active_chat');
+  // Scrub any active-chat pointer that points at this chat.
+  if (localStorage.getItem(LS_ACTIVE_CHAT_GLOBAL) === id) {
+    localStorage.removeItem(LS_ACTIVE_CHAT_GLOBAL);
   }
+  const prefix = 'marginalia_active_chat:';
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(prefix) && localStorage.getItem(key) === id) {
+      localStorage.removeItem(key);
+    }
+  }
+}
+
+export function getActiveChat(scope: ChatScope = null): string | null {
+  if (scope) return localStorage.getItem(lsActiveChatScopedKey(scope)) || null;
+  return localStorage.getItem(LS_ACTIVE_CHAT_GLOBAL) || null;
+}
+
+export function setActiveChat(id: string | null, scope: ChatScope = null): void {
+  const key = scope ? lsActiveChatScopedKey(scope) : LS_ACTIVE_CHAT_GLOBAL;
+  if (id) {
+    localStorage.setItem(key, id);
+  } else {
+    localStorage.removeItem(key);
+  }
+}
+
+/** Forget the per-scope active-chat pointer (e.g. when the book it belongs to
+ *  has been deleted). Safe to call for any scope. */
+export function clearScopeActive(scope: string): void {
+  localStorage.removeItem(lsActiveChatScopedKey(scope));
 }

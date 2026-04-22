@@ -6,11 +6,14 @@ import {
   LS_MODELS,
   LS_CHAT_FONT,
   LS_CHAT_MONO,
+  LS_CHAT_SCOPE_MODE,
   DEFAULT_CHAT_FONT_SIZE,
   lsPromptKey,
   lsChatPromptKey,
   lsCompactPromptKey,
 } from '../core/constants';
+
+export type ChatScopeMode = 'global' | 'per-book';
 
 function loadValue<T>(key: string, defaultValue: T): T {
   const stored = localStorage.getItem(key);
@@ -22,6 +25,15 @@ function loadValue<T>(key: string, defaultValue: T): T {
 
 let _theme = $state(loadValue(LS_THEME, 'dark'));
 let _apiKey = $state(loadValue(LS_API_KEY, ''));
+
+function loadChatScopeMode(): ChatScopeMode {
+  const raw = localStorage.getItem(LS_CHAT_SCOPE_MODE);
+  return raw === 'per-book' ? 'per-book' : 'global';
+}
+let _chatScopeMode = $state<ChatScopeMode>(loadChatScopeMode());
+
+type ChatScopeModeListener = (mode: ChatScopeMode) => void;
+const _chatScopeModeListeners = new Set<ChatScopeModeListener>();
 
 function loadModels(): { models: string[]; active: number } {
   try {
@@ -83,6 +95,20 @@ export const settings = {
       _activeModelIndex = Math.max(0, _models.length - 1);
     }
     saveModels();
+  },
+
+  get chatScopeMode(): ChatScopeMode { return _chatScopeMode; },
+  set chatScopeMode(v: ChatScopeMode) {
+    if (v !== 'global' && v !== 'per-book') return;
+    if (_chatScopeMode === v) return;
+    _chatScopeMode = v;
+    localStorage.setItem(LS_CHAT_SCOPE_MODE, v);
+    for (const fn of _chatScopeModeListeners) fn(v);
+  },
+
+  onChatScopeModeChange(fn: ChatScopeModeListener): () => void {
+    _chatScopeModeListeners.add(fn);
+    return () => { _chatScopeModeListeners.delete(fn); };
   },
 };
 
