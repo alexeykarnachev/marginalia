@@ -129,15 +129,20 @@
       isAtBottom = false;
     }
 
-    // ResizeObserver: detect content height changes
+    // ResizeObserver: detect content height changes.
+    // Defer DOM writes to next frame so we don't mutate layout inside the RO
+    // callback — that triggers "ResizeObserver loop completed with undelivered
+    // notifications" in the browser.
     const ro = new ResizeObserver(() => {
       const newHeight = container.scrollHeight;
       const delta = newHeight - lastHeight;
       if (delta === 0) return;
-      if (isAtBottom) {
-        container.scrollTop = container.scrollHeight;
-      }
       lastHeight = newHeight;
+      if (isAtBottom) {
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+        });
+      }
     });
 
     ro.observe(container);
